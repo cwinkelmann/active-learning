@@ -1,7 +1,8 @@
 """
 Create patches from images and labels from hasty to be used in CVAT
+convert the iSAID data in coco format to usable patches of px size 1024x1024
 """
-
+import json
 
 import shutil
 
@@ -10,113 +11,53 @@ from pathlib import Path
 
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline
-from com.biospheredata.converter.HastyConverter import HastyConverter, hasty2coco, coco2yolo
+from com.biospheredata.converter.HastyConverter import HastyConverter, hasty2coco, coco2yolo, sample_coco, coco2hasty
 from com.biospheredata.types.serialisation import save_model_to_file
-
-## TODO Download annotations from hasty
-
-
-
-
-
-
-label_schema = {
-  "ground_truth": {
-    "type": "detection",  # Bounding box annotations
-    "classes": ["person", "car", "dog"],  # Classes for bounding boxes
-    "attributes": {
-      "iscrowd": {"type": "boolean", "default": False},
-      "confidence": {"type": "float", "default": 0.0}
-    }
-  },
-  "landmarks": {
-    "type": "keypoints",  # Point-based annotations
-    "classes": ["eye_left", "eye_right", "nose", "mouth_left", "mouth_right"],  # Point labels
-    "attributes": {
-      "visibility": {"type": "enum", "values": ["visible", "occluded", "not_visible"], "default": "visible"}
-    }
-  }
-}
-
-
-
 
 
 if __name__ == "__main__":
-    labels_path = Path("/Users/christian/data/training_data/2024_12_16")
-    hasty_annotations_labels_zipped = "labels_2024_12_16.zip"
-    hasty_annotations_images_zipped = "images_2024_12_16.zip"
+    # number of images
+    n = 2
+    iSAID_annotations_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/Datasets/iSAID/train/Annotations/iSAID_train.json')
+    isaid_images_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/Datasets/iSAID/DOTA/train/images')
+    with open(iSAID_annotations_path, "r") as f:
+        coco_data = json.load(f)
 
-    annotation_types = ["segmentation"]
-    class_filter = ["iguana"]
+    sampled_data = sample_coco(coco_data, n=n, method="random")
+
+    hA = coco2hasty(coco_data=sampled_data, images_path=isaid_images_path)
+
+    # hasty_annotations_labels_zipped = "labels_2024_12_16.zip"
+    # hasty_annotations_images_zipped = "images_2024_12_16.zip"
+
+    # annotation_types = ["segmentation"]
+    # class_filter = ["iguana"]
     class_filter = None
-
-    # annotation_types = ["point"]
-    # class_filter = ["iguana_point"]
-
-    # annotation_types = ["point", "box"]
-    # class_filter = ["iguana_point", "iguana"]
 
     crop_size = 1024
     overlap = 0
-
-
-
-    # datasets = [{
-    #     "dset": "train",
-    #     "images_filter": ["DJI_0432.JPG"],
-    #     "dataset_filter": ["FMO03"],
-    # },
-    #     {"dset": "val",
-    #      "images_filter": ["DJI_0465.JPG"],
-    #      "dataset_filter": ["FMO03"],
-    #      },
-    #     {"dset": "test",
-    #      "images_filter": ["DJI_0554.JPG"],
-    #      "dataset_filter": ["FMO03"]
-    #      }
-    # ]
 
     datasets = [{
         "dset": "train",
         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
         # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        "dataset_filter": ["FMO05"],
+        # "dataset_filter": ["FMO05"],
         # "num": 56,
     },
-        {"dset": "val",
-        # "images_filter": ["DJI_0465.JPG"],
-         "dataset_filter": ["FMO03"],
-         },
+        # {"dset": "val",
+        # # "images_filter": ["DJI_0465.JPG"],
+        #  "dataset_filter": ["FMO03"],
+        #  },
         # {"dset": "test",
         #  # "images_filter": ["DJI_0554.JPG"],
         #  "dataset_filter": ["FMO02"]
         #  }
     ]
 
-    # datasets = [{
-    #     "dset": "train",
-    #     # "images_filter": ["DJI_0432.JPG"],
-    #     # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"],
-    #     "dataset_filter": ["FMO05"],
-    #     "num": n
-    # } for n in range(11, 12)]
-    #
-    # datasets.append( {"dset": "val",
-    #     # "images_filter": ["DJI_0465.JPG"],
-    #      "dataset_filter": ["FMO03"],
-    #      })
-    # datasets.append(
-    #     {"dset": "test",
-    #      # "images_filter": ["DJI_0554.JPG"],
-    #      "dataset_filter": ["FMO02"]
-    #      })
 
     for dataset in datasets:  # , "val", "test"]:
         dset = dataset["dset"]
         num = dataset.get("num", None)
-        ifcn = ImageFilterConstantNum(num=num)
-
 
         output_path_train = labels_path / dset
         output_path_train.mkdir(exist_ok=True)
@@ -130,10 +71,8 @@ if __name__ == "__main__":
                               stage=dset,
                               output_path_train = output_path_train,
                               )
-        dp.dataset_filter = dataset["dataset_filter"]
 
         dp.images_filter = dataset.get("images_filter", None)
-        dp.images_filter_func = ifcn
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
         dp.empty_fraction = 0.0
