@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty
-from util.HastyAnnotationV2 import hA_from_file
+from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 
 #analysis_date = "2024_12_09"
 #base_path = Path(f"/Users/christian/data/training_data") / analysis_date

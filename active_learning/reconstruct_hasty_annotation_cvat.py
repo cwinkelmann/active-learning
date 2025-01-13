@@ -5,7 +5,7 @@ from pathlib import Path
 import fiftyone as fo
 import pandas as pd
 
-from util.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file
+from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file
 from util.util import visualise_polygons, visualise_image
 
 def cvat2hasty(hA_before_path, dataset_name):

@@ -9,10 +9,11 @@ from pathlib import Path
 import shapely
 from shapely.geometry import Polygon
 
-from com.biospheredata.converter.HastyConverter import coco2hasty, sample_coco
+from com.biospheredata.converter.HastyConverter import sample_coco
+from com.biospheredata.converter.converter import coco2hasty
 from conf.config_dataclass import CacheConfig
 from detection_deduplication import find_annotated_template_matches, cutout_detection_deduplication
-from image_template_search.util.HastyAnnotationV2 import hA_from_file, ImageLabel, HastyAnnotationV2
+from image_template_search.com.biospheredata.types.HastyAnnotationV2 import hA_from_file, ImageLabel, HastyAnnotationV2
 from image_template_search.util.util import visualise_image
 
 

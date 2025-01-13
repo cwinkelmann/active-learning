@@ -1,23 +1,18 @@
 """
 Create patches from images and labels from hasty to be used in CVAT
 """
-
-
 import shutil
 
 from loguru import logger
 from pathlib import Path
 
 from active_learning.filter import ImageFilterConstantNum
-from active_learning.pipelines.data_prep import DataprepPipeline
-from com.biospheredata.converter.HastyConverter import HastyConverter, hasty2coco, coco2yolo
+from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
+from com.biospheredata.converter.HastyConverter import HastyConverter
+from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.serialisation import save_model_to_file
-
+from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2
 ## TODO Download annotations from hasty
-
-
-
-
 
 
 label_schema = {
@@ -39,17 +34,17 @@ label_schema = {
 }
 
 
-
-
-
 if __name__ == "__main__":
-    labels_path = Path("/Users/christian/data/training_data/2024_12_16")
-    hasty_annotations_labels_zipped = "labels_2024_12_16.zip"
-    hasty_annotations_images_zipped = "images_2024_12_16.zip"
+    """ This only works if the input is a hasty zip file which is very constraining. """
+    labels_path = Path("/Users/christian/data/training_data/2025_01_11")
+    hasty_annotations_labels_zipped = "labels_segments.zip"
+    hasty_annotations_images_zipped = "images_segments.zip"
 
-    annotation_types = ["segmentation"]
+    # annotation_types = ["box"]
+    # annotation_types = [AnnotationType.BOUNDING_BOX]
+    annotation_types = [AnnotationType.POLYGON]
+
     class_filter = ["iguana"]
-    class_filter = None
 
     # annotation_types = ["point"]
     # class_filter = ["iguana_point"]
@@ -59,7 +54,6 @@ if __name__ == "__main__":
 
     crop_size = 1024
     overlap = 0
-
 
 
     # datasets = [{
@@ -81,12 +75,17 @@ if __name__ == "__main__":
         "dset": "train",
         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
         # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        "dataset_filter": ["FMO05"],
+        # "dataset_filter": ["FMO05"],
+        "dataset_filter": None,
         # "num": 56,
+        "output_path": labels_path,
     },
         {"dset": "val",
         # "images_filter": ["DJI_0465.JPG"],
-         "dataset_filter": ["FMO03"],
+         # "dataset_filter": ["FMO03"],
+         "dataset_filter": None,
+         "output_path": labels_path,
+
          },
         # {"dset": "test",
         #  # "images_filter": ["DJI_0554.JPG"],
@@ -116,19 +115,21 @@ if __name__ == "__main__":
         dset = dataset["dset"]
         num = dataset.get("num", None)
         ifcn = ImageFilterConstantNum(num=num)
+        # output_path = dataset["output_path"]
 
-
-        output_path_train = labels_path / dset
-        output_path_train.mkdir(exist_ok=True)
+        uA = UnpackAnnotations()
+        hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped= labels_path / hasty_annotations_labels_zipped,
+                       hasty_annotations_images_zipped = labels_path / hasty_annotations_images_zipped)
+        logger.info(f"Unzipped {len(hA.images)} images.")
+        output_path_dset = labels_path / dset
+        output_path_dset.mkdir(exist_ok=True)
 
         # TODO a config would be better than passing all these parameters
-        dp = DataprepPipeline(hasty_annotations_labels_zipped=hasty_annotations_labels_zipped,
-                              hasty_annotations_images_zipped=hasty_annotations_images_zipped,
+        dp = DataprepPipeline(annotations_labels=hA,
+                              images_path=images_path,
                               crop_size=crop_size,
                               overlap=overlap,
-                              labels_path=labels_path,
-                              stage=dset,
-                              output_path_train = output_path_train,
+                              output_path=output_path_dset,
                               )
         dp.dataset_filter = dataset["dataset_filter"]
 
@@ -139,33 +140,32 @@ if __name__ == "__main__":
         dp.empty_fraction = 0.0
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
-
         dp.run()
 
         hA = dp.get_hA()
-        dp.get_images()
+        aI = AnnotationsIntermediary()
+        logger.info(f"After processing {len(hA.images)} images remain")
+        if len(hA.images) == 0:
+            raise ValueError("No images left after filtering")
 
-        logger.info(f"Finished {dset} at {dp.output_path}")
+        aI.set_hasty_annotations(hA=hA)
+
+        coco_path = aI.coco(output_path_dset / "coco_crops" / "coco_format.json")
+        images_list = dp.get_images()
+
+        # aI.to_YOLO_annotations(output_path=output_path.parent / "yolo", images_list=images_list, coco_path=coco_path)
+
+        logger.info(f"Finished {dset} at {output_path_dset}")
         # TODO before uploading anything to CVAT labels need to be converted when necessary
+        hA.save(output_path_dset / "hasty_format_crops.json")
 
-        # HastyConverter.convert_to_herdnet_format(hA, output_file=dp.output_path / "herdnet_format.csv")
-
-        HastyConverter.convert_deep_forest(hA, output_file=dp.output_path / "deep_forest_format.csv")
-        coco_annotations = hasty2coco(hA)
-        coco_path = dp.output_path / "coco"
-        yolo_path = dp.output_path / "yolo"
-        coco_path.mkdir(exist_ok=True, parents=True)
-        yolo_path.mkdir(exist_ok=True, parents=True)
-
-        save_model_to_file(coco_annotations, coco_path / "coco_format.json")
-
-        coco2yolo(yolo_path=yolo_path, source_dir=dp.output_path,
-                  coco_annotations=coco_path, images=dp.get_images())
-        # HastyConverter.convert_to_yolo(hA, output_file=dp.output_path / "cvat_format.xml")
+        HastyConverter.convert_to_herdnet_format(hA, output_file=output_path_dset / "herdnet_format.csv")
+        HastyConverter.convert_deep_forest(hA, output_file=output_path_dset / "deep_forest_format.csv")
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
-        destination_path = output_path_train / f"crops_{crop_size}_num{num}_overlap{overlap}"
-        shutil.move(output_path_train / f"crops_{crop_size}", destination_path )
+        destination_path = output_path_dset / f"crops_{crop_size}_num{num}_overlap{overlap}"
+
+        shutil.move(output_path_dset / f"crops_{crop_size}", destination_path)
 
         logger.info(f"Moved to {destination_path}")

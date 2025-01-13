@@ -5,7 +5,7 @@ inspect annotations and correct them using cvat
 from pathlib import Path
 import fiftyone as fo
 from examples.review_annotations import debug_hasty_fiftyone, debug_hasty_fiftyone_v2
-from util.HastyAnnotationV2 import hA_from_file
+from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 
 # start with yolo
 
