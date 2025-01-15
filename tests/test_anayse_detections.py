@@ -31,6 +31,17 @@ def iSAID_annotations_path():
     return Path("/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/Datasets/iSAID/train/Annotations/iSAID_train.json")
 
 
+@pytest.fixture
+def herdnet_point_detections():
+    p = Path("/home/christian/hnee/HerdNet/data_iguana/val/20240824_HerdNet_results/20240824_detections.csv")
+
+
+@pytest.fixture
+def herdnet_ground_truth():
+    p = Path("/home/christian/hnee/HerdNet/data_iguana/val/herdnet_format.csv")
+
+
+
 
 
 def test_analyse_predictions():

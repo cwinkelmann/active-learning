@@ -45,9 +45,6 @@ def analyse_detections_yolo(image_path: Path, dataset: fo.Dataset):
     # assert r.to_dict(orient="records") == {} # TODO
 
 
-
-
-
     dataset = debug_hasty_fiftyone_v3(image_path=image_path, df_labels=r, dataset=dataset)
 
     return dataset

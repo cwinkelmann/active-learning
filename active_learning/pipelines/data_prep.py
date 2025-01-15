@@ -1,3 +1,7 @@
+import shutil
+
+import copy
+
 import typing
 from PIL import Image
 from loguru import logger
@@ -186,6 +190,8 @@ class DataprepPipeline(object):
         self.overlap = overlap
 
         self.hA = annotations_labels
+        self.hA_filtered = None
+        self.hA_crops = None
         # self.images_path = None
 
         self.output_path = output_path
@@ -225,21 +231,37 @@ class DataprepPipeline(object):
         if self.images_filter_func is not None:
             hA = self.images_filter_func(hA)
 
+        # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
+        ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training & copying so many images here is a waste of time
+        # TODO readd this
+        default_dataset_name = "Default"
+        flat_images_path = self.output_path.joinpath(default_dataset_name)
+
+        hA_flat = HastyConverter.copy_images_to_flat_structure(hA=hA,
+                                                               base_bath=self.images_path,
+                                                               folder_path=flat_images_path)
+
+        # Switch the image names to the ds_image_name
+        for v in hA_flat.images:
+            v.dataset_name = default_dataset_name
+            v.image_name = f"{v.ds_image_name}"
 
         hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
-        hA.save(self.output_path / hastyfilename)
-        # with open(self.output_path / hastyfilename, mode="w") as f:
-        #     f.write(hA.model_dump_json())
+        hA_flat.save(self.output_path / hastyfilename)
 
-        hA_crop = self.data_crop_pipeline(crop_size=self.crop_size, overlap=self.overlap, hA=hA)
+        self.hA_filtered = copy.deepcopy(hA_flat)
 
-        self.hA = hA_crop
+        hA_crop = self.data_crop_pipeline(crop_size=self.crop_size, overlap=self.overlap, hA=hA_flat, images_path=flat_images_path)
+
+        self.hA_crops = hA_crop
         return hA_crop
 
+    # TODO make this static
     def data_crop_pipeline(self,
                            overlap : int,
                            crop_size : int,
-                           hA: HastyAnnotationV2
+                           hA: HastyAnnotationV2,
+                           images_path: Path
                            ):
         """
         crop the images
@@ -263,9 +285,11 @@ class DataprepPipeline(object):
         # TODO: make a cropping function out of this
         for i in hA.images:
 
-            original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
+            # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
+            # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
 
-            padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
+            original_image_path = images_path / i.image_name
+            padded_image_path = full_images_path_padded / i.image_name
             padded_image_path.parent.mkdir(exist_ok=True, parents=True)
             new_width, new_height = pad_to_multiple(original_image_path,
                                                     padded_image_path,
@@ -280,25 +304,28 @@ class DataprepPipeline(object):
                                                  slice_width=crop_size,
                                                  overlap=overlap)
             logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
+
+            # TODO visualise the grid
             # axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
             # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
 
-            images, images_path = crop_out_images_v2(i, rasters=grid,
+            images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
                                                      full_image_path=padded_image_path,
                                                      output_path=self.train_images_output_path,
                                                      include_empty=self.empty_fraction)
             # image = Image.open(full_images_path / i.dataset_name / i.image_name)
             logger.info(f"Cropped {len(images)} images from {i.image_name}")
+
             # TODO is it a good idea to seperate the two functions?
             # images_path = crop_out_images_v3(image=image, rasters=grid )
 
             all_images.extend(images)
-            all_images_path.extend(images_path)
+            all_images_path.extend(cropped_images_path)
 
 
         hA.images = all_images
-        hA_regression = HastyAnnotationV2(
-            project_name="iguanas_regression",
+        hA_crops = HastyAnnotationV2(
+            project_name="crops",
             images=all_images,
             export_format_version="1.1",
             label_classes=hA.label_classes
@@ -307,10 +334,13 @@ class DataprepPipeline(object):
         self.augmented_images = all_images
         self.augmented_images_path = all_images_path
 
-        return hA_regression
+        return hA_crops
 
-    def get_hA(self) -> HastyAnnotationV2:
-        return self.hA
+    def get_hA_filtered(self) -> HastyAnnotationV2:
+        return self.hA_filtered
+
+    def get_hA_crops(self) -> HastyAnnotationV2:
+        return self.hA_crops
 
     def get_augmented_images(self):
         return self.augmented_images

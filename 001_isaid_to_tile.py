@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
         dp.run()
 
-        hA = dp.get_hA()
+        hA = dp.get_hA_crops()
         aI = AnnotationsIntermediary()
 
         # TODO do need the images path?
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
         # TODO make boxes out of masks
 
-        coco_path = aI.coco(output_path / "coco_crops" / "coco_format.json")
+        coco_path = aI.coco(output_path / "coco_format.json")
         images_list = dp.get_images()
 
         # aI.to_YOLO_annotations(output_path=output_path.parent / "yolo", images_list=images_list, coco_path=coco_path)

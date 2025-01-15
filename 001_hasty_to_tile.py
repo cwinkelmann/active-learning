@@ -15,44 +15,37 @@ from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotat
 ## TODO Download annotations from hasty
 
 
-label_schema = {
-  "ground_truth": {
-    "type": "detection",  # Bounding box annotations
-    "classes": ["person", "car", "dog"],  # Classes for bounding boxes
-    "attributes": {
-      "iscrowd": {"type": "boolean", "default": False},
-      "confidence": {"type": "float", "default": 0.0}
-    }
-  },
-  "landmarks": {
-    "type": "keypoints",  # Point-based annotations
-    "classes": ["eye_left", "eye_right", "nose", "mouth_left", "mouth_right"],  # Point labels
-    "attributes": {
-      "visibility": {"type": "enum", "values": ["visible", "occluded", "not_visible"], "default": "visible"}
-    }
-  }
-}
-
 
 if __name__ == "__main__":
     """ This only works if the input is a hasty zip file which is very constraining. """
-    labels_path = Path("/Users/christian/data/training_data/2025_01_11")
-    hasty_annotations_labels_zipped = "labels_segments.zip"
-    hasty_annotations_images_zipped = "images_segments.zip"
+
+    # labels_path = Path("/Users/christian/data/training_data/2025_01_11")
+    # hasty_annotations_labels_zipped = "labels_segments.zip"
+    # hasty_annotations_images_zipped = "images_segments.zip"
+    # annotation_types = [AnnotationType.POLYGON]
+    #
+    # labels_path = Path("/Users/christian/data/training_data/2024_12_09")
+    # hasty_annotations_labels_zipped = "FMO02_03_05_labels.zip"
+    # hasty_annotations_images_zipped = "FMO02_03_05_images.zip"
+    # annotation_types = [AnnotationType.BOUNDING_BOX]
+
+    # class_filter = ["iguana"]
+
+    labels_path = Path("/Users/christian/data/training_data/2024_12_09_debug")
+    hasty_annotations_labels_zipped = "FMO02_03_05_labels.zip"
+    hasty_annotations_images_zipped = "FMO02_03_05_images.zip"
+    annotation_types = [AnnotationType.KEYPOINT]
+
+    class_filter = ["iguana_point"]
 
     # annotation_types = ["box"]
-    # annotation_types = [AnnotationType.BOUNDING_BOX]
-    annotation_types = [AnnotationType.POLYGON]
-
-    class_filter = ["iguana"]
-
     # annotation_types = ["point"]
-    # class_filter = ["iguana_point"]
+
 
     # annotation_types = ["point", "box"]
     # class_filter = ["iguana_point", "iguana"]
 
-    crop_size = 1024
+    crop_size = 512
     overlap = 0
 
 
@@ -75,22 +68,23 @@ if __name__ == "__main__":
         "dset": "train",
         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
         # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        # "dataset_filter": ["FMO05"],
-        "dataset_filter": None,
-        # "num": 56,
+        "dataset_filter": ["FMO05"],
+        # "dataset_filter": None,
+        "num": 1,
         "output_path": labels_path,
     },
         {"dset": "val",
         # "images_filter": ["DJI_0465.JPG"],
-         # "dataset_filter": ["FMO03"],
-         "dataset_filter": None,
+         "dataset_filter": ["FMO03"],
+         # "dataset_filter": None,
          "output_path": labels_path,
 
          },
-        # {"dset": "test",
-        #  # "images_filter": ["DJI_0554.JPG"],
-        #  "dataset_filter": ["FMO02"]
-        #  }
+        {"dset": "test",
+         # "images_filter": ["DJI_0554.JPG"],
+         "dataset_filter": ["FMO02"],
+         "output_path": labels_path,
+         }
     ]
 
     # datasets = [{
@@ -142,30 +136,39 @@ if __name__ == "__main__":
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run()
 
-        hA = dp.get_hA()
+        hA_filtered = dp.get_hA_filtered()
+        HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / "herdnet_format.csv")
+
+        hA_crops = dp.get_hA_crops()
         aI = AnnotationsIntermediary()
-        logger.info(f"After processing {len(hA.images)} images remain")
-        if len(hA.images) == 0:
+        logger.info(f"After processing {len(hA_crops.images)} images remain")
+        if len(hA_crops.images) == 0:
             raise ValueError("No images left after filtering")
 
-        aI.set_hasty_annotations(hA=hA)
-
-        coco_path = aI.coco(output_path_dset / "coco_crops" / "coco_format.json")
+        aI.set_hasty_annotations(hA=hA_crops)
+        coco_path = aI.coco(output_path_dset / "coco_format.json")
         images_list = dp.get_images()
 
         # aI.to_YOLO_annotations(output_path=output_path.parent / "yolo", images_list=images_list, coco_path=coco_path)
 
         logger.info(f"Finished {dset} at {output_path_dset}")
         # TODO before uploading anything to CVAT labels need to be converted when necessary
-        hA.save(output_path_dset / "hasty_format_crops.json")
+        hA_crops.save(output_path_dset / "hasty_format_crops.json")
 
-        HastyConverter.convert_to_herdnet_format(hA, output_file=output_path_dset / "herdnet_format.csv")
-        HastyConverter.convert_deep_forest(hA, output_file=output_path_dset / "deep_forest_format.csv")
+        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv")
+
+        if annotation_types == [AnnotationType.BOUNDING_BOX]:
+            HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dset / "deep_forest_format_crops.csv")
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
         destination_path = output_path_dset / f"crops_{crop_size}_num{num}_overlap{overlap}"
 
+        try:
+            shutil.rmtree(destination_path)
+            logger.warning(f"Removed {destination_path}")
+        except FileNotFoundError:
+            pass
         shutil.move(output_path_dset / f"crops_{crop_size}", destination_path)
 
         logger.info(f"Moved to {destination_path}")
