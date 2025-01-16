@@ -197,7 +197,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
         err = len(df_fp_img) + len(df_tp_img) - len(gdf_gt)
         image_errors.append(err)
         logger.info(
-            f"False Positives: {len(df_fp_img)} True Positives: {len(df_tp_img)}, False Negatives: {len(df_fn_img)}, Ground Truth: {len(gdf_gt)}, Error: {err}")
+            f"{image}: False Positives: {len(df_fp_img)} True Positives: {len(df_tp_img)}, False Negatives: {len(df_fn_img)}, Ground Truth: {len(gdf_gt)}, Error: {err}")
 
         # Calculate mean error over all images.
         mean_error = np.mean(image_errors)

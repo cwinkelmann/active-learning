@@ -62,9 +62,17 @@ def draw_thumbnail(df, i, suffix):
 if __name__ == "__main__":
     # Create an empty dataset, TODO put this away so the dataset is just passed into this
 
+    # test dataset
     df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
     df_ground_truth = pd.read_csv('/Users/christian/data/training_data/2024_12_09_debug/test/herdnet_format.csv')
     images_path = Path("/Users/christian/data/training_data/2024_12_09_debug/test/Default")
+
+    # val dataset
+    df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/19-17-14/detections.csv')
+    df_ground_truth = pd.read_csv('/Users/christian/data/training_data/2024_12_09_debug/val/herdnet_format.csv')
+    images_path = Path("/Users/christian/data/training_data/2024_12_09_debug/val/Default")
+
+
     images = images_path.glob("*.JPG")
 
     # df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections(df_detections, df_ground_truth)
@@ -73,7 +81,7 @@ if __name__ == "__main__":
 
     logger.info(f"False Positives: {len(df_false_positives)} True Positives: {len(df_true_positives)}, False Negatives: {len(df_false_negatives)}, Ground Truth: {len(df_ground_truth)}")
 
-    box_size = 250
+    box_size = 350
 
     for i in images:
         df_fp = df_false_positives[df_false_positives.images == i.name]
@@ -86,7 +94,7 @@ if __name__ == "__main__":
 
 
 
-
+    # TODO: how can these be visualised in fiftyone and corrected
     # try:
     #     dataset = fo.load_dataset("test_evaluations")
     #     dataset.delete()
