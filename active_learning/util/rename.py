@@ -20,30 +20,10 @@ import typing
 
 from loguru import logger
 
-from active_learning.database import fix_date_format, rename_incorrect_folders, move_folders
+from active_learning.config.mapping import prefix_mapping
 
-prefix_mapping = {
-    "Española": "Esp_E",
-    "Fernandina": "Fer_FE",
-    "Floreana": "Flo_FL",
-    "Genovesa": "Gen_G",
-    "Isabela": "Isa_IS",
-    "Marchena": "Mar_M",
-    "Pinta": "Pin_P",
-    "Pinzón": "Pnz_PZ",
-    "Rábida": "Rab_RA",
-    "San Cristóbal": "Scris_SR",
-    "Santa Cruz": "Scruz_SC",
-    "Santa Fe": "SanFe_SF",
-    "Santiago": "Snt_ST",
-    "Wolf": "Wol_W",
-    "Bartolomé (Santiago)": "Snt_BT",
-    "Bainbridge (Santiago)": "Snt_BA",
-    "Beagles (Santiago)": "Snt_BE",
-    "Daphnes (Santa Cruz)": "Scruz_DA",
-    "Plazas (Santa Cruz)": "Scruz_PL",
-    "Seymour (Santa Cruz)": "Scruz_SE",
-}
+
+
 
 def image_plausibility_check(image: Path):
     """
@@ -55,11 +35,13 @@ def image_plausibility_check(image: Path):
     # TODO check certain metadata like ISO, exposure time, aperture
 
 
-def rename_single_image(island, mission_folder, image: Path):
+def rename_single_image(island, mission_folder: str, image: Path):
     # test if the current image fits the schema
 
     image_name_stem = image.stem
     image_suffix = image.suffix
+
+    assert isinstance(mission_folder, str), f"Mission folder {mission_folder} should be a string"
 
     image_name_split = image_name_stem.split("_")
 
@@ -98,6 +80,14 @@ def rename_single_image(island, mission_folder, image: Path):
         # looking for that stuff Flo_FLM05_DJI_0111_030221_condor.SRT
         return image.name
 
+def run_renaming(df_changed_images, new_path):
+    for _, row in df_changed_images.iterrows():
+        full_old_image_path = new_path / row.island / row.mission_folder / row['old_name']
+        full_new_image_path = new_path / row.island / row.mission_folder / row['new_name']
+        logger.info(f"Moving {full_old_image_path} to {full_new_image_path}")
+        # Create destination directory if it does not exist.
+        shutil.move(full_old_image_path, full_new_image_path)
+
 def rename_images(island, mission_folder, images_list: typing.List[Path]):
     """
     Rename images from DJI_XXXX.JPG to mission_date_mission_name_XXXX.JPG
@@ -114,63 +104,114 @@ def rename_images(island, mission_folder, images_list: typing.List[Path]):
 
     df_rename = pd.DataFrame({"old_name": [image.name for image in images_list],
                               "island": island,
-                                "mission_folder": mission_folder,
-                  "new_name": new_image_name_list})
+                              "mission_folder": mission_folder,
+                              "new_name": new_image_name_list})
 
     return df_rename
 
+def get_island_from_folder(folder: Path) -> str:
+    """
+    Get the island from the folder
+    :param folder:
+    :return:
+    """
+    mission_code_with_date = folder.parts[-1]
+    island = folder.parts[-2]
+    if not island in prefix_mapping.keys():
+        raise ValueError(f"Island {island} not in prefix mapping")
 
-if __name__ == "__main__":
+    return island, mission_code_with_date
 
-    base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/raw_photos_all_y")
-    new_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/01_cleaned_photos_all")
-    new_path.mkdir(exist_ok=True, parents=True)
-    # encode each Mission as a GeoreferencedImage
-    ## it should be as fast as possible
+def raw_folder_to_mission(raw_folder: Path) -> pd.DataFrame:
+    """
 
-    # save the GeoreferencedImages in a database
-    ##
-    df_data_changed = rename_incorrect_folders(base_path, new_path)
-    df_data_changed.to_csv(new_path / "folder_rename.csv")
-    move_folders(df_data_changed)
+    :param path_raw_data:
+    :return:
+    """
+    island, mission_code_with_date = get_island_from_folder(raw_folder)
+    site_code, date = mission_code_with_date.split("_")
 
-    ### Now do the same for image names
-    images_list = list(file for file in base_path.glob("*/*/*.JPG") if not file.name.startswith("._") )
-    image_names = [i.stem for i in images_list]
-    image_name_splits = [len(i.split("_")) for i in image_names]
-    df_image_data = pd.DataFrame({"Image": image_names,
-                                  "image_path": [i.parent.stem for i in images_list],
-                                  "island": [x.parent.parent.stem for x in images_list],
-                                  "Split": image_name_splits})
+    if len(date) != 8:
+        raise ValueError(f"Date {date} does not have 8 digits")
+    images_list = list(raw_folder.glob("*.JPG"))
+    df_rename = rename_images(island,
+                              mission_folder=mission_code_with_date,
+                              images_list=images_list)
 
+    df_rename["full_path"] = raw_folder
 
-    images_to_rename = []
-    for p in new_path.glob("*/*") :
-        if p.name.startswith("._"):
-            continue
-        # p = Path("/Volumes/G-DRIVE/Iguanas_From_Above/01_cleaned_photos_all/Floreana/FLMO05_03022021")
-        images_list = [file for file in p.glob("*" ) if not file.name.startswith("._")]
-        island, mission_folder = p.parent.stem, p.stem
+    return df_rename
 
-        df_rename = rename_images(island, mission_folder, images_list)
-        print(f"Path: {p}")
-        print(f"Would rename the following images: {[n.stem for n in images_list]}")
-        print(f"New names {df_rename}")
-        df_changed_images = df_rename[df_rename["new_name"] != df_rename["old_name"]]
+def rename_incorrect_folders(base_path: Path, new_base_path: Path):
+    """
 
-        images_to_rename.append(df_changed_images)
+    :param base_path:
+    :param new_base_path:
+    :return:
+    """
+    islands = [i.stem for i in base_path.glob("*")]
+    print(f"There are these islands: {islands}")
+    # find each Folder which should contain Missions
 
-    df_changed_images = pd.concat(images_to_rename)
-    df_changed_images.to_csv(new_path / "images_rename.csv")
+    mission_folders = list(base_path.glob("*/*/"))
+    mission_names = [m.stem for m in mission_folders]
 
-    for _, row in df_changed_images.iterrows():
-        full_old_image_path = new_path / row.island / row.mission_folder / row['old_name']
-        full_new_image_path = new_path / row.island / row.mission_folder / row['new_name']
-        logger.info(f"Moving {full_old_image_path} to {full_new_image_path}")
-        # Create destination directory if it does not exist.
-        shutil.move(full_old_image_path, full_new_image_path)
+    # get the date of each
+    dates = [d.split("_") for d in mission_names]
+
+    seperated_dates = [d[-1] for d in dates]
+
+    def check_date_format(date_str: str) -> int:
+        return len(date_str)
+
+    string_lenth = [check_date_format(d) for d in seperated_dates]
 
 
+    df_data = pd.DataFrame({"Mission": mission_names,"Date": seperated_dates,
+                            "Date Format": string_lenth,
+                            "island": [x.parent.stem for x in mission_folders],
+                            "full_path_old": mission_folders})
+
+    df_data_incorrect_date_mask = df_data["Date Format"] == 6
+
+    df_data_changed = df_data[df_data_incorrect_date_mask]
+    df_data_changed['Date_fixed'] = df_data_changed['Date'].apply(fix_date_format)
+
+    df_data_changed["new_folder_path"] = df_data_changed.apply(
+        lambda row: new_base_path / row['island'] / f"{row['Mission'].split('_')[0]}_{row['Date_fixed']}",
+        axis=1
+    )
+
+    return df_data_changed
 
 
+def move_folders(df_data_changed):
+    for row in df_data_changed.itertuples(index=False):
+        # Convert path columns to Path objects (if they aren't already)
+        src = Path(row.full_path_old)
+        dst = Path(row.new_folder_path)
 
+        # Ensure that the parent directory for the destination exists.
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Copying {src} to {dst}")
+        # Recursively copy the folder from source to destination.
+
+        shutil.copytree(src, dst)
+
+        print(f"Copied {src} to {dst}")
+
+
+def fix_date_format(date_str: str) -> str:
+    """
+    If date_str is in ddmmyy format (6 digits), then convert it to ddmmyyyy format by inserting "20".
+    For example, '150321' becomes '15032021'.
+    If date_str is not 6 characters long, it is returned unchanged.
+    """
+    if len(date_str) == 6:
+        # Extract day, month, and year portions.
+        day = date_str[:2]
+        month = date_str[2:4]
+        year = date_str[4:]
+        # Insert "20" (assuming the year is in the 2000s).
+        return f"{day}{month}20{year}"
+    return date_str
