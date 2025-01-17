@@ -271,6 +271,7 @@ def xmp_metadata(img_path) -> XMPMetaData:
             except Exception as e:
                 ## with phantom 4, someone wrote the metadata tag wrong: 'drone-dji:GpsLongitude' instead of 'drone-dji:GPSLongitude'
                 logger.error(f"Problem with {xmp_key}, {e}")
+        return metadata_model
 
     except Exception as e:
         logger.error(
@@ -280,7 +281,6 @@ def xmp_metadata(img_path) -> XMPMetaData:
                         if os.path.exists(m1_path): \
                             path = m1_path" )
         logger.error(e)
-    return metadata_model
 
 
 

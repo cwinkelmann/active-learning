@@ -5,10 +5,12 @@ import pathlib
 
 import typing
 import uuid
+
+import pandas as pd
 from loguru import logger
 
 from pathlib import Path
-
+import geopandas as gpd
 from active_learning.types.GeoreferencedImage import GeoreferencedImage
 
 
@@ -84,3 +86,27 @@ class MissionV2(object):
             return [self.base_path.joinpath(x) for x in self.raw_image_files]
         else:
             return self.raw_image_files
+
+    def get_geodata_frame(self, projected_CRS="EPSG:32715") -> gpd.GeoDataFrame:
+        """
+        get a GeoDataFrame from the images
+        @return:
+        """
+        if len(self.georeferenced_images) == 0:
+            raise NoImagesException("no images loaded")
+
+        df_images = pd.DataFrame([x.exif_metadata.model_dump() for x in self.georeferenced_images])
+        df_images = df_images[(df_images["latitude"] != 0.0) & (df_images["longitude"] != 0.0)]
+
+        df_images.sort_values("datetime_original")
+
+        df_images["uuid"] = self.uuid
+        df_images["mission_name"] = self.mission_name
+
+        image_gdf = gpd.GeoDataFrame(
+            df_images, geometry=gpd.points_from_xy(df_images.longitude, df_images.latitude), crs="EPSG:4326"
+            # the coordinates in the images should always be WGS 84
+        )
+        gdf_images = image_gdf.to_crs(crs=projected_CRS)
+
+        return gdf_images

@@ -20,7 +20,7 @@ class GeoreferencedImage(BaseModel):
     image_id: Optional[str] = None
     image_name: Optional[str] = None
     exif_metadata: Optional[ExifData] = None
-    xmp_metadata: XMPMetaData = None
+    xmp_metadata: Optional[XMPMetaData] = None
 
 
     @classmethod
