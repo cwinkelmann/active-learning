@@ -85,7 +85,8 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
 
 def analyse_point_detections_greedy(df_detections: pd.DataFrame,
                              df_ground_truth: pd.DataFrame,
-                             radius=150):
+                             radius=150,
+                                    confidence_threshold=0.5):
     """
     Analyse detections and look into false positives, false negatives
     using one-to-one matching on a per-image basis.
@@ -184,6 +185,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
         false_negative_indices = all_gt_indices - matched_gt
         df_fn_img = gdf_gt.iloc[list(false_negative_indices)].copy()
         df_fn_img['kind'] = 'false_negative'
+        df_fn_img['scores'] = 0.0 # TODO make sure to get the scores if an prediction was below the confidence threshold
 
         assert len(df_tp_img) + len(df_fp_img) == len(gdf_pred), "The sum of false positives and true positives must equal the number of predictions"
         assert len(df_fn_img) + len(df_tp_img) == len(gdf_gt), "The sum of false negatives and true positives must equal the number of ground truth"
@@ -197,11 +199,11 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
         err = len(df_fp_img) + len(df_tp_img) - len(gdf_gt)
         image_errors.append(err)
         logger.info(
-            f"{image}: False Positives: {len(df_fp_img)} True Positives: {len(df_tp_img)}, False Negatives: {len(df_fn_img)}, Ground Truth: {len(gdf_gt)}, Error: {err}")
+            f"{image}: False Positives: {len(df_fp_img)} True Positives: {len(df_tp_img)}, False Negatives: {len(df_fn_img)}, Ground Truth: {len(gdf_gt)}, Counting Error: {err}")
 
-        # Calculate mean error over all images.
-        mean_error = np.mean(image_errors)
-        logger.info(f"Mean Error over all images: {mean_error}")
+    # Calculate mean error over all images.
+    mean_error = np.mean(image_errors)
+    logger.info(f"Mean Errors over all iamges : {mean_error}")
 
     # Concatenate the results from all images.
     df_false_positives = pd.concat(l_fp, ignore_index=True)

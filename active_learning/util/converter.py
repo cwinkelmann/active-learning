@@ -5,14 +5,18 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
 import shapely
 from loguru import logger
 from ultralytics.data.converter import convert_coco
 
+from active_learning.config.mapping import keypoint_id_mapping
 from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage, \
+    PredictedImageLabel, Keypoint, ImageLabelCollection
 
+import fiftyone as fo
 
 def hasty2coco(hA: HastyAnnotationV2) -> COCOAnnotations:
     # 1. Create a map for images (Hasty image_id -> COCO image_id)
@@ -250,3 +254,150 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
     )
 
     return hasty_annotation
+
+
+def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) -> typing.List[ImageLabelCollection]:
+    assert "images" in df_prediction.columns, "images column not found in the DataFrame"
+    # assert labels
+    assert "labels" in df_prediction.columns, "labels column not found in the DataFrame"
+    assert "scores" in df_prediction.columns, "scores column not found in the DataFrame"
+    assert "x" in df_prediction.columns, "x column not found in the DataFrame"
+    assert "y" in df_prediction.columns, "y column not found in the DataFrame"
+    assert "species" in df_prediction.columns, "species column not found in the DataFrame"
+
+    ILC_list: typing.List[ImageLabelCollection] = []
+
+    for image_name, df_group in df_prediction.groupby("images"):
+        image_name = str(image_name)
+        w, h = get_image_dimensions(image_path= images_path / image_name)
+
+        annotations: typing.List[PredictedImageLabel] = []
+        # Iterate over DataFrame rows
+        for _, row in df_group.iterrows():
+            annotation = PredictedImageLabel(
+                score=float(row["scores"]),
+                class_name=row["species"],  # use spiecies as the label/class_name
+                bbox=None,   # if not available, keep as None
+                polygon=None,
+                mask=[],     # or adjust if you have mask data
+                keypoints = [Keypoint(
+                    x=int(row.x),
+                    y=int(row.y),
+                    keypoint_class_id=keypoint_id_mapping.get(row.species, None),
+                )],  # you can store extra information if needed
+                kind=row["kind"]
+            )
+            annotations.append(annotation)
+
+        ILC_list.append( ImageLabelCollection(
+            image_name=str(image_name),
+            labels=annotations,
+            width=w,
+            height=h
+        ))
+
+    return ILC_list
+
+
+def _create_keypoints_s(hA_image: typing.Union[AnnotatedImage, ImageLabelCollection]) -> typing.List[fo.Keypoint]:
+    """
+
+    :param hA_image:
+    :return:
+    """
+    keypoints = []
+    w, h = hA_image.width, hA_image.height
+
+    for r in hA_image.labels:
+
+        pt = (int(r.incenter_centroid.x) / w, int(r.incenter_centroid.y) / h)
+        lab = r.class_name
+
+        # TODO we need to add the attributes to the label, i.e. if the point is a head or a tail
+        if isinstance(r, PredictedImageLabel):
+            kp = fo.Keypoint(
+            # kind="str",
+            hasty_id=r.id,
+            label=str(lab),
+            points=[pt],
+            confidence=[r.score]
+        )
+        else:
+            kp = fo.Keypoint(
+            # kind="str",
+            hasty_id=r.id,
+            label=str(lab),
+            points=[pt]
+
+        )
+
+        keypoints.append(kp)
+    return keypoints
+
+
+def _create_fake_boxes(hA_image: typing.Union[AnnotatedImage, ImageLabelCollection]) -> typing.List[fo.Detection]:
+    """
+
+    :param hA_image:
+    :return:
+    """
+    offset = 80
+    keypoints = []
+    w, h = hA_image.width, hA_image.height
+
+    for r in hA_image.labels:
+        x1 = int(r.incenter_centroid.x) - offset
+        x2 = int(r.incenter_centroid.x) + offset
+        y1 = int(r.incenter_centroid.y) - offset
+        y2 = int(r.incenter_centroid.y) + offset
+        box_w, box_h = (x2 - x1) / w, (y2 - y1) / h
+        x1 = x1 / w
+        y1 = y1 / h
+        pt = (int(r.incenter_centroid.x) / w, int(r.incenter_centroid.y) / h)
+        lab = r.class_name
+
+        # TODO we need to add the attributes to the label, i.e. if the point is a head or a tail
+        kp = fo.Detection(label=str(lab), bounding_box=[x1, y1, box_w, box_h],
+            # kind="str",
+            hasty_id=r.id,
+            attributes=r.attributes,
+            # attributes={"custom_attribute": [{"bla": "keks"}]},
+            tags=["bla", "keks", r.kind],
+            confidence = r.score
+        )
+
+        keypoints.append(kp)
+    return keypoints
+
+
+def _create_boxes_s(hA_image: typing.Union[AnnotatedImage, ImageLabelCollection]) -> typing.List[fo.Detection]:
+    """
+
+    :param hA_image:
+    :return:
+    """
+    boxes = []
+    w, h = hA_image.width, hA_image.height
+
+    for r in hA_image.labels:
+
+        x1, y1, x2, y2 = r.x1y1x2y2[0], r.x1y1x2y2[1], r.x1y1x2y2[2], r.x1y1x2y2[3]
+        box_w, box_h = x2 - x1, y2 - y1
+        box_w /= w
+        box_h /= h
+
+        x1, y1, x2, y2 = x1 / w, y1 / h, x2 / w, y2 / h
+        lab = r.class_name
+
+
+        kp = fo.Detection(label=str(lab), bounding_box=[x1, y1, box_w, box_h],
+            # kind="str",
+            hasty_id=r.id,
+            attributes=r.attributes,
+            # attributes={"custom_attribute": [{"bla": "keks"}]},
+            tags=["bla", "keks"],
+            confidence=0.95
+        )
+
+        boxes.append(kp)
+    return boxes

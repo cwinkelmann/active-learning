@@ -64,8 +64,6 @@ def create_fo_ds_v2(dset,
 
     images_set = [images_path / i.image_name for i in hA.images]
 
-
-
     # create dot annotations
     dataset = debug_hasty_fiftyone_v2(
         annotated_images=hA.images,
@@ -83,10 +81,15 @@ if __name__ == "__main__":
     analysis_date = "2024_12_16"
     lcrop_size = 640
     num = 56
+
+    just_check_fiftyone = True
+
 # '/Users/christian/data/training_data/2024_12_11/2024_12_14/train/crops_640_num1_overlap0/crops_640
-    for dset in ["train", "val"]:
+
+    for dset in ["train"]:
         # lbase_path = Path(f"/Users/christian/data/training_data/2024_12_11/{analysis_date}/{dset}/crops_{lcrop_size}_num{num}_overlap0")
-        lbase_path = Path(f"/Users/christian/data/training_data/{analysis_date}/{dset}/crops_640_numNone_overlap0")
+        lbase_path = Path(f"/Users/christian/data/training_data/{analysis_date}/{dset}/crops_640_num6_overlap0")
+
         # lbase_path = Path(f"/Users/christian/data/training_data/2024_12_16/val/crops_640_numNone_overlap0")
 
         dataset_name = f"eal_{analysis_date}_{dset}_review_{lcrop_size}"
@@ -98,15 +101,29 @@ if __name__ == "__main__":
         except:
             pass
 
-        #ds = create_fo_ds(dset, dataset_name, type=type, base_path=lbase_path, crop_size=lcrop_size)
-        ds = create_fo_ds_v2(dset, dataset_name, type=type, images_path=lbase_path,
-                             hA_path=lbase_path / "hasty_format.json",
-                             objects_threshold=0)
+        hA = hA_from_file(lbase_path / "hasty_format.json")
 
-        # type = "boxes"
-        # fiftyOne check
-        # session = fo.launch_app(ds)
-        # session.wait()
+        images_set = [lbase_path / i.image_name for i in hA.images]
+
+        ds = debug_hasty_fiftyone_v2(
+            annotated_images=hA.images,
+            images_set=images_set,
+            dataset_name=dataset_name,
+            type=type,
+        )
+
+        # #ds = create_fo_ds(dset, dataset_name, type=type, base_path=lbase_path, crop_size=lcrop_size)
+        # ds = create_fo_ds_v2(dset,
+        #                      dataset_name,
+        #                      type=type,
+        #                      images_path=lbase_path,
+        #                      hA_path=lbase_path / "hasty_format.json",
+        #                      objects_threshold=0)
+
+        ## fiftyOne check
+        type = "boxes"
+        session = fo.launch_app(ds)
+        session.wait()
 
         # CVAT correction
         ds.annotate(

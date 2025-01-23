@@ -20,3 +20,9 @@ prefix_mapping = {
     "Plazas (Santa Cruz)": "Scruz_PL",
     "Seymour (Santa Cruz)": "Scruz_SE",
 }
+
+# TODO this has to become more flexible
+keypoint_id_mapping = {
+    "iguana_point" : "ed18e0f9-095f-46ff-bc95-febf4a53f0ff"
+
+}

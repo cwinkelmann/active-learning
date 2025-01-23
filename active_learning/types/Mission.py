@@ -17,43 +17,35 @@ from active_learning.types.GeoreferencedImage import GeoreferencedImage
 class NoImagesException(Exception):
     pass
 
-class MissionV2(object):
-    """
-    new better version of the Mission
-    """
 
-    def __init__(self, mission_name: str,
+class ImageCollection(object):
+    """
+    Collection of images with unclear spatial connection
+    """
+    def __init__(self,
                  base_path: Path,
-                 CRS):
+                 crs):
         """
         Full Path to full renamed images
         :param mission_name:
         :param base_path:
-        :param CRS:
+        :param crs:
         :param creation_date:
         """
         self.uuid = str(uuid.uuid1())
         self.base_path = base_path
         self.raw_image_files = []
-        self.CRS = CRS
-
+        self.crs = crs
         self.georeferenced_images: typing.List[GeoreferencedImage] = []  # then n-th element refers to the n-th element of the raw_image
-        self.mission_name = mission_name
 
-    @staticmethod
-    def init(base_path: Path, suffix, CRS) -> MissionV2:
-        """
-        open a whole mission from disk
-        @return: Mission
-        """
-        assert type(base_path) is Path or pathlib.PosixPath, "base_path must be a Path Object"
-        base_path = Path(base_path)
-        mission_name = Path(base_path).parts[-1]
-
-        mission = MissionV2(mission_name, base_path, CRS=CRS)
-
-        mission.add_raw_images(suffix=suffix)
-        return mission
+    @classmethod
+    def from_disk(cls, base_path: Path, suffix: str, crs) -> ImageCollection:
+        # Check if base_path is a Path instance and convert if necessary.
+        if not isinstance(base_path, Path):
+            base_path = Path(base_path)
+        instance = cls(base_path=base_path, crs=crs)
+        instance.add_raw_images(suffix=suffix)
+        return instance
 
     def add_raw_images(self, suffix="JPG"):
         """
@@ -110,3 +102,39 @@ class MissionV2(object):
         gdf_images = image_gdf.to_crs(crs=projected_CRS)
 
         return gdf_images
+
+class MissionV2(ImageCollection):
+    """
+    new better version of the Mission
+    """
+
+    def __init__(self, mission_name: str, base_path: Path, crs):
+        """
+        Full Path to full renamed images
+        :param mission_name:
+        :param base_path:
+        :param crs:
+        :param creation_date:
+        """
+        super().__init__(base_path, crs)
+
+        self.mission_name = mission_name
+
+
+
+
+    @staticmethod
+    def init(base_path: Path, suffix, CRS) -> MissionV2:
+        """
+        open a whole mission from disk
+        @return: Mission
+        """
+        assert type(base_path) is Path or pathlib.PosixPath, "base_path must be a Path Object"
+        base_path = Path(base_path)
+        mission_name = Path(base_path).parts[-1]
+
+        mission = MissionV2(mission_name, base_path, crs=CRS)
+
+        mission.add_raw_images(suffix=suffix)
+        return mission
+

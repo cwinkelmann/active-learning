@@ -118,7 +118,6 @@ if __name__ == "__main__":
         output_path_dset = labels_path / dset
         output_path_dset.mkdir(exist_ok=True)
 
-        # TODO a config would be better than passing all these parameters
         dp = DataprepPipeline(annotations_labels=hA,
                               images_path=images_path,
                               crop_size=crop_size,
@@ -155,7 +154,7 @@ if __name__ == "__main__":
         # TODO before uploading anything to CVAT labels need to be converted when necessary
         hA_crops.save(output_path_dset / "hasty_format_crops.json")
 
-        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv")
+        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv", addition_columns=[])
 
         if annotation_types == [AnnotationType.BOUNDING_BOX]:
             HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dset / "deep_forest_format_crops.csv")

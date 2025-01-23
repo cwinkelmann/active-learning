@@ -1,7 +1,7 @@
 from exif import Orientation, ResolutionUnit, Saturation, SceneCaptureType, Sharpness, WhiteBalance, MeteringMode, \
     LightSource, GpsAltitudeRef, ExposureProgram, ExposureMode, ColorSpace
 
-from active_learning.types.image_metadata import ExifData
+from active_learning.types.image_metadata import ExifData, XMPMetaData
 
 
 def test_exif_image_metadata():
@@ -71,4 +71,20 @@ def test_exif_image_metadata():
     photo_loaded = ExifData.model_validate_json(json_str)
 
     assert isinstance(photo_loaded, ExifData)
+    assert photo_loaded.compression == 7
+
+def test_exif_meta_with_image():
+    """
+    Load an image and extract the exif metadata
+    :return:
+    """
+    raise NotImplementedError
+
+    assert isinstance(photo_loaded, ExifData)
+    assert photo_loaded.compression == 7
+
+def test_xmp_metadata_with_image():
+
+    raise NotImplementedError
+    assert isinstance(photo_loaded, XMPMetaData)
     assert photo_loaded.compression == 7

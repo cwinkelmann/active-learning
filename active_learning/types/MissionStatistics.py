@@ -5,6 +5,13 @@ from shapely.geometry import Point, LineString
 
 from active_learning.types.Mission import MissionV2
 
+def get_area_of_flight():
+    """
+    Calculate the area of the flight path
+    :return:
+    """
+
+def get_flight_segments()
 
 class MissionStatistics:
     def __init__(self, mission: MissionV2, projected_CRS="EPSG:32715"):
@@ -30,6 +37,8 @@ class MissionStatistics:
         self.multi_pnt1 = MultiPoint(self.image_gdf_projected["geometry"])
         self.convex_hull = self.multi_pnt1.convex_hull
         self.center = (self.convex_hull.centroid.y, self.convex_hull.centroid.x)
+
+
         self.area = self.convex_hull.area
 
 
