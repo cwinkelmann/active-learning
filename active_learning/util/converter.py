@@ -130,8 +130,9 @@ def coco2yolo(
     temp_dir = source_dir / "yolo_tmp"
 
     assert coco_annotations.exists(), f"{coco_annotations} does not exist"
+    # TODO this ultralytics COCO converter is crap
     convert_coco(
-        labels_dir=coco_annotations,
+        labels_dir=coco_annotations.parent,
         save_dir=temp_dir,
     )
 

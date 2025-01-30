@@ -10,6 +10,8 @@ import random
 import json
 from loguru import logger
 from typing import Dict
+
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
 class SampleStrategy(Enum):
@@ -130,10 +132,15 @@ class ImageFilterConstantNum(ImageFilter):
     """
 
 
-    def __init__(self, num: int, sample_strategy: SampleStrategy = SampleStrategy.RANDOM, seed: int = 42):
+    def __init__(self, num: int,
+                 sample_strategy: SampleStrategy = SampleStrategy.RANDOM,
+                 seed: int = 42,
+                 dataset_config: DatasetFilterConfig = None):
+
         super().__init__()
         self.num = num
         self.sample_strategy = sample_strategy
+        self.dataset_config = dataset_config
 
         random.seed(seed)
 
@@ -141,18 +148,22 @@ class ImageFilterConstantNum(ImageFilter):
         """ get N images randomly
         :return:
         """
+        assert isinstance(hA, HastyAnnotationV2), "hA must be a HastyAnnotationV2 object"
         hA = super().__call__(hA)
-        if self.num is None:
-            return hA
-
-
-        if self.num > len(hA.images):
-            raise ValueError(f"Number of images is {len(hA.images)} but you requested {self.num}")
-
-        sample = sample_hasty(hA.images, n=self.num, method=self.sample_strategy)
 
         hA_filtered = copy.deepcopy(hA)
 
-        hA_filtered.images = sample
-        logger.info(f"Number of images after filtering: {len(hA_filtered.images)}")
+        if self.num is not None:
+            if self.num > len(hA.images):
+                raise ValueError(f"Number of images is {len(hA.images)} but you requested {self.num}")
+
+            hA_filtered.images = sample_hasty(hA_filtered.images, n=self.num, method=self.sample_strategy)
+
+        if self.dataset_config.image_tags is not None:
+            hA_filtered.images = [img for img in hA_filtered.images if img.tags is not None and any(element in img.tags for element in self.dataset_config.image_tags)]
+
+        if len(hA_filtered.images) == 0:
+            logger.error(f"Number of images after filtering: {len(hA_filtered.images)}")
+        else:
+            logger.info(f"Number of images after filtering: {len(hA_filtered.images)}")
         return hA_filtered

@@ -108,20 +108,20 @@ class AnnotationsIntermediary(object):
         HastyConverter.convert_deep_forest(self.hA, output_file=output_path / "deep_forest_format.csv")
         logger.info(f"DeepForest annotations saved to {output_path / 'deep_forest_format.csv'}")
 
-    def to_YOLO_annotations(self, output_path, coco_path, images_list):
+    def to_YOLO_annotations(self, output_path):
 
         # df_annotations = HastyConverter.convert_to_yolo(self.hA, type="box")
 
-        yolo_path = output_path / "yolo"
-        yolo_path.mkdir(exist_ok=True, parents=True)
+        yolo_boxes_path = output_path / "yolo_boxes"
+        yolo_segments_path = output_path / "yolo_segments"
+        yolo_boxes_path.mkdir(exist_ok=True, parents=True)
+        yolo_segments_path.mkdir(exist_ok=True, parents=True)
 
-        coco2yolo(yolo_path=yolo_path,
-                  source_dir=output_path,
-                  coco_annotations=coco_path, 
-                  images=images_list)
+        class_mapping, df_all_boxes = HastyConverter.convert_to_yolo_boxes(hA=self.hA, yolo_base_path=yolo_boxes_path)
+        class_mapping = HastyConverter.convert_to_yolo_segments(hA=self.hA, yolo_base_path=yolo_segments_path)
+        class_names = [key for key, value in sorted(class_mapping.items(), key=lambda item: item[1])]
+        return class_names
 
-        HastyConverter.prepare_YOLO_output_folder_str(base_path=output_path,
-                                                      class_mapping=["iguanas"])
 
     def coco(self, output_path):
         coco_annotations = hasty2coco(self.hA)
@@ -221,18 +221,15 @@ class DataprepPipeline(object):
                                    status_filter=self.status_filter,
                                    dataset_filter=self.dataset_filter,
                                    images_filter=self.images_filter,
-                                   # images_filter=["DJI_0258_FCD02.JPG"],
-                                   # image_tags=["segment"],
-                                   # annotation_types=["point"]
                                    annotation_types=self.annotation_types,
-            num_images=self.num,
-            sample_strategy=self.sample_strategy
+                                    num_images=self.num,
+                                    sample_strategy=self.sample_strategy
                                    )
         if self.images_filter_func is not None:
             hA = self.images_filter_func(hA)
 
         # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
-        ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training & copying so many images here is a waste of time
+        ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training.md & copying so many images here is a waste of time
         # TODO readd this
         default_dataset_name = "Default"
         flat_images_path = self.output_path.joinpath(default_dataset_name)
@@ -251,7 +248,10 @@ class DataprepPipeline(object):
 
         self.hA_filtered = copy.deepcopy(hA_flat)
 
-        hA_crop = self.data_crop_pipeline(crop_size=self.crop_size, overlap=self.overlap, hA=hA_flat, images_path=flat_images_path)
+        hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
+                                          overlap=self.overlap,
+                                          hA=hA_flat,
+                                          images_path=flat_images_path)
 
         self.hA_crops = hA_crop
         return hA_crop
@@ -312,12 +312,10 @@ class DataprepPipeline(object):
             images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
                                                      full_image_path=padded_image_path,
                                                      output_path=self.train_images_output_path,
-                                                     include_empty=self.empty_fraction)
+                                                     include_empty=self.empty_fraction,
+                                                             dataset_name=i.dataset_name)
             # image = Image.open(full_images_path / i.dataset_name / i.image_name)
             logger.info(f"Cropped {len(images)} images from {i.image_name}")
-
-            # TODO is it a good idea to seperate the two functions?
-            # images_path = crop_out_images_v3(image=image, rasters=grid )
 
             all_images.extend(images)
             all_images_path.extend(cropped_images_path)
@@ -354,8 +352,6 @@ class DataprepPipeline(object):
             "images": len(self.augmented_images),
             "labels": sum([len(i.labels) for i in self.augmented_images])
         }
-
-
 
     def set_images_num(self, num, sample_strategy):
         self.num = num

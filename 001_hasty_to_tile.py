@@ -1,17 +1,21 @@
 """
 Create patches from images and labels from hasty to be used in CVAT
 """
+import copy
 import shutil
 
 from loguru import logger
 from pathlib import Path
 
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.serialisation import save_model_to_file
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2
+from com.biospheredata.visualization.visualize_result import visualise_image
+
 ## TODO Download annotations from hasty
 
 
@@ -31,62 +35,134 @@ if __name__ == "__main__":
 
     # class_filter = ["iguana"]
 
+
+
+
+    ## Meeting presentation
     labels_path = Path("/Users/christian/data/training_data/2024_12_09_debug")
     hasty_annotations_labels_zipped = "FMO02_03_05_labels.zip"
     hasty_annotations_images_zipped = "FMO02_03_05_images.zip"
     annotation_types = [AnnotationType.KEYPOINT]
+    class_filter = ["iguana_point", "iguana"]
 
-    class_filter = ["iguana_point"]
+    ## Segmentation masks
+    labels_path = Path("/Users/christian/data/training_data/2025_01_11_segments")
+    hasty_annotations_labels_zipped = "labels_segments.zip"
+    hasty_annotations_images_zipped = "images_segments.zip"
+    annotation_types = [AnnotationType.POLYGON]
 
-    # annotation_types = ["box"]
-    # annotation_types = ["point"]
+    class_filter = ["iguana"]
 
 
-    # annotation_types = ["point", "box"]
-    # class_filter = ["iguana_point", "iguana"]
 
     crop_size = 512
     overlap = 0
+    # amount of empty images in the dataset
 
 
-    # datasets = [{
-    #     "dset": "train",
-    #     "images_filter": ["DJI_0432.JPG"],
-    #     "dataset_filter": ["FMO03"],
-    # },
-    #     {"dset": "val",
-    #      "images_filter": ["DJI_0465.JPG"],
-    #      "dataset_filter": ["FMO03"],
-    #      },
-    #     {"dset": "test",
-    #      "images_filter": ["DJI_0554.JPG"],
-    #      "dataset_filter": ["FMO03"]
-    #      }
-    # ]
-
-    datasets = [{
+    train_fmo05 = DatasetFilterConfig(**{
         "dset": "train",
         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
         # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
         "dataset_filter": ["FMO05"],
         # "dataset_filter": None,
-        "num": 1,
+        # "num": 1,
         "output_path": labels_path,
-    },
-        {"dset": "val",
-        # "images_filter": ["DJI_0465.JPG"],
-         "dataset_filter": ["FMO03"],
-         # "dataset_filter": None,
-         "output_path": labels_path,
 
-         },
-        {"dset": "test",
-         # "images_filter": ["DJI_0554.JPG"],
-         "dataset_filter": ["FMO02"],
-         "output_path": labels_path,
-         }
+        "empty_fraction": 0.0,
+
+    })
+
+    train_floreana = DatasetFilterConfig(**{
+        "dset": "train",
+        "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+        # "num": 1,
+        "output_path": labels_path,
+        "empty_fraction": 0.0
+    })
+
+    val_fmo03 = DatasetFilterConfig(**{
+            "dset": "val",
+            # "images_filter": ["DJI_0465.JPG"],
+            "dataset_filter": ["FMO03"],
+            # "dataset_filter": None,
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+
+        })
+
+    fernandina_ds = DatasetFilterConfig(**{
+            "dset": "test",
+            # "images_filter": ["DJI_0465.JPG"],
+            "dataset_filter": ["Fer_FCD01-02-03_20122021", "Fer_FCD01-02-03_20122021_single_images"],
+            # "dataset_filter": None,
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+
+        })
+
+    test_fmo02 = DatasetFilterConfig(**{
+            "dset": "test",
+            # "images_filter": ["DJI_0554.JPG"],
+            "dataset_filter": ["FMO02"],
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+
+        })
+
+
+    datasets = [
+        {
+            "dset": "train",
+            # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
+            # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+            "dataset_filter": ["FMO05"],
+            # "dataset_filter": None,
+            "num": 1,
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+        },
+        {
+            "dset": "val",
+            # "images_filter": ["DJI_0465.JPG"],
+            "dataset_filter": ["FMO03"],
+            # "dataset_filter": None,
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+
+        },
+        {
+            "dset": "test",
+            # "images_filter": ["DJI_0554.JPG"],
+            "dataset_filter": ["FMO02"],
+            "output_path": labels_path,
+            "empty_fraction": 0.0
+
+        }
     ]
 
+    ## Data preparation based on segmentation masks
+    train_segments = DatasetFilterConfig(**{
+        "dset": "train",
+        "images_filter": ["DJI_0079_FCD01.JPG", "STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0924.JPG", "DJI_0942.JPG"],
+        "output_path": labels_path,
+        "empty_fraction": 0.0,
+        "image_tags": ["segment"]
+    })
+
+    val_segments = DatasetFilterConfig(**{
+        "dset": "val",
+        "images_filter": ["DJI_0395.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0417.JPG"],
+        "output_path": labels_path,
+        "empty_fraction": 0.0,
+        "image_tags": ["segment"]
+    })
+
+
+    # datasets = [train_fmo05, val_fmo03, test_fmo02]
+    # datasets = [train_floreana, val_fmo03, fernandina_ds]
+    datasets = [train_segments, val_segments]
+    report = {}
     # datasets = [{
     #     "dset": "train",
     #     # "images_filter": ["DJI_0432.JPG"],
@@ -106,13 +182,14 @@ if __name__ == "__main__":
     #      })
 
     for dataset in datasets:  # , "val", "test"]:
-        dset = dataset["dset"]
-        num = dataset.get("num", None)
-        ifcn = ImageFilterConstantNum(num=num)
+        logger.info(f"Starting {dataset.dset}")
+        dset = dataset.dset
+        num = dataset.num
+        ifcn = ImageFilterConstantNum(num=num, dataset_config = dataset)
         # output_path = dataset["output_path"]
 
         uA = UnpackAnnotations()
-        hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped= labels_path / hasty_annotations_labels_zipped,
+        hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped=labels_path / hasty_annotations_labels_zipped,
                        hasty_annotations_images_zipped = labels_path / hasty_annotations_images_zipped)
         logger.info(f"Unzipped {len(hA.images)} images.")
         output_path_dset = labels_path / dset
@@ -124,13 +201,13 @@ if __name__ == "__main__":
                               overlap=overlap,
                               output_path=output_path_dset,
                               )
-        dp.dataset_filter = dataset["dataset_filter"]
+        dp.dataset_filter = dataset.dataset_filter
 
-        dp.images_filter = dataset.get("images_filter", None)
+        dp.images_filter = dataset.images_filter
         dp.images_filter_func = ifcn
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
-        dp.empty_fraction = 0.0
+        dp.empty_fraction = dataset.empty_fraction
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run()
@@ -144,20 +221,30 @@ if __name__ == "__main__":
         if len(hA_crops.images) == 0:
             raise ValueError("No images left after filtering")
 
+        # if visualise_image:
+        #     # TODO visualise these images
+        #     visualise_image(hA_crops, images_path, output_path_dset / "visualisation")
+
         aI.set_hasty_annotations(hA=hA_crops)
         coco_path = aI.coco(output_path_dset / "coco_format.json")
         images_list = dp.get_images()
 
-        # aI.to_YOLO_annotations(output_path=output_path.parent / "yolo", images_list=images_list, coco_path=coco_path)
 
         logger.info(f"Finished {dset} at {output_path_dset}")
         # TODO before uploading anything to CVAT labels need to be converted when necessary
         hA_crops.save(output_path_dset / "hasty_format_crops.json")
 
-        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv", addition_columns=[])
-
-        if annotation_types == [AnnotationType.BOUNDING_BOX]:
+        # TODO check if the conversion from polygon to point is correct
+        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv"
+                                                 )
+        if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
             HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dset / "deep_forest_format_crops.csv")
+
+            class_names = aI.to_YOLO_annotations(output_path=output_path_dset / "yolo")
+            report[f"yolo_box_path_{dset}"] = output_path_dset / "yolo" / "yolo_boxes"
+            report[f"yolo_segments_path_{dset}"] = output_path_dset / "yolo" / "yolo_segments"
+            report[f"class_names"] = class_names
+
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
@@ -171,3 +258,22 @@ if __name__ == "__main__":
         shutil.move(output_path_dset / f"crops_{crop_size}", destination_path)
 
         logger.info(f"Moved to {destination_path}")
+
+        report[f"destination_path_{dset}"] = destination_path
+
+
+
+    # TODO This YOLO data.yaml sucks
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  labels_train_path=report["yolo_box_path_train"],
+                                                    labels_val_path=report["yolo_box_path_val"], class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "data_boxes.yaml")
+
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  labels_train_path=report["yolo_box_path_train"],
+                                                    labels_val_path=report["yolo_box_path_val"], class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "data_segments.yaml")

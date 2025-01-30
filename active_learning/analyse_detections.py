@@ -3,8 +3,7 @@ take detection and ground truth and look for the false positives and false negat
 
 This produces a csv file with the false positives because they are what we need to inspect
 
-# TODO look for false negatives
-Similar to Kellenberger - maybe this one Benjamin, et al. "Detecting and classifying elephants in the wild." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2020.
+ Similar to Kellenberger - maybe this one Benjamin, et al. "Detecting and classifying elephants in the wild." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2020.
 
 """
 import numpy as np

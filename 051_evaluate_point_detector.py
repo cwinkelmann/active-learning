@@ -10,11 +10,9 @@ import pandas as pd
 from loguru import logger
 from pathlib import Path
 
-from active_learning.analyse_detections import analyse_point_detections, \
-    analyse_point_detections_greedy
+from active_learning.analyse_detections import analyse_point_detections_greedy
 # import pytest
 
-from active_learning.analyse_detections_yolo import analyse_point_detections_
 from active_learning.util.converter import herdnet_prediction_to_hasty, _create_keypoints_s, _create_boxes_s, \
     _create_fake_boxes
 from active_learning.util.visualisation.draw import draw_text
@@ -169,7 +167,7 @@ if __name__ == "__main__":
     type = "points"
 
     # test dataset
-    base_path = Path('/Users/christian/data/training_data/2024_12_09_debug/test/')
+    base_path = Path(f'/Users/christian/data/training_data/{analysis_date}_debug/test/')
     df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
     images_path = base_path / "Default"
 
@@ -177,9 +175,6 @@ if __name__ == "__main__":
     hA_ground_truth = base_path / 'hasty_format_iguana_point.json'
 
     df_ground_truth = pd.read_csv(base_path / 'herdnet_format.csv')
-
-
-    # TODO evaluate on test set crops
 
     # # val dataset
     # df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/19-17-14/detections.csv')
@@ -233,6 +228,7 @@ if __name__ == "__main__":
         # fo.list_datasets()
 
     dataset = fo.Dataset.from_images([str(i) for i in images_set])
+    dataset.persistent = True
 
     for sample in dataset:
 
@@ -265,36 +261,28 @@ if __name__ == "__main__":
             type=type,
         )
 
+        dataset.add_sample(sample)
 
 
-    # results = ds.evaluate_detections(
-    #     pred_field="predictions_points",
+    # ## TODO fix the dataset fields
+    # evaluation_results = dataset.evaluate_detections(
+    #     pred_field="true_positives",
     #     gt_field="ground_truth_points",
-    #     eval_key="eval",
+    #     eval_key="point_eval",
+    #     eval_type="keypoint",
+    #     distance=10.0,  # Adjust based on your specific requirements
+    #     classes=None  # Specify classes if applicable
     # )
+    # precision = evaluation_results.metrics()["precision"]
+    # recall = evaluation_results.metrics()["recall"]
+    # f1_score = evaluation_results.metrics()["f1"]
     #
-    # results.print_report()
+    # print(f"Precision: {precision:.2f}")
+    # print(f"Recall: {recall:.2f}")
+    # print(f"F1 Score: {f1_score:.2f}")
+    #
+    # evaluation_results.print_report()
 
 
     session = fo.launch_app(dataset)
     session.wait()
-
-    # TODO: how can these be visualised in fiftyone and corrected
-    # try:
-    #     dataset = fo.load_dataset("test_evaluations")
-    #     dataset.delete()
-    # except:
-    #     pass
-    #
-    # dataset = fo.Dataset("test_evaluations")
-    # dataset.persistent = True
-    #
-    #
-    # for i in images:
-    #
-    #     debug_hasty_fiftyone_v3(image_path=i, df_labels=df_false_positives, dataset=dataset)
-    #
-    # dataset.save()
-    # session = fo.launch_app(dataset, port=5151)
-    # session.refresh()
-    # session.wait()
