@@ -2,6 +2,9 @@ from pathlib import Path
 from typing import List, Union
 from pydantic import BaseModel, Field
 
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
+
+
 class DatasetFilterConfig(BaseModel):
     """
     Configuration model for filtering datasets and images.
@@ -44,6 +47,11 @@ class DataPrepReport(DatasetFilterConfig):
         ...,
         description="Path to the images directory."
     )
+    annotation_data: HastyAnnotationV2 = Field(
+        ...,
+        description="HastyAnnotationV2 object containing the annotations."
+    )
+
     yolo_boxes_path: Path = Field(
         None,
         description="Path to the labels directory."

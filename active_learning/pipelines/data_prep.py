@@ -1,3 +1,4 @@
+import multiprocessing
 import shutil
 
 import copy
@@ -15,6 +16,60 @@ from com.biospheredata.image.image_manipulation import crop_out_images_v2, pad_t
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2, AnnotatedImage
 from com.biospheredata.types.serialisation import save_model_to_file
 
+
+def process_image(args):
+    """Function to process a single image"""
+    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap = args
+
+
+    images, cropped_images_path = crop_by_regular_grid(
+        crop_size,
+        full_images_path_padded,
+        i,
+        images_path,
+        overlap=overlap,
+        train_images_output_path=train_images_output_path,
+        empty_fraction=empty_fraction
+    )
+    return images, cropped_images_path
+
+def crop_by_regular_grid(
+        crop_size,
+        full_images_path_padded,
+        i,
+        images_path,
+        train_images_output_path,
+        empty_fraction,
+        overlap):
+    # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
+    # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
+    original_image_path = images_path / i.image_name
+    padded_image_path = full_images_path_padded / i.image_name
+    padded_image_path.parent.mkdir(exist_ok=True, parents=True)
+    new_width, new_height = pad_to_multiple(original_image_path,
+                                            padded_image_path,
+                                            crop_size,
+                                            crop_size,
+                                            overlap)
+    logger.info(f"Padded {i.image_name} to {new_width}x{new_height}")
+    grid, _ = create_regular_raster_grid(max_x=new_width,
+                                         max_y=new_height,
+                                         slice_height=crop_size,
+                                         slice_width=crop_size,
+                                         overlap=overlap)
+    logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
+    # TODO visualise the grid
+    # axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
+    # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
+    images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
+                                                     full_image_path=padded_image_path,
+                                                     output_path=train_images_output_path,
+                                                     include_empty=empty_fraction,
+                                                     dataset_name=i.dataset_name)
+    # image = Image.open(full_images_path / i.dataset_name / i.image_name)
+    logger.info(f"Cropped {len(images)} images from {i.image_name}")
+
+    return images, cropped_images_path
 
 class UnpackAnnotations(object):
     """
@@ -85,14 +140,16 @@ class AnnotationFormat(Enum):
 class AnnotationsIntermediary(object):
 
     def __init__(self):
+        self.dataset_name = None
         self.images_path = None
         self.hasty = None
         self.type = None
 
-    def set_coco_annotations(self, coco_data, images_path):
+    def set_coco_annotations(self, coco_data, images_path, project_name, dataset_name):
         self.data = coco_data
         self.type = "coco"
-        self.hA = coco2hasty(coco_data=coco_data, images_path=images_path, project_name="iSAID", dataset_name=None)
+        self.hA = coco2hasty(coco_data=coco_data, images_path=images_path,
+                             project_name=project_name, dataset_name=dataset_name)
 
     def set_hasty_annotations(self, hA):
         self.hA = hA
@@ -161,6 +218,10 @@ class AnnotationsIntermediary(object):
 
         return HastyConverter.from_folder(hA_path=annotation_file)
 
+    def set_dataset_name(self, dataset_name):
+        self.dataset_name = dataset_name
+
+
 class DataprepPipeline(object):
     """
     process annotations by filtering, tiling and some augmentations
@@ -210,11 +271,12 @@ class DataprepPipeline(object):
 
 
 
-    def run(self):
+    def run(self, flatten=True):
         """
         Run the data pipeline
         :return:
         """
+        ## TODO make sure the data is already flattened
         hA = hasty_filter_pipeline(
                                    hA=self.hA,
                                    class_filter=self.class_filter,
@@ -228,29 +290,32 @@ class DataprepPipeline(object):
         if self.images_filter_func is not None:
             hA = self.images_filter_func(hA)
 
-        # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
-        ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training.md & copying so many images here is a waste of time
-        # TODO readd this
-        default_dataset_name = "Default"
-        flat_images_path = self.output_path.joinpath(default_dataset_name)
+        if flatten:
+            # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
+            ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training.md & copying so many images here is a waste of time
+            # TODO readd this
+            default_dataset_name = "Default"
+            flat_images_path = self.output_path.joinpath(default_dataset_name)
+            hA_flat = HastyConverter.copy_images_to_flat_structure(hA=hA,
+                                                                   base_bath=self.images_path,
+                                                                   folder_path=flat_images_path)
 
-        hA_flat = HastyConverter.copy_images_to_flat_structure(hA=hA,
-                                                               base_bath=self.images_path,
-                                                               folder_path=flat_images_path)
+            # Switch the image names to the ds_image_name
+            for v in hA_flat.images:
+                v.dataset_name = default_dataset_name
+                v.image_name = f"{v.ds_image_name}"
 
-        # Switch the image names to the ds_image_name
-        for v in hA_flat.images:
-            v.dataset_name = default_dataset_name
-            v.image_name = f"{v.ds_image_name}"
+            hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
+            hA_flat.save(self.output_path / hastyfilename)
 
-        hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
-        hA_flat.save(self.output_path / hastyfilename)
-
-        self.hA_filtered = copy.deepcopy(hA_flat)
+            self.hA_filtered = copy.deepcopy(hA_flat)
+        else:
+            self.hA_filtered = hA
+            flat_images_path = self.images_path
 
         hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
                                           overlap=self.overlap,
-                                          hA=hA_flat,
+                                          hA=self.hA_filtered,
                                           images_path=flat_images_path)
 
         self.hA_crops = hA_crop
@@ -261,7 +326,8 @@ class DataprepPipeline(object):
                            overlap : int,
                            crop_size : int,
                            hA: HastyAnnotationV2,
-                           images_path: Path
+                           images_path: Path,
+                           use_multiprocessing: bool = True
                            ):
         """
         crop the images
@@ -283,43 +349,37 @@ class DataprepPipeline(object):
         all_images_path: typing.List[Path] = []
 
         # TODO: make a cropping function out of this
-        for i in hA.images:
 
-            # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
-            # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
+        all_images = []
+        all_images_path = []
 
-            original_image_path = images_path / i.image_name
-            padded_image_path = full_images_path_padded / i.image_name
-            padded_image_path.parent.mkdir(exist_ok=True, parents=True)
-            new_width, new_height = pad_to_multiple(original_image_path,
-                                                    padded_image_path,
-                                                    crop_size,
-                                                    crop_size,
-                                                    overlap)
-            logger.info(f"Padded {i.image_name} to {new_width}x{new_height}")
+        if use_multiprocessing:
 
-            grid, _ = create_regular_raster_grid(max_x=new_width,
-                                                 max_y=new_height,
-                                                 slice_height=crop_size,
-                                                 slice_width=crop_size,
-                                                 overlap=overlap)
-            logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
+            args_list = [(self.train_images_output_path, self.empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap) for i in hA.images]
 
-            # TODO visualise the grid
-            # axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
-            # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
+            # Use multiprocessing pool
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count()+5) as pool:
+                results = pool.map(process_image, args_list)
 
-            images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
-                                                     full_image_path=padded_image_path,
-                                                     output_path=self.train_images_output_path,
-                                                     include_empty=self.empty_fraction,
-                                                             dataset_name=i.dataset_name)
-            # image = Image.open(full_images_path / i.dataset_name / i.image_name)
-            logger.info(f"Cropped {len(images)} images from {i.image_name}")
+            # Collect results
+            for images, cropped_images_path in results:
+                all_images.extend(images)
+                all_images_path.extend(cropped_images_path)
 
-            all_images.extend(images)
-            all_images_path.extend(cropped_images_path)
+        else:
+            for i in hA.images:
 
+                images, cropped_images_path = crop_by_regular_grid(
+                                          crop_size,
+                                          full_images_path_padded,
+                                          i,
+                                          images_path,
+                                          overlap=overlap,
+                                          train_images_output_path=self.train_images_output_path,
+                                          empty_fraction=self.empty_fraction)
+
+                all_images.extend(images)
+                all_images_path.extend(cropped_images_path)
 
         hA.images = all_images
         hA_crops = HastyAnnotationV2(
@@ -333,6 +393,8 @@ class DataprepPipeline(object):
         self.augmented_images_path = all_images_path
 
         return hA_crops
+
+
 
     def get_hA_filtered(self) -> HastyAnnotationV2:
         return self.hA_filtered

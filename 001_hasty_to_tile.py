@@ -46,7 +46,7 @@ if __name__ == "__main__":
     class_filter = ["iguana_point", "iguana"]
 
     ## Segmentation masks
-    labels_path = Path("/Users/christian/data/training_data/2025_01_11_segments")
+    labels_path = Path("/Users/christian/data/training_data/2025_02_03_segments")
     hasty_annotations_labels_zipped = "labels_segments.zip"
     hasty_annotations_images_zipped = "images_segments.zip"
     annotation_types = [AnnotationType.POLYGON]
@@ -144,7 +144,10 @@ if __name__ == "__main__":
     ## Data preparation based on segmentation masks
     train_segments = DatasetFilterConfig(**{
         "dset": "train",
-        "images_filter": ["DJI_0079_FCD01.JPG", "STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0924.JPG", "DJI_0942.JPG"],
+        "images_filter": ["STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0079_FCD01.JPG", "DJI_0924.JPG", "DJI_0942.JPG",
+                          "DJI_0097.JPG", "SRPB06 1053 - 1112 falcon_dem_translate_0_0.jpg", "DJI_0097.JPG", "DJI_0185.JPG",
+                          "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG", 
+                          ],
         "output_path": labels_path,
         "empty_fraction": 0.0,
         "image_tags": ["segment"]
@@ -195,6 +198,8 @@ if __name__ == "__main__":
         output_path_dset = labels_path / dset
         output_path_dset.mkdir(exist_ok=True)
 
+        # TODO flatten the images here
+
         dp = DataprepPipeline(annotations_labels=hA,
                               images_path=images_path,
                               crop_size=crop_size,
@@ -210,7 +215,7 @@ if __name__ == "__main__":
         dp.empty_fraction = dataset.empty_fraction
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
-        dp.run()
+        dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
         HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / "herdnet_format.csv")
@@ -235,8 +240,8 @@ if __name__ == "__main__":
         hA_crops.save(output_path_dset / "hasty_format_crops.json")
 
         # TODO check if the conversion from polygon to point is correct
-        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv"
-                                                 )
+        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / "herdnet_format_crops.csv")
+
         if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
             HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dset / "deep_forest_format_crops.csv")
 

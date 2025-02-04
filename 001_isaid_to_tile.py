@@ -9,23 +9,27 @@ import shutil
 from loguru import logger
 from pathlib import Path
 
+from matplotlib import pyplot as plt
+
+from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
 from active_learning.filter import ImageFilterConstantNum, SampleStrategy, sample_coco
 from active_learning.pipelines.data_prep import DataprepPipeline, AnnotationsIntermediary
 from active_learning.util.converter import coco2yolo
-from com.biospheredata.converter.HastyConverter import HastyConverter
+from com.biospheredata.converter.HastyConverter import HastyConverter, AnnotationType
+from util.util import visualise_image, visualise_polygons
 
 
 # from com.biospheredata.types.serialisation import save_model_to_file
 
 
-def get_data(iSAID_annotations_path, iSAID_images_path, sample=None):
+def get_data(iSAID_annotations_path, iSAID_images_path, dataset, sample=None, ):
     aI = AnnotationsIntermediary()
     with open(iSAID_annotations_path, "r") as f:
         coco_data = json.load(f)
         if sample is not None:
             coco_data = sample_coco(coco_data, sample)
 
-    aI.set_coco_annotations(coco_data=coco_data, images_path=iSAID_images_path)
+    aI.set_coco_annotations(coco_data=coco_data, images_path=iSAID_images_path, project_name="iSAID", dataset_name=dataset)
 
     return aI
 
@@ -33,75 +37,86 @@ def get_data(iSAID_annotations_path, iSAID_images_path, sample=None):
 if __name__ == "__main__":
 
     # TODO add the unpacking of the zip files up here
-    num = 2
-    iSAID_images_path_train = Path("/Users/christian/data/training_data/2025_01_08_isaid/DOTA/train/images")
+    num = 5
+    visualise_crops = False
+
+    # TODO the sampling here is inconsistent but saves time
+    # iSAID_images_path_train = Path("/Users/christian/data/training_data/2025_01_08_isaid/DOTA/train/images")
+    iSAID_images_path_train = Path("/Users/christian/data/training_data/2025_01_08_isaid/isaid/train")
     datasets_hA_train = get_data(iSAID_images_path = iSAID_images_path_train,
-                           iSAID_annotations_path = Path("/Users/christian/data/training_data/2025_01_08_isaid/train/Annotations/iSAID_train.json"), sample=num)
+                           iSAID_annotations_path = Path("/Users/christian/data/training_data/2025_01_08_isaid/isaid/iSAID_train.json"),
+                                 sample=num, dataset="train").get_hasty_annotations()
 
-    iSAID_images_path_val = Path("/Users/christian/data/training_data/2025_01_08_isaid/DOTA/val/images")
+    # iSAID_images_path_val = Path("/Users/christian/data/training_data/2025_01_08_isaid/DOTA/val/images")
+    iSAID_images_path_val = Path("/Users/christian/data/training_data/2025_01_08_isaid/isaid/val")
     datasets_hA_val = get_data(iSAID_images_path=iSAID_images_path_val,
-                           iSAID_annotations_path = Path("/Users/christian/data/training_data/2025_01_08_isaid/val/Annotations/iSAID_val.json"), sample=num)
+                           iSAID_annotations_path = Path("/Users/christian/data/training_data/2025_01_08_isaid/isaid/iSAID_val.json"),
+                               sample=num, dataset="val").get_hasty_annotations()
 
-    # annotation_types = ["segmentation"]
+    annotation_types = [AnnotationType.POLYGON]
     # class_filter = ["iguana"]
     class_filter = None
 
-    crop_size = 1024
+    crop_size = 512
     overlap = 0
+    report = {}
+    labels_path = Path("/Users/christian/data/training_data/2025_01_08_isaid")
 
-    datasets = [{
+    train_json = {
         "dset": "train",
-        "data": datasets_hA_train,
+        "annotation_data": datasets_hA_train,
         "images_path": iSAID_images_path_train,
-        # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
-        # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        # "dataset_filter": ["FMO05"],
-        "num": num,
-        "output_path": Path("/Users/christian/data/training_data/2025_01_08_isaid/processed/train"),
-    },
-        {
+       "num": num,
+        "image_path": iSAID_images_path_train,
+        "output_path": labels_path / "processed/train",
+        "empty_fraction": 0.0,
+        # "type": "iSAID"
+    }
+
+    val_json = {
             "dset": "val",
-            "data": datasets_hA_val,
+            "annotation_data": datasets_hA_val,
             "images_path": iSAID_images_path_val,
-
-            # "images_filter": ["DJI_0465.JPG"],
-             # "dataset_filter": ["FMO03"],
             "num": num,
-            "output_path": Path("/Users/christian/data/training_data/2025_01_08_isaid/processed/val"),
-        },
+            "image_path": iSAID_images_path_val,
+            "output_path": labels_path / "processed/val",
+            "empty_fraction": 0.0,
+        # "type": "iSAID"
 
-    ]
+    }
+
+    train_segments = DataPrepReport(**train_json)
+    val_segments = DataPrepReport(**val_json)
+    datasets = [train_segments, val_segments]
+    # datasets = [val_segments]
 
 
     for dataset in datasets:  # , "val", "test"]:
-        dset = dataset["dset"]
-        data = dataset["data"]
-        num = dataset.get("num", None)
-        output_path = dataset["output_path"]
-        images_path = dataset["images_path"]
+        logger.info(f"Starting {dataset.dset}")
+        dset = dataset.dset
+        num = dataset.num
+        output_path = dataset.output_path
+        images_path = dataset.images_path
 
-        ifcn = ImageFilterConstantNum(num=num, sample_strategy=SampleStrategy.FIRST)
+        ifcn = ImageFilterConstantNum(num=num, sample_strategy=SampleStrategy.FIRST, dataset_config=dataset)
 
         # TODO a config would be better than passing all these parameters
         dp = DataprepPipeline(
-            annotations_labels=data.get_hasty_annotations(),
+            annotations_labels=dataset.annotation_data,
             images_path=images_path,
               crop_size=crop_size,
               overlap=overlap,
               output_path= output_path,
                               )
 
-        dp.images_filter = dataset.get("images_filter", None)
+        dp.images_filter = dataset.images_filter
         dp.class_filter = class_filter
         dp.status_filter = None
         dp.annotation_types = None
         dp.empty_fraction = 0.0
         dp.images_filter_func = ifcn
 
-        # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
-        # dp.hA = hA
-
-        dp.run()
+        dp.run(flatten=False)
 
         hA = dp.get_hA_crops()
         aI = AnnotationsIntermediary()
@@ -116,18 +131,61 @@ if __name__ == "__main__":
         coco_path = aI.coco(output_path / "coco_format.json")
         images_list = dp.get_images()
 
-        # aI.to_YOLO_annotations(output_path=output_path.parent / "yolo", images_list=images_list, coco_path=coco_path)
-
         logger.info(f"Finished {dset} at {output_path}")
         # TODO before uploading anything to CVAT labels need to be converted when necessary
 
         HastyConverter.convert_to_herdnet_format(hA, output_file=output_path / "herdnet_format.csv")
 
-        HastyConverter.convert_deep_forest(hA, output_file=output_path / "deep_forest_format.csv")
+        logger.info(f"Finished converting to herdnet, {dset} at {output_path}")
+        # TODO before uploading anything to CVAT labels need to be converted when necessary
+
+        if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
+            HastyConverter.convert_deep_forest(hA, output_file=output_path / "deep_forest_format_crops.csv")
+
+            class_names = aI.to_YOLO_annotations(output_path=output_path / "yolo")
+            report[f"yolo_box_path_{dset}"] = output_path / "yolo" / "yolo_boxes"
+            report[f"yolo_segments_path_{dset}"] = output_path / "yolo" / "yolo_segments"
+            report[f"class_names"] = class_names
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
         destination_path = output_path / f"crops_{crop_size}_num{num}_overlap{overlap}"
-        shutil.move(output_path / f"crops_{crop_size}", destination_path )
+
+        try:
+            shutil.move(output_path / f"crops_{crop_size}", destination_path )
+        except:
+            logger.error(f"Could not move {output_path / f'crops_{crop_size}'} to {destination_path}")
 
         logger.info(f"Moved to {destination_path}")
+        report[f"destination_path_{dset}"] = destination_path
+
+
+        if visualise_crops:
+            vis_path = output_path / f"visualisations"
+            vis_path.mkdir(exist_ok=True, parents=True)
+            for image in hA.images:
+                ax_s = visualise_image(image_path = destination_path / image.image_name, show=False)
+
+                filename = vis_path / f"{image.image_name}.png"
+                visualise_polygons(polygons=[p.polygon_s for p in image.labels],
+                                   labels=[p.class_name for p in image.labels],  ax=ax_s, show=False, linewidth=2,
+                                   filename=filename)
+                plt.close()
+
+
+
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  labels_train_path=report["yolo_box_path_train"],
+                                                    labels_val_path=report["yolo_box_path_val"],
+                                                  class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "processed" / "data_boxes.yaml")
+
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  labels_train_path=report["yolo_box_path_train"],
+                                                    labels_val_path=report["yolo_box_path_val"],
+                                                  class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "processed" / "data_segments.yaml")
