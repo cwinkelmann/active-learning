@@ -1,4 +1,4 @@
-# Human In the Loop Data Analytics (HILDA) active learning methods to improve machine learning
+# Human In the Loop Data Analytics (HILDA) active learning methods to improve machine learning for counting small infrequent Objects in drone Images
 
 ## Workflow of loading data, preparing the annotations and correct them the first time
 
@@ -37,7 +37,17 @@ Assuming the annotations have a different format, i.e. Coco based iSAID convert 
 
 
 ### Start the training
-use herdnet now
+
+#### Basic Faster-RCNN
+TODO 
+
+#### Herdnet see this repo
+
+#### YOLO
+
+#### DeepFaune
+
+#### deepforest
 
 
 ### Evaluation with a trained model
@@ -53,14 +63,15 @@ generate predictions using SAHI with YOLO
 
 
 ## Geospatial application of the trained models
-Use a model, a geotiff and 
-
-
+Use a model and a geotiff to predict the objects in the geotiff 
+```shell
+052_shp2other.py 
+```
 
 ## Training data creation
 Asside from just trainig on existing data, how can new training data be created
 
-### Simple Active learning
+### Simple Human In the Loop learning
 These are at least two steps
 
 #### upload images to CVAT
