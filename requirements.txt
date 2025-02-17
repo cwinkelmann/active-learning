@@ -16,3 +16,4 @@ pillow
 pandas
 geopandas
 sahi==0.11.20
+osgeo

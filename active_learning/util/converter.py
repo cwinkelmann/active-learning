@@ -286,7 +286,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
                     y=int(row.y),
                     keypoint_class_id=keypoint_id_mapping.get(row.species, None),
                 )],  # you can store extra information if needed
-                kind=row["kind"]
+                kind=row.get("kind", None)
             )
             annotations.append(annotation)
 

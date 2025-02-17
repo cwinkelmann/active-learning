@@ -8,7 +8,7 @@ from pathlib import Path
 # import pytest
 
 from active_learning.analyse_detections_yolo import analyse_point_detections_
-from active_learning.pipelines.predict import YoloPredictor
+from active_learning.pipelines.yolo_predict import YoloPredictor
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, hA_from_file
 from examples.review_annotations import debug_hasty_fiftyone_v3
 import fiftyone as fo
@@ -34,7 +34,7 @@ def analyse_detections_yolo(image_path: Path, dataset: fo.Dataset):
     yolo11n_model_path = "/Users/christian/Downloads/best.pt"
 
 
-    yp = YoloPredictor(yolo11n_model_path=yolo11n_model_path, confidence_threshold=0.3)
+    yp = YoloPredictor(yolo11n_model_path=yolo11n_model_path, confidence_threshold=0.5)
     results = yp.sliced_predict(image_path)
 
     r = analyse_point_detections_(hA_gt=image_gt, predictions=results)

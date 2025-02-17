@@ -8,17 +8,19 @@ from PIL import Image
 from loguru import logger
 from pathlib import Path
 
+from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
 from active_learning.util.converter import coco2hasty, hasty2coco, coco2yolo
 from com.biospheredata.helper.image_annotation.annotation import create_regular_raster_grid
-from com.biospheredata.image.image_manipulation import crop_out_images_v2, pad_to_multiple
 
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2, AnnotatedImage
 from com.biospheredata.types.serialisation import save_model_to_file
 
 
 def process_image(args):
-    """Function to process a single image"""
+    """
+    Create a regular grid and crop the images
+    """
     train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap = args
 
 
@@ -33,43 +35,7 @@ def process_image(args):
     )
     return images, cropped_images_path
 
-def crop_by_regular_grid(
-        crop_size,
-        full_images_path_padded,
-        i,
-        images_path,
-        train_images_output_path,
-        empty_fraction,
-        overlap):
-    # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
-    # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
-    original_image_path = images_path / i.image_name
-    padded_image_path = full_images_path_padded / i.image_name
-    padded_image_path.parent.mkdir(exist_ok=True, parents=True)
-    new_width, new_height = pad_to_multiple(original_image_path,
-                                            padded_image_path,
-                                            crop_size,
-                                            crop_size,
-                                            overlap)
-    logger.info(f"Padded {i.image_name} to {new_width}x{new_height}")
-    grid, _ = create_regular_raster_grid(max_x=new_width,
-                                         max_y=new_height,
-                                         slice_height=crop_size,
-                                         slice_width=crop_size,
-                                         overlap=overlap)
-    logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
-    # TODO visualise the grid
-    # axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
-    # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
-    images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
-                                                     full_image_path=padded_image_path,
-                                                     output_path=train_images_output_path,
-                                                     include_empty=empty_fraction,
-                                                     dataset_name=i.dataset_name)
-    # image = Image.open(full_images_path / i.dataset_name / i.image_name)
-    logger.info(f"Cropped {len(images)} images from {i.image_name}")
 
-    return images, cropped_images_path
 
 class UnpackAnnotations(object):
     """

@@ -1,5 +1,13 @@
 # Human In the Loop Data Analytics (HILDA) active learning methods to improve machine learning for counting small infrequent Objects in drone Images
 
+## Setup
+```shell
+
+
+conda create -n active_learning python=3.11
+
+```
+
 ## Workflow of loading data, preparing the annotations and correct them the first time
 
 
