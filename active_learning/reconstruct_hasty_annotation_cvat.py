@@ -1,18 +1,28 @@
 # config_path = Path("/Users/christian/data/2TB/ai-core/data/google_drive_mirror/Orthomosaics_for_quality_analysis/San_STJB01_10012023/batch_workflow_report_config_San_STJB01_10012023.yaml")
+import copy
+
 import shapely
 from loguru import logger
 from pathlib import Path
 import fiftyone as fo
 import pandas as pd
 
-from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file
+from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file, \
+    HastyAnnotationV2
 from util.util import visualise_polygons, visualise_image
 
-def cvat2hasty(hA_before_path, dataset_name):
-
+def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
+    """
+    TODO refactor this as soon as possible
+    :param hA_before_path:
+    :param dataset_name:
+    :return:
+    """
     # load hasty annotations
     hA = hA_from_file(file_path=hA_before_path)
-    hA.images = [i for i in hA.images if len(i.labels) > 0]
+
+    # hA.images = [i for i in hA.images if len(i.labels) > 0] # TODO why is it removing empty images?
+
     hA_corrected = hA_from_file(
         file_path=hA_before_path
     )
@@ -43,7 +53,9 @@ def cvat2hasty(hA_before_path, dataset_name):
         hasty_image_id = sample.hasty_image_id
         hasty_filename = sample.filename
         logger.info(f"Processing {hasty_filename}")
-        image = [i for i in hA.images if i.image_id == sample.hasty_image_id][0]
+        images = [i for i in hA.images if i.image_id == sample.hasty_image_id]
+        assert len(images) == 1, "There should be exactly one image"
+        image = copy.deepcopy(images[0])
         assert isinstance(image, AnnotatedImage)
 
         stats_row = {}
@@ -103,8 +115,9 @@ def cvat2hasty(hA_before_path, dataset_name):
             logger.info(f"Sample {sample.id} has no ground_truth_boxes")
 
 
-        if hasattr(sample, "ground_truth_points"):
-            for kp in sample.ground_truth_points.keypoints:
+        if hasattr(sample, point_field):
+            keypoints_field = getattr(sample, point_field)
+            for kp in keypoints_field.keypoints:
                 # iterate over the keypoints
                 pt = shapely.Point(
                     kp.points[0][0] * image.width, kp.points[0][1] * image.height
@@ -153,6 +166,7 @@ def cvat2hasty(hA_before_path, dataset_name):
                     logger.info("New object")
                     il.attributes = {"cvat": "new"}
                     new_labels.append(il)
+
         else:
             logger.info(f"Sample {sample.id} has no ground_truth_points")
         stats_row["filename"] = hasty_filename
@@ -200,4 +214,5 @@ def cvat2hasty(hA_before_path, dataset_name):
     stats_path = stats_path
 
     return stats_path, corrected_annotations_file_path
+
 

@@ -50,6 +50,7 @@ if __name__ == "__main__":
 
     df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
         df_detections=df_detections, df_ground_truth=df_ground_truth, radius=150)
+
     df_concat = pd.concat([df_false_positives, df_true_positives, df_false_negatives])
 
 
@@ -61,7 +62,8 @@ if __name__ == "__main__":
 
     dataset_name = f"eal_{analysis_date}_review"
 
-    logger.info(f"False Positives: {len(df_false_positives)} True Positives: {len(df_true_positives)}, False Negatives: {len(df_false_negatives)}, Ground Truth: {len(df_ground_truth)}")
+    logger.info(f"False Positives: {len(df_false_positives)} True Positives: {len(df_true_positives)}, "
+                f"False Negatives: {len(df_false_negatives)}, Ground Truth: {len(df_ground_truth)}")
 
     box_size = 350
 

@@ -29,7 +29,7 @@ def evaluate_predictions(
         # images_dir: Path,
         predictions: typing.List[ImageLabelCollection] = None,
         type="points",
-        sample_field_name="prediction", ):
+        sample_field_name="prediction") -> fo.Sample:
     """
     Evaluate the predictions
     :return:
@@ -43,7 +43,8 @@ def evaluate_predictions(
         hA_image_pred = filtered_predictions[0]
 
         if type == "points":
-            keypoints_pred = _create_fake_boxes(hA_image=hA_image_pred)
+            # keypoints_pred = _create_fake_boxes(hA_image=hA_image_pred) # TODO this was a bit of hack to visualise better in fiftyone
+            keypoints_pred = _create_keypoints_s(hA_image=hA_image_pred)
         elif type == "boxes":
             boxes_pred = _create_boxes_s(hA_image=hA_image_pred)
         elif type == "polygons":
@@ -55,7 +56,8 @@ def evaluate_predictions(
 
 
         if type == "points":
-            sample[sample_field_name] = fo.Detections(detections=keypoints_pred)
+            # sample[sample_field_name] = fo.Detections(detections=keypoints_pred)
+            sample[sample_field_name] = fo.Keypoints(keypoints=keypoints_pred)
         elif type == "boxes":
             sample[sample_field_name] = fo.Detections(detections=boxes_pred)
         elif type == "polygons":
@@ -63,6 +65,11 @@ def evaluate_predictions(
             # sample['ground_truth_polygons'] = fo.Polylines(polyline=polygons)
         else:
             raise ValueError("Unknown type, use 'boxes' or 'points'")
+
+        sample.tags = hA_image_pred.tags
+        sample["hasty_image_id"] = hA_image_pred.image_id
+        sample["hasty_image_name"] = hA_image_pred.image_name
+
 
         # logger.info(f"Added {image_name} to the dataset")
 
@@ -192,3 +199,37 @@ def evaluate_in_fifty_one(dataset_name: str, images_set: typing.List[Path],
 
     session = fo.launch_app(dataset)
     session.wait()
+
+
+def submit_for_cvat_evaluation(dataset: fo.Dataset, images_set: typing.List[Path],
+                          detections: typing.List[ImageLabelCollection],
+                          type="points"):
+    """
+
+    :param dataset_name:
+    :param images_set:
+    :param detections:
+    :param type:
+    :return:
+    """
+
+
+    for sample in dataset:
+        # create dot annotations
+        sample = evaluate_predictions(
+            predictions=detections,
+            sample=sample,
+            sample_field_name="detection",
+            # images_set=images_set,
+            type=type,
+        )
+        sample.save()
+
+    return dataset
+
+
+
+def submit_for_roboflow_evaluation(dataset_name: str, images_set: typing.List[Path],
+                          detections: typing.List[ImageLabelCollection],
+                          type="points"):
+    raise NotImplementedError("Roboflow is not yet implemented")

@@ -14,15 +14,18 @@ import geopandas as gpd
 from pyproj import CRS
 from scipy.spatial import cKDTree
 
+from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
+
 
 def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.DataFrame, radius = 150):
     """
+    @deprectaed
     Analyse detection and look into false positives, false negatives
     :param df_detections:
     :param df_ground_truth:
     :return:
     """
-
+    raise DeprecationWarning("This function is deprecated, use analyse_point_detections_greedy instead")
     crs = CRS.from_proj4("+proj=cart +ellps=WGS84 +units=m +no_defs")
 
     gdf_detections = gpd.GeoDataFrame(df_detections, geometry=gpd.points_from_xy(df_detections.x, df_detections.y)).set_crs(crs)
@@ -85,7 +88,7 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
 def analyse_point_detections_greedy(df_detections: pd.DataFrame,
                              df_ground_truth: pd.DataFrame,
                              radius=150,
-                                    confidence_threshold=0.5):
+                                    confidence_threshold=0.5) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
     Analyse detections and look into false positives, false negatives
     using one-to-one matching on a per-image basis.
@@ -214,6 +217,15 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
     return df_false_positives, df_true_positives, df_false_negatives
 
+
+def analyse_point_detection_correction(predicted: AnnotatedImage,
+                             corrected: AnnotatedImage,
+                             radius=150):
+    """
+    Analyse the correction of a point detector. This function compares the predicted detections with the corrected
+    """
+
+    raise NotImplementedError("This function is not implemented yet")
 
 if __name__ == "__main__":
     pass

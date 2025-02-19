@@ -382,8 +382,8 @@ def _create_fake_boxes(hA_image: typing.Union[AnnotatedImage, ImageLabelCollecti
             hasty_id=r.id,
             attributes=r.attributes,
             # attributes={"custom_attribute": [{"bla": "keks"}]},
-            tags=["bla", "keks", r.kind],
-            confidence = r.score
+            tags=[],
+            # confidence = r.score
         )
 
         keypoints.append(kp)

@@ -37,6 +37,7 @@ Convert bigger images to smaller tiles, filter and convert annotations
 ```shell
 001_hasty_to_tile.py
 ```
+001_isaid_to_tile is the alternative for coco/isaid annotations
 
 Assuming the annotations have a different format, i.e. Coco based iSAID convert them first to hasty.json
 

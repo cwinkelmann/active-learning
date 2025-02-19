@@ -6,8 +6,10 @@ from pathlib import Path
 import fiftyone as fo
 import pandas as pd
 
-from examples.review_annotations import debug_hasty_fiftyone, debug_hasty_fiftyone_v2, evaluate_predictions
+from active_learning.util.evaluation.evaluation import evaluate_predictions
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
+from examples.review_annotations import debug_hasty_fiftyone
+
 
 # start with yolo
 

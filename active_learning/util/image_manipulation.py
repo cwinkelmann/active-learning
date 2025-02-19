@@ -209,7 +209,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
                                output_path: Path,
                                offset: int = None,
                                width: int = None,
-                               height: int = None) -> Tuple[List[ImageCropMetadata], List[AnnotatedImage]]:
+                               height: int = None) -> Tuple[List[ImageCropMetadata], List[AnnotatedImage], List[Path]]:
     """
     Create crops from individual objects in each image.
 
@@ -223,15 +223,16 @@ def crop_out_individual_object(i: ImageLabelCollection,
 
     Returns:
     - Tuple containing:
-        - List of shapely Polygons representing bounding boxes.
-        - List of dictionaries mapping cropped images to parent images.
+        - List of ImageCropMetadata mapping to see which images is cropped.
         - List of AnnotatedImage objects with cropped image data.
+        - List of cropped image paths.
     """
 
     assert isinstance(i, ImageLabelCollection)
     cropped_annotated_images: List[AnnotatedImage] = []
     boxes: List[Polygon] = []
     image_mappings: List[ImageCropMetadata] = []
+    images_set: List[Path] = []
 
     for label in i.labels:
         label_id = label.id
@@ -281,6 +282,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
             sliced = im.crop(box.bounds)
             slice_path_jpg = output_path / Path(f"{i.image_name}_{label_id}.jpg")
             sliced.save(slice_path_jpg)
+            images_set.append(slice_path_jpg)
 
             aI = AnnotatedImage(
                 image_id=str(uuid.uuid4()),
@@ -289,16 +291,6 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 labels=[pI],
                 width=int(width),
                 height=int(width))
-
-            # image_mappings.append({"parent_image": i.image_name,
-            #                        "parent_image_id": i.image_id,
-            #                        "parent_label_id": label_id,
-            #                        "cropped_image": slice_path_jpg.name,
-            #                        "cropped_image_id": aI.image_id,
-            #                        "box": box,
-            #                        "local_coordinate": pI.incenter_centroid,
-            #                        "global_coordinate": label.incenter_centroid,
-            #                        })
 
             image_mapping = ImageCropMetadata(
                             parent_image = i.image_name,
@@ -317,7 +309,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
         else:
             raise ValueError("offset or width and height must be provided")
 
-    return image_mappings, cropped_annotated_images
+    return image_mappings, cropped_annotated_images, images_set
 
 def crop_image_from_box_absolute(output_path: Path,
                                  input_image_path: Path,
