@@ -15,14 +15,16 @@ from typing import List, Union, Tuple
 
 from shapely import Polygon, affinity, box
 
+from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.Annotation import project_point_to_crop
 from com.biospheredata.converter.Annotation import add_offset_to_box
-from com.biospheredata.helper.image.manipulation.slice import GeoSlicer
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, ImageLabelCollection, PredictedImageLabel, Keypoint
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 from com.biospheredata.types.annotationbox import BboxXYXY, BboxXYWH, xywh2xyxy
 from com.biospheredata.visualization.visualize_result import blackout_bbox
 from PIL import Image
+
+from image_rasterization import generate_positions
 
 DATA_SET_NAME = "train_augmented"
 
@@ -157,15 +159,18 @@ def crop_by_regular_grid(
                                             crop_size,
                                             overlap)
     logger.info(f"Padded {i.image_name} to {new_width}x{new_height}")
+
     grid, _ = create_regular_raster_grid(max_x=new_width,
                                          max_y=new_height,
                                          slice_height=crop_size,
                                          slice_width=crop_size,
                                          overlap=overlap)
+
     logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
     # TODO visualise the grid
     # axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
     # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
+
     images, cropped_images_path = crop_out_images_v2(i, rasters=grid,
                                                      full_image_path=padded_image_path,
                                                      output_path=train_images_output_path,
@@ -204,22 +209,33 @@ def crop_out_individual_object(i: ImageLabelCollection,
                                output_path: Path,
                                offset: int = None,
                                width: int = None,
-                               height: int = None) -> List[shapely.Polygon]:
+                               height: int = None) -> Tuple[List[ImageCropMetadata], List[AnnotatedImage]]:
     """
-    create crops from individual objects from each image
-    :param df_flat:
-    :param full_images_path:
-    :param output_path:
-    :return:
+    Create crops from individual objects in each image.
+
+    Parameters:
+    - i: ImageLabelCollection object containing labels and bounding boxes.
+    - im: PIL Image object.
+    - output_path: Path to save cropped images.
+    - offset: Optional, offset to add around bounding boxes.
+    - width: Optional, width of cropped images.
+    - height: Optional, height of cropped images.
+
+    Returns:
+    - Tuple containing:
+        - List of shapely Polygons representing bounding boxes.
+        - List of dictionaries mapping cropped images to parent images.
+        - List of AnnotatedImage objects with cropped image data.
     """
+
     assert isinstance(i, ImageLabelCollection)
-    cropped_annotated_images = []
-    boxes = []
-    crops = []
-    image_mappings = []
+    cropped_annotated_images: List[AnnotatedImage] = []
+    boxes: List[Polygon] = []
+    image_mappings: List[ImageCropMetadata] = []
 
     for label in i.labels:
         label_id = label.id
+
         # add a bit of an offset
         if offset and label.bbox_polygon is not None and isinstance(label.bbox_polygon, shapely.Polygon):
             box = add_offset_to_box(label.bbox, i.height, i.width, offset)
@@ -232,7 +248,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
             else:
                 box = create_box_from_point(x=label.centroid.x, y=label.centroid.y, width=width, height=height)
 
-            # TODO this should be wrapper into a function somewhere
+            # Ensure the bounding box stays within image bounds
             if box.bounds[0] < 0:
                 box = affinity.translate(box, -box.bounds[0], 0)
             if box.bounds[1] < 0:
@@ -242,17 +258,25 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 box = affinity.translate(box, i.width - box.bounds[2], 0)
             if box.bounds[3] > i.height:
                 box = affinity.translate(box, 0, i.height - box.bounds[3])
-            
+            # TODO project every keypoint, box or segmentation mask to the new crop
             projected_keypoint = project_point_to_crop(label.incenter_centroid, box)
+
+            # TODO get the ids right and keep the projections
             projected_keypoint = [Keypoint(
                 x=int(projected_keypoint.x),
                 y=int(projected_keypoint.y),
                 keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff", # TODO get this right
             )]  # you can store extra information if needed
+            if isinstance(label, ImageLabel):
+                pI = ImageLabel(id=label_id, class_name=label.class_name,
+                                         keypoints=projected_keypoint)
+            elif isinstance(label, PredictedImageLabel):
+                pI = PredictedImageLabel(id=label_id, class_name=label.class_name,
+                                         keypoints=projected_keypoint, score=label.score,
+                                         kind=None)
+            else:
+                raise NotImplementedError("Only ImageLabel and PredictedImageLabel are supported")
 
-            pI = PredictedImageLabel(id=label_id, class_name=label.class_name,
-                                     keypoints=projected_keypoint, score=label.score,
-                                     kind=None)
             boxes.append(box)
             sliced = im.crop(box.bounds)
             slice_path_jpg = output_path / Path(f"{i.image_name}_{label_id}.jpg")
@@ -266,19 +290,34 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 width=int(width),
                 height=int(width))
 
-            image_mappings.append({"parent_image": i.image_name,
-                                   "parent_image_id": i.image_id,
-                                   "parent_label_id": label_id,
-                                   "cropped_image": slice_path_jpg.name,
-                                   "cropped_image_id": aI.image_id,
-                                   })
+            # image_mappings.append({"parent_image": i.image_name,
+            #                        "parent_image_id": i.image_id,
+            #                        "parent_label_id": label_id,
+            #                        "cropped_image": slice_path_jpg.name,
+            #                        "cropped_image_id": aI.image_id,
+            #                        "box": box,
+            #                        "local_coordinate": pI.incenter_centroid,
+            #                        "global_coordinate": label.incenter_centroid,
+            #                        })
+
+            image_mapping = ImageCropMetadata(
+                            parent_image = i.image_name,
+                            parent_image_id = i.image_id,
+                            parent_label_id = label_id,
+                            cropped_image = slice_path_jpg.name,
+                            cropped_image_id = aI.image_id,
+                            box = [int(box.bounds[0]), int(box.bounds[1]), int(box.bounds[2]), int(box.bounds[3])],  # Creates a Shapely bounding box
+                            local_coordinate = pI.keypoints,  # Example point inside crop
+                            global_coordinate = label.keypoints  # Original image point
+                        )
+            image_mappings.append(image_mapping)
 
             cropped_annotated_images.append(aI)
 
         else:
             raise ValueError("offset or width and height must be provided")
 
-    return boxes, image_mappings, cropped_annotated_images
+    return image_mappings, cropped_annotated_images
 
 def crop_image_from_box_absolute(output_path: Path,
                                  input_image_path: Path,

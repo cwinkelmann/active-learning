@@ -63,7 +63,6 @@ if __name__ == "__main__":
 
     logger.info(f"False Positives: {len(df_false_positives)} True Positives: {len(df_true_positives)}, False Negatives: {len(df_false_negatives)}, Ground Truth: {len(df_ground_truth)}")
 
-
     box_size = 350
 
     for i in images:

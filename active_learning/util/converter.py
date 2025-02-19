@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import shapely
 from loguru import logger
+from shapely.geometry.point import Point
 from ultralytics.data.converter import convert_coco
 
 from active_learning.config.mapping import keypoint_id_mapping
@@ -15,7 +16,7 @@ from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage, \
     PredictedImageLabel, Keypoint, ImageLabelCollection
-
+import geopandas as gpd
 import fiftyone as fo
 
 def hasty2coco(hA: HastyAnnotationV2) -> COCOAnnotations:
@@ -275,6 +276,10 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
         annotations: typing.List[PredictedImageLabel] = []
         # Iterate over DataFrame rows
         for _, row in df_group.iterrows():
+
+            if row["scores"] is None or pd.isna(row["scores"]):
+                continue
+
             annotation = PredictedImageLabel(
                 score=float(row["scores"]),
                 class_name=row["species"],  # use spiecies as the label/class_name
@@ -299,6 +304,20 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
 
     return ILC_list
 
+
+def prediction_list_to_gdf(predictions):
+    data = []
+    for prediction in predictions:
+        # Append to the data list
+        data.append({
+            "label": prediction.class_name,  # Assuming there is a label attribute
+            "confidence": prediction.score,  # Assuming there is a confidence score
+            "geometry": Point(prediction.incenter_centroid.x, prediction.incenter_centroid.y)  # Create Point geometry
+        })
+
+    # Convert to GeoDataFrame
+    gdf = gpd.GeoDataFrame(data, geometry="geometry", crs="EPSG:32715")  # Assuming EPSG:32715 projection
+    return gdf
 
 def _create_keypoints_s(hA_image: typing.Union[AnnotatedImage, ImageLabelCollection]) -> typing.List[fo.Keypoint]:
     """

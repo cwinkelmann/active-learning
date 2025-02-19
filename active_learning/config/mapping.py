@@ -23,6 +23,7 @@ prefix_mapping = {
 
 # TODO this has to become more flexible
 keypoint_id_mapping = {
-    "iguana_point" : "ed18e0f9-095f-46ff-bc95-febf4a53f0ff"
+    "iguana_point" : "ed18e0f9-095f-46ff-bc95-febf4a53f0ff",
+    "iguana" : "ed18e0f9-095f-46ff-bc95-febf4a53f0ff"
 
 }
