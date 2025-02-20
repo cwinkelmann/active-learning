@@ -1,4 +1,6 @@
 # config_path = Path("/Users/christian/data/2TB/ai-core/data/google_drive_mirror/Orthomosaics_for_quality_analysis/San_STJB01_10012023/batch_workflow_report_config_San_STJB01_10012023.yaml")
+import typing
+
 import copy
 
 import shapely
@@ -8,28 +10,22 @@ import fiftyone as fo
 import pandas as pd
 
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file, \
-    HastyAnnotationV2
+    HastyAnnotationV2, ImageLabelCollection
 from util.util import visualise_polygons, visualise_image
 
-def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
+def cvat2hasty(hA_tiled_prediction: HastyAnnotationV2,
+               dataset_name, point_field="detection", class_name = "iguana") -> typing.Tuple[pd.DataFrame, HastyAnnotationV2, typing.List[ImageLabel]]:
     """
     TODO refactor this as soon as possible
     :param hA_before_path:
     :param dataset_name:
     :return:
     """
-    # load hasty annotations
-    hA = hA_from_file(file_path=hA_before_path)
 
-    # hA.images = [i for i in hA.images if len(i.labels) > 0] # TODO why is it removing empty images?
-
-    hA_corrected = hA_from_file(
-        file_path=hA_before_path
-    )
+    hA_corrected = copy.deepcopy(hA_tiled_prediction)
     hA_corrected.images = []
-    corrected_annotations_file_path = (
-        hA_before_path.parent / f"corrected_annotations_{dataset_name}.json"
-    )
+    iCLdl: typing.List[ImageLabel] = []
+
     anno_key = dataset_name
 
     dataset = fo.load_dataset(dataset_name)
@@ -42,26 +38,29 @@ def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
 
     try:
         keypoint_class_id = (
-            hA.keypoint_schemas[0].keypoint_classes[0].keypoint_class_id
+            hA_tiled_prediction.keypoint_schemas[0].keypoint_classes[0].keypoint_class_id
         )  # a bit of a hack because there is only one keypoint schema here, but there could be more
     except:
         keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff"
+        logger.warning("No keypoint class id found, using a default value")
 
     # reconstruct an annotation file
     for sample in view:
         filepath = sample.filepath
+        # This is the image hash
         hasty_image_id = sample.hasty_image_id
         hasty_filename = sample.filename
         logger.info(f"Processing {hasty_filename}")
-        images = [i for i in hA.images if i.image_id == sample.hasty_image_id]
-        assert len(images) == 1, "There should be exactly one image"
-        image = copy.deepcopy(images[0])
+        annotated_image = [i for i in hA_tiled_prediction.images if i.image_id == sample.hasty_image_id]
+        assert len(annotated_image) == 1, "There should be exactly one image"
+        image = copy.deepcopy(annotated_image[0])
         assert isinstance(image, AnnotatedImage)
 
         stats_row = {}
         updated_labels = []
         new_labels = []
         unchanged_labels = []
+        deleted_labels = []
 
         if hasattr(sample, "ground_truth_boxes"):
             for kp in sample.ground_truth_boxes.detections:
@@ -116,7 +115,10 @@ def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
 
 
         if hasattr(sample, point_field):
+            """ are there points in the sample """
             keypoints_field = getattr(sample, point_field)
+
+
             for kp in keypoints_field.keypoints:
                 # iterate over the keypoints
                 pt = shapely.Point(
@@ -129,6 +131,7 @@ def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
                     norder=0,
                     keypoint_class_id=keypoint_class_id,
                 )
+
                 il = ImageLabel(
                     class_name=kp.label,
                     keypoints=[hkp],
@@ -161,19 +164,29 @@ def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
                         )
                         unchanged_labels.append(il)
 
+                    # every label which has a hasty_id and is here is not deleted
+
+                # The id is not in the old labels
                 else:
                     # The object is new
                     logger.info("New object")
                     il.attributes = {"cvat": "new"}
                     new_labels.append(il)
 
+                del(kp)
+
+
         else:
             logger.info(f"Sample {sample.id} has no ground_truth_points")
+            # checking if they were deleted
+
         stats_row["filename"] = hasty_filename
 
-        updated_labels_ig = [il for il in updated_labels if il.class_name == "iguana"]
-        new_labels_ig = [il for il in new_labels if il.class_name == "iguana"]
-        unchanged_labels_ig = [il for il in unchanged_labels if il.class_name == "iguana"]
+        # TODO generalise this
+
+        updated_labels_ig = [il for il in updated_labels if il.class_name == class_name]
+        new_labels_ig = [il for il in new_labels if il.class_name == class_name]
+        unchanged_labels_ig = [il for il in unchanged_labels if il.class_name == class_name]
 
         stats_row["updated_labels"] = len(updated_labels_ig)
         stats_row["new_labels"] = len(new_labels_ig)
@@ -181,38 +194,25 @@ def cvat2hasty(hA_before_path, dataset_name, point_field="detection"):
         stats_row["after_correction"] = (
             len(updated_labels_ig) + len(new_labels_ig) + len(unchanged_labels_ig)
         )
-        stats_row["before_correction"] = len([il for il in image.labels if il.class_name == "iguana"])
+        stats_row["before_correction"] = len([il for il in image.labels if il.class_name == class_name])
 
         stats.append(stats_row)
-        image.labels = updated_labels + new_labels + unchanged_labels
+        corrected_labels = updated_labels + new_labels + unchanged_labels
+
+        old_labels = image.labels
+        for ol in old_labels:
+            if ol.id not in [il.id for il in corrected_labels]:
+                deleted_labels.append(ol)
+
+        iCLdl.extend( deleted_labels )
+
+        image.labels = corrected_labels
 
         hA_corrected.images.append(image)
 
-        # ax_c = visualise_image(
-        #     image_path=filepath, dpi=100, title=f"Corrected labels {hasty_filename}"
-        # )
-        # ax_c = visualise_polygons(
-        #     points=[x.centroid for x in image.labels],
-        #     ax=ax_c,
-        #     filename=base_path / f"{Path(hasty_filename).stem}_corrected.jpg",
-        #     show=False,
-        #     linewidth=3.5,
-        #     markersize=5.5,
-        #     color="red",
-        # )
-
-    with open(corrected_annotations_file_path, "w") as json_file:
-        json_file.write(hA_corrected.model_dump_json())
-
 
     stats_df = pd.DataFrame(stats)
-    stats_path = Path(hA_before_path.parent) / "stats.csv"
-    stats_df.to_csv(stats_path, index=False)
 
-    logger.info(f"wrote stats to {stats_path} and corrections to {corrected_annotations_file_path}")
-
-    stats_path = stats_path
-
-    return stats_path, corrected_annotations_file_path
+    return stats_df, hA_corrected, iCLdl
 
 

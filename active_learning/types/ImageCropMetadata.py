@@ -1,3 +1,5 @@
+import json
+
 from pathlib import Path
 
 import typing
@@ -29,3 +31,15 @@ class ImageCropMetadata(BaseModel):
         with open(file_path, 'w') as json_file:
             # Serialize the list of Pydantic objects to a list of dictionaries
             json_file.write(self.model_dump_json())
+
+    @staticmethod
+    def load(file_path: Path) -> "ImageCropMetadata":
+        """
+        Load a HastyAnnotationV2 object from a file
+        :param file_path:
+        :return:
+        """
+        with open(file_path, mode="r") as f:
+            data = json.load(f)
+            iCM = ImageCropMetadata(**data)
+        return iCM

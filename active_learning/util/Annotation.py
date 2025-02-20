@@ -86,6 +86,15 @@ def project_point_to_crop(point: shapely.Point, crop_box: shapely.Polygon) -> sh
     projected_point = affinity.translate(point, xoff=-minx, yoff=-miny)
     return projected_point
 
+def project_label_to_crop(label: ImageLabel, crop_box: shapely.Polygon) -> ImageLabel:
+    """
+    similar to project_point_to_crop but for ImageLabel, offset all coordinates to the new origin
+    :param label:
+    :param crop_box:
+    :return:
+    """
+    raise NotImplementedError("Not yet implemented")
+
 def reframe_bounding_box(cutout_box: typing.Union[shapely.Polygon, shapely.box],
                          label: typing.Union[shapely.Polygon, ImageLabel, shapely.Point],
                          angle = 0, fit_to_box=True) -> typing.Union[shapely.Polygon, ImageLabel]:

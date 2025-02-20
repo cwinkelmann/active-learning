@@ -5,7 +5,8 @@ import uuid
 
 import shutil
 from pathlib import Path
-
+import hashlib
+from io import BytesIO
 import numpy as np
 import pandas as pd
 import PIL.Image
@@ -16,7 +17,7 @@ from typing import List, Union, Tuple
 from shapely import Polygon, affinity, box
 
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
-from active_learning.util.Annotation import project_point_to_crop
+from active_learning.util.Annotation import project_point_to_crop, project_label_to_crop
 from com.biospheredata.converter.Annotation import add_offset_to_box
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, ImageLabelCollection, PredictedImageLabel, Keypoint
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
@@ -204,6 +205,22 @@ def crop_polygons(image: PIL.Image.Image,
 
     return images
 
+
+# Assume `sliced` is your cropped image
+def get_image_hash(image: Image.Image, hash_function="sha256"):
+    """Generate a unique hash for an image crop."""
+    img_bytes = BytesIO()
+    image.save(img_bytes, format="PNG")  # Use PNG to ensure consistency
+    img_bytes = img_bytes.getvalue()
+
+    if hash_function == "sha256":
+        return hashlib.sha256(img_bytes).hexdigest()
+    elif hash_function == "md5":
+        return hashlib.md5(img_bytes).hexdigest()
+    else:
+        raise ValueError("Unsupported hash function")
+
+
 def crop_out_individual_object(i: ImageLabelCollection,
                                im: PIL.Image.Image,
                                output_path: Path,
@@ -249,7 +266,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
             else:
                 box = create_box_from_point(x=label.centroid.x, y=label.centroid.y, width=width, height=height)
 
-            # Ensure the bounding box stays within image bounds
+            # TODO write a function for this, Ensure the bounding box stays within image bounds
             if box.bounds[0] < 0:
                 box = affinity.translate(box, -box.bounds[0], 0)
             if box.bounds[1] < 0:
@@ -259,15 +276,19 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 box = affinity.translate(box, i.width - box.bounds[2], 0)
             if box.bounds[3] > i.height:
                 box = affinity.translate(box, 0, i.height - box.bounds[3])
+
             # TODO project every keypoint, box or segmentation mask to the new crop
             projected_keypoint = project_point_to_crop(label.incenter_centroid, box)
+            # project_label_to_crop(label, box) # TODO the code above and below can be outsourced into this.
 
             # TODO get the ids right and keep the projections
             projected_keypoint = [Keypoint(
+                id = label.keypoints[0].id, # TODO get this right for cases when there are other label types
                 x=int(projected_keypoint.x),
                 y=int(projected_keypoint.y),
-                keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff", # TODO get this right
+                keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff", # TODO programmatically get the right class id
             )]  # you can store extra information if needed
+
             if isinstance(label, ImageLabel):
                 pI = ImageLabel(id=label_id, class_name=label.class_name,
                                          keypoints=projected_keypoint)
@@ -280,12 +301,14 @@ def crop_out_individual_object(i: ImageLabelCollection,
 
             boxes.append(box)
             sliced = im.crop(box.bounds)
+            image_id = get_image_hash(sliced)
             slice_path_jpg = output_path / Path(f"{i.image_name}_{label_id}.jpg")
             sliced.save(slice_path_jpg)
             images_set.append(slice_path_jpg)
 
             aI = AnnotatedImage(
-                image_id=str(uuid.uuid4()),
+                # image_id=str(uuid.uuid4()),
+                image_id=image_id,
                 dataset_name="cropped_predictions",
                 image_name=slice_path_jpg.name,
                 labels=[pI],
