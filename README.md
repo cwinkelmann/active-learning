@@ -64,6 +64,10 @@ generate a prediction on the test set using herdnet
 ```shell
 inference_test.py
 ```
+then evaluate the results
+```shell
+051_evaluate_point_detector.py
+```
 
 generate predictions using SAHI with YOLO
 ```shell
@@ -80,10 +84,17 @@ Use a model and a geotiff to predict the objects in the geotiff
 ## Training data creation
 Asside from just trainig on existing data, how can new training data be created
 
+### cut an orthomosaic into tiles
+```shell
+040_prepare_orthomosaics.py
+
+```
+
 ### Simple Human In the Loop learning
 These are at least two steps
 
 #### upload images to CVAT
+Based on bigger images
 ```shell
 002_review_annotations.py
 ```
@@ -91,6 +102,13 @@ These are at least two steps
 #### download them after correction
 ```shell
 003_download_from_cvat.py
+```
+
+Based on tiles
+
+```shell
+060_HIT.py
+061_HIT_2.py
 ```
 
 TODO then reconstruct the original big images from the tiles and the annotations
@@ -115,6 +133,8 @@ use a single cropped detection thumbnail, template search it in any other image,
 ### full overlap based detection deduplication
 Do not count detections twice if they are fully contained in the overlap to another image
 
+### automatic orthorectification using an orthomosaic
+can it be done
 
 ## ERA5 Correlation of iguanas abundance to weather data
 - ERA5 data for for climate

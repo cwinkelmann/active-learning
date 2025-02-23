@@ -313,7 +313,7 @@ def cut_geospatial_raster_with_grid(raster_path: Path,
 
 
 def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDataFrame, output_dir: Path,
-                                         compression: str = "geotiff", quality: int = 85):
+                                         compression: str = "geotiff", quality: int = 85) -> List[Path]:
     """
     Cut a geospatial raster into tiles using a grid and save as GeoTIFF or JPEG 2000 using GDAL.
 
@@ -372,7 +372,7 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
                                           format='GTiff',
                                           creationOptions=[
                                               'COMPRESS=JPEG',  # Apply JPEG compression
-                                              'JPEG_QUALITY=90',  # Set JPEG quality (1-100)
+                                              'JPEG_QUALITY=95',  # Set JPEG quality (1-100)
                                               # Use YCbCr color space for better compression
                                               'TILED=YES',  # Enable tiling for optimized access
                                               'BLOCKXSIZE=256',  # Set tile width

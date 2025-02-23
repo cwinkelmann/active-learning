@@ -27,7 +27,7 @@ from loguru import logger
 
 def main():
     # Create an empty dataset, TODO put this away so the dataset is just passed into this
-    analysis_date = "2024_12_09"
+    analysis_date = "2025_02_22"
     # lcrop_size = 640
     num = 56
     type = "points"
@@ -38,9 +38,9 @@ def main():
         '/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
     images_path = base_path  / "Default"
 
-    base_path = Path(f'/Users/christian/data/orthomosaics/tiles')
+    base_path = Path(f'/Users/christian/data/training_data/2025_02_22_HIT/FMO02_full_orthophoto_tiles')
     df_detections = pd.read_csv(
-         '/Users/christian/PycharmProjects/hnee/active_learning/tests/data/FMO02_full_orthophoto_herdnet_detections.csv')
+         '/Users/christian/data/training_data/2025_02_22_HIT/06-25-46/detections.csv')
 
     images_path = base_path
     dataset_name = f"eal_{analysis_date}_review"
@@ -65,14 +65,15 @@ def main():
     hA_tiled_prediction.images = []
     all_image_mappings: List[ImageCropMetadata] = []
 
-    try:
-        fo.delete_dataset(dataset_name)
-    except:
-        logger.warning(f"Dataset {dataset_name} does not exist")
-    finally:
-        # Create an empty dataset, TODO put this away so the dataset is just passed into this
-        dataset = fo.Dataset(name=dataset_name)
-        dataset.persistent = True
+    # # delete the dataset if it exists
+    # try:
+    #     fo.delete_dataset(dataset_name)
+    # except:
+    #     logger.warning(f"Dataset {dataset_name} does not exist")
+    # finally:
+    #     # Create an empty dataset, TODO put this away so the dataset is just passed into this
+    #     dataset = fo.Dataset(name=dataset_name)
+    #     dataset.persistent = True
 
     # create crops for each of the detections
     for i in IL_all_detections:
@@ -80,9 +81,8 @@ def main():
         # convert to RGB
         if im.mode != "RGB":
             im = im.convert("RGB")
-        # TODO create a box around each Detection
-        # TODO it sucks quite a lot, that I can't get my head around the fact this would work better with geospatial data.
 
+        # TODO it produces the same image multiple times, tile_22.tif_ba2ec74e-76b8-4a26-ae48-dc969f9a4dd7 tile_22.tif_96eb06c5-e0b8-4ea6-96db-138b010fdee0.jpg
         image_mappings, cropped_annotated_images, images_set = crop_out_individual_object(i,
                                                                                           width=512,
                                                                                           height=512,

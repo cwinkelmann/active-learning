@@ -78,10 +78,12 @@ def shift_keypoint_label(corrected_label: ImageLabel, hA_prediction: HastyAnnota
 
 
 def main():
-    analysis_date = "2024_12_09"
-    type = "points"
+    analysis_date = "2025_02_22"
+    base_path = Path(f'/Users/christian/data/training_data/2025_02_22_HIT/FMO02_full_orthophoto_tiles')
+
+
+    images_path = base_path
     dataset_name = f"eal_{analysis_date}_review"
-    base_path = Path(f'/Users/christian/data/orthomosaics/tiles')
 
     images_path = base_path
 
@@ -97,6 +99,7 @@ def main():
 
     df_stats, hA_prediction_tiled_corrected, iCLdl_deletions = cvat2hasty(hA_prediction_tiled, dataset_name)
 
+    ## TODO outsource this to a function
     """
     Retrieve the original untiled label, the tiled label and the corrected label
     with the tiled version get the offset or if the label was deleted
@@ -114,8 +117,6 @@ def main():
                 if len(corrected_label.keypoints) != 1:
                     raise ValueError("Only one keypoint is supported")
                 else:
-                    kp = corrected_label.keypoints[0]
-
                     x_offset, y_offset = get_point_offset(corrected_label, hA_prediction_tiled)
                     if x_offset > 0 or y_offset > 0:
                         logger.info(f"Label {corrected_label.id} was moved by {x_offset}, {y_offset}")
@@ -133,6 +134,7 @@ def main():
             for l in annotated_image.labels:
                 if l.id == iL.id:
                     hA_prediction.images[i].labels.remove(l)
+                    logger.info(f"Deleted label {l.id}")
 
 
     hA_prediction.save(output_path / f"{dataset_name}_hasty_corrected.json")

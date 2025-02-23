@@ -80,10 +80,11 @@ class GeoSlicer():
         @param x_size:
         """
 
-        return cut_geospatial_raster_with_grid_gdal(raster_path=self.base_path.joinpath(self.image_name),
+        slices = cut_geospatial_raster_with_grid_gdal(raster_path=self.base_path.joinpath(self.image_name),
                                              grid_gdf=self.grid,
                                              output_dir=self.output_dir)
-
+        self.slices = slices
+        return slices
 
 
 

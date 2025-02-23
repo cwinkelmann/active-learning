@@ -19,6 +19,8 @@ from active_learning.util.image_manipulation import crop_out_images_v3
 from com.biospheredata.converter.Annotation import project_point_to_crop
 import shapely
 import fiftyone as fo
+
+from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, ImageLabelCollection, AnnotatedImage, \
     HastyAnnotationV2
 
@@ -28,7 +30,7 @@ def evaluate_predictions(
         sample: fo.Sample,
         # images_dir: Path,
         predictions: typing.List[ImageLabelCollection] = None,
-        type="points",
+        type: AnnotationType = AnnotationType.KEYPOINT,
         sample_field_name="prediction") -> fo.Sample:
     """
     Evaluate the predictions
@@ -42,12 +44,12 @@ def evaluate_predictions(
 
         hA_image_pred = filtered_predictions[0]
 
-        if type == "points":
+        if type == AnnotationType.KEYPOINT:
             # keypoints_pred = _create_fake_boxes(hA_image=hA_image_pred) # TODO this was a bit of hack to visualise better in fiftyone
             keypoints_pred = _create_keypoints_s(hA_image=hA_image_pred)
-        elif type == "boxes":
+        elif type == AnnotationType.BOUNDING_BOX:
             boxes_pred = _create_boxes_s(hA_image=hA_image_pred)
-        elif type == "polygons":
+        elif type == AnnotationType.POLYGON:
             raise NotImplementedError("Polygons are not yet implemented")
             #polygons = _create_polygons_s(hA_image=hA_image)
         else:
@@ -55,21 +57,21 @@ def evaluate_predictions(
         # FIXME, if this function is called multiple times, the same image will be added multiple times
 
 
-        if type == "points":
+        if type == AnnotationType.KEYPOINT:
             # sample[sample_field_name] = fo.Detections(detections=keypoints_pred)
             sample[sample_field_name] = fo.Keypoints(keypoints=keypoints_pred)
-        elif type == "boxes":
+        elif type == AnnotationType.BOUNDING_BOX:
             sample[sample_field_name] = fo.Detections(detections=boxes_pred)
-        elif type == "polygons":
+        elif type == AnnotationType.POLYGON:
             raise NotImplementedError("Polygons are not yet implemented")
             # sample['ground_truth_polygons'] = fo.Polylines(polyline=polygons)
         else:
             raise ValueError("Unknown type, use 'boxes' or 'points'")
 
-        sample.tags = hA_image_pred.tags
+        if hasattr(hA_image_pred, "tags"):
+            sample.tags = hA_image_pred.tags
         sample["hasty_image_id"] = hA_image_pred.image_id
         sample["hasty_image_name"] = hA_image_pred.image_name
-
 
         # logger.info(f"Added {image_name} to the dataset")
 
@@ -83,7 +85,7 @@ def evaluate_predictions(
 def evaluate_ground_truth(
         sample: fo.Sample,
         ground_truth_labels: typing.List[AnnotatedImage] = None,
-        type="points", sample_field_name="ground_truth", ):
+        type: AnnotationType = AnnotationType.KEYPOINT, sample_field_name="ground_truth", ):
     """
     add ground truth to fiftyOne sample    :return:
     """
@@ -95,11 +97,11 @@ def evaluate_ground_truth(
 
     hA_image = hA_gt_sample[0]
 
-    if type == "points":
+    if type == AnnotationType.KEYPOINT:
         keypoints = _create_keypoints_s(hA_image=hA_image)
-    elif type == "boxes":
+    elif type == AnnotationType.BOUNDING_BOX:
         boxes = _create_boxes_s(hA_image=hA_image)
-    elif type == "polygons":
+    elif type == AnnotationType.POLYGON:
         raise NotImplementedError("Polygons are not yet implemented")
         #polygons = _create_polygons_s(hA_image=hA_image)
     else:
@@ -109,11 +111,11 @@ def evaluate_ground_truth(
     sample["hasty_image_id"] = hA_image.image_id
     sample["hasty_image_name"] = hA_image.image_name
 
-    if type == "points":
+    if type == AnnotationType.KEYPOINT:
         sample["ground_truth"] = fo.Keypoints(keypoints=keypoints)
-    elif type == "boxes":
+    elif type == AnnotationType.BOUNDING_BOX:
         sample["ground_truth"] = fo.Detections(detections=boxes)
-    elif type == "polygons":
+    elif type == AnnotationType.POLYGON:
         raise NotImplementedError("Polygons are not yet implemented")
         # sample['ground_truth_polygons'] = fo.Polylines(polyline=polygons)
     else:
@@ -131,7 +133,7 @@ def evaluate_in_fifty_one(dataset_name: str, images_set: typing.List[Path],
                           IL_fp_detections: typing.List[ImageLabelCollection],
                           IL_fn_detections: typing.List[ImageLabelCollection],
                           IL_tp_detections: typing.List[ImageLabelCollection],
-                          type="points"):
+                          type:AnnotationType =AnnotationType.KEYPOINT):
     try:
         fo.delete_dataset(dataset_name)
     except:
@@ -201,11 +203,12 @@ def evaluate_in_fifty_one(dataset_name: str, images_set: typing.List[Path],
     session.wait()
 
 
-def submit_for_cvat_evaluation(dataset: fo.Dataset, images_set: typing.List[Path],
+def submit_for_cvat_evaluation(dataset: fo.Dataset,
+                               images_set: typing.List[Path],
                           detections: typing.List[ImageLabelCollection],
-                          type="points"):
+                          type=AnnotationType.KEYPOINT):
     """
-
+    @Deprecated
     :param dataset_name:
     :param images_set:
     :param detections:

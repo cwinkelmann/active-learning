@@ -67,11 +67,11 @@ def create_box_from_point(x: float, y: float, width: int, height: int) -> Polygo
     return Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
 
 
-def create_regular_raster_grid(max_x: int, max_y: int,
+def create_regular_raster_grid_from_center(max_x: int, max_y: int,
                                            slice_height: int,
                                            slice_width: int) -> [List[Polygon]]:
     """
-    Create a regular raster grid of oriented bounding boxes, starting from the center of the image,
+    Create a regular raster grid of bounding boxes, starting from the center of the image,
     with the center point located at the intersection of four tiles.
     """
     tiles = []
@@ -136,7 +136,60 @@ def create_regular_raster_grid(max_x: int, max_y: int,
 
     return tiles, tile_coordinates
 
+def create_regular_raster_grid(max_x: int, max_y: int,
+                               slice_height: int,
+                               slice_width: int,
+                               overlap: int = 0) -> Tuple[List[Polygon], List[Dict]]:
+    """
+    Create a regular raster grid of bounding boxes starting from the top-left corner of the image.
 
+    Parameters:
+        max_x (int): Width of the image.
+        max_y (int): Height of the image.
+        slice_height (int): Height of each tile.
+        slice_width (int): Width of each tile.
+        overlap (int): Overlap between tiles in pixels.
+
+    Returns:
+        Tuple[List[Polygon], List[Dict]]:
+            - A list of shapely Polygons representing the grid tiles.
+            - A list of dictionaries with tile metadata (indices and coordinates).
+    """
+    tiles = []
+    tile_coordinates = []
+
+    # Calculate step size (tile size minus overlap)
+    step_x = slice_width - overlap
+    step_y = slice_height - overlap
+
+    # Iterate over grid positions
+    for y1 in range(0, max_y, step_y):
+        for x1 in range(0, max_x, step_x):
+            x2 = x1 + slice_width
+            y2 = y1 + slice_height
+
+            # Create a polygon for the tile
+            pol = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+
+            if x2 <= max_x and y2 <= max_y:
+                # Append to results
+                tiles.append(pol)
+                tile_coordinates.append({
+                    "height_i": y1 // step_y,
+                    "width_j": x1 // step_x,
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2
+                })
+
+            # Break when the tile reaches the max dimensions
+            if x2 == max_x:
+                break
+        if y2 == max_y:
+            break
+
+    return tiles, tile_coordinates
 
 
 
@@ -149,6 +202,17 @@ def crop_by_regular_grid(
         train_images_output_path,
         empty_fraction,
         overlap):
+    """
+
+    :param crop_size:
+    :param full_images_path_padded:
+    :param i:
+    :param images_path:
+    :param train_images_output_path:
+    :param empty_fraction:
+    :param overlap:
+    :return:
+    """
     # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
     # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
     original_image_path = images_path / i.image_name
@@ -315,6 +379,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 width=int(width),
                 height=int(width))
 
+            # TOTO this is deprecated
             image_mapping = ImageCropMetadata(
                             parent_image = i.image_name,
                             parent_image_id = i.image_id,

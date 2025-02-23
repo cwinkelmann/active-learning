@@ -4,6 +4,9 @@ inspect annotations and correct them using cvat, fifty one or roboflow
 """
 from pathlib import Path
 import fiftyone as fo
+
+from active_learning.util.visualisation.fiftyone import hastyAnnotation2fiftyOne
+from com.biospheredata.converter.HastyConverter import AnnotationType
 from examples.review_annotations import debug_hasty_fiftyone, debug_hasty_fiftyone_v2
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 
@@ -64,6 +67,7 @@ def create_fo_ds_v2(dset,
 
     images_set = [images_path / i.image_name for i in hA.images]
 
+    # TODO use code from this repo, evaluate_predictions is very simiar to this
     # create dot annotations
     dataset = debug_hasty_fiftyone_v2(
         annotated_images=hA.images,
@@ -78,53 +82,36 @@ def create_fo_ds_v2(dset,
 
 if __name__ == "__main__":
     # /Users/christian/data/training_data/2024_12_11/train/crops_640_num1_overlap0
-    analysis_date = "2024_12_16"
-    lcrop_size = 640
-    num = 56
 
     just_check_fiftyone = True
+    #eal_2024_12_09_review_hasty_corrected_jpg.json
 
-# '/Users/christian/data/training_data/2024_12_11/2024_12_14/train/crops_640_num1_overlap0/crops_640
+    analysis_date = "2024_12_09"
+    type = "points"
+    dataset_name = f"eal_{analysis_date}_review"
+    base_path = Path(f'/Users/christian/data/orthomosaics/tiles')
+    # label_path = Path("/Users/christian/data/orthomosaics/tiles/object_crops/eal_2024_12_09_review_hasty.json") # wrong
+    label_path = Path("/Users/christian/data/orthomosaics/tiles/object_crops/eal_2024_12_09_review_hasty_corrected_jpg.json") # corrected
+    images_path = base_path
 
-    for dset in ["train"]:
-        # lbase_path = Path(f"/Users/christian/data/training_data/2024_12_11/{analysis_date}/{dset}/crops_{lcrop_size}_num{num}_overlap0")
-        lbase_path = Path(f"/Users/christian/data/training_data/{analysis_date}/{dset}/crops_640_num6_overlap0")
+    output_path = base_path / "object_crops"
 
-        # lbase_path = Path(f"/Users/christian/data/training_data/2024_12_16/val/crops_640_numNone_overlap0")
+    hA = hA_from_file(label_path)
 
-        dataset_name = f"eal_{analysis_date}_{dset}_review_{lcrop_size}"
-        type = "boxes"
 
-        ## TODO display this in fiftyOne and CVAT
-        try:
-            fo.delete_dataset(dataset_name)
-        except:
-            pass
+    ## TODO display this in fiftyOne and CVAT
+    try:
+        fo.delete_dataset(dataset_name)
+    except:
+        pass
 
-        hA = hA_from_file(lbase_path / "hasty_format.json")
+    ds = hastyAnnotation2fiftyOne(hA, images_path, annoation_type=AnnotationType.KEYPOINT)
 
-        images_set = [lbase_path / i.image_name for i in hA.images]
-
-        ds = debug_hasty_fiftyone_v2(
-            annotated_images=hA.images,
-            images_set=images_set,
-            dataset_name=dataset_name,
-            type=type,
-        )
-
-        # #ds = create_fo_ds(dset, dataset_name, type=type, base_path=lbase_path, crop_size=lcrop_size)
-        # ds = create_fo_ds_v2(dset,
-        #                      dataset_name,
-        #                      type=type,
-        #                      images_path=lbase_path,
-        #                      hA_path=lbase_path / "hasty_format.json",
-        #                      objects_threshold=0)
-
-        ## fiftyOne check
-        type = "boxes"
+    if just_check_fiftyone:
         session = fo.launch_app(ds)
         session.wait()
 
+    else:
         # CVAT correction
         ds.annotate(
             anno_key=dataset_name,
@@ -133,5 +120,4 @@ if __name__ == "__main__":
             launch_editor=True,
         )
 
-        # download the corrected dataset
 

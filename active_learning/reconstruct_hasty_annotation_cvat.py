@@ -52,7 +52,10 @@ def cvat2hasty(hA_tiled_prediction: HastyAnnotationV2,
         hasty_filename = sample.filename
         logger.info(f"Processing {hasty_filename}")
         annotated_image = [i for i in hA_tiled_prediction.images if i.image_id == sample.hasty_image_id]
-        assert len(annotated_image) == 1, "There should be exactly one image"
+        if len(annotated_image) != 1:
+            logger.error(f"Image {hasty_filename} not found in hA_tiled_prediction")
+            # TODO this should be an error
+            continue
         image = copy.deepcopy(annotated_image[0])
         assert isinstance(image, AnnotatedImage)
 

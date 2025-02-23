@@ -13,6 +13,10 @@ class DatasetFilterConfig(BaseModel):
         ...,
         description="Name of the dataset, e.g., 'train', 'validation', 'test'."
     )
+    dataset_name: str = Field(
+        default="",
+        description="Unique naming for identifying the dataset."
+    )
     images_filter: List[str] = Field(
         default=None,
         description="List of image filenames to include in the filter."
@@ -25,10 +29,7 @@ class DatasetFilterConfig(BaseModel):
         default=None,
         description="An integer parameter, purpose depends on context."
     )
-    output_path: Union[Path, str] = Field(
-        ...,
-        description="Path to the output directory or file for labels."
-    )
+
     empty_fraction: float = Field(
         ...,
         ge=0.0,

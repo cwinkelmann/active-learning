@@ -8,7 +8,7 @@ from PIL import Image
 from loguru import logger
 from pathlib import Path
 
-from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2
+from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2, crop_by_regular_grid
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
 from active_learning.util.converter import coco2hasty, hasty2coco, coco2yolo
 from com.biospheredata.helper.image_annotation.annotation import create_regular_raster_grid
@@ -86,6 +86,7 @@ class UnpackAnnotations(object):
 
         if output_path is None:
             output_path = hasty_annotations_labels_zipped.parent
+
         hA, images_path = HastyConverter.from_zip(output_path=output_path,
                                      hasty_annotations_labels_zipped=hasty_annotations_labels_zipped,
                                      hasty_annotations_images_zipped=hasty_annotations_images_zipped
@@ -282,7 +283,7 @@ class DataprepPipeline(object):
         hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
                                           overlap=self.overlap,
                                           hA=self.hA_filtered,
-                                          images_path=flat_images_path)
+                                          images_path=flat_images_path, use_multiprocessing=False)
 
         self.hA_crops = hA_crop
         return hA_crop
@@ -321,7 +322,8 @@ class DataprepPipeline(object):
 
         if use_multiprocessing:
 
-            args_list = [(self.train_images_output_path, self.empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap) for i in hA.images]
+            args_list = [(self.train_images_output_path, self.empty_fraction, crop_size,
+                          full_images_path_padded, i, images_path, overlap) for i in hA.images]
 
             # Use multiprocessing pool
             with multiprocessing.Pool(processes=multiprocessing.cpu_count()+5) as pool:
@@ -336,10 +338,10 @@ class DataprepPipeline(object):
             for i in hA.images:
 
                 images, cropped_images_path = crop_by_regular_grid(
-                                          crop_size,
-                                          full_images_path_padded,
-                                          i,
-                                          images_path,
+                                          crop_size=crop_size,
+                                          full_images_path_padded=full_images_path_padded,
+                                          i=i,
+                                          images_path=images_path,
                                           overlap=overlap,
                                           train_images_output_path=self.train_images_output_path,
                                           empty_fraction=self.empty_fraction)
