@@ -1,5 +1,5 @@
 from active_learning.config.dataset_filter import DatasetFilterConfig
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.converter.HastyConverter import AnnotationType, ClassName
 
 test_fixes = DatasetFilterConfig(**{
         "dset": "test_fixed",
@@ -14,7 +14,7 @@ test_fixes = DatasetFilterConfig(**{
 
     })
 
-train_segments_1 = DatasetFilterConfig(**{
+train_segments_fernanandina_1 = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "train_segments_1",
     "images_filter": ["DJI_0366.JPG"],
@@ -24,9 +24,36 @@ train_segments_1 = DatasetFilterConfig(**{
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
 })
-val_segments_1 = DatasetFilterConfig(**{
+train_segments_fernanandina_12 = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "segments_12",
+    "images_filter": ["DJI_0366.JPG", "STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0924.JPG",
+                      "DJI_0942.JPG", "DJI_0417.JPG", "DJI_0097.JPG", "DJI_0185.JPG", "DJI_0195.JPG", "DJI_0285.JPG"],
+    "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images", "San_STJB06_12012023", "Floreana_02.02.21_FMO01", "Floreana_03.02.21_FMO06", "FLMO02_28012023",
+                       ],
+    "class_filter": ["iguana"],
+    "annotation_types": [AnnotationType.POLYGON],
+    "tag_filter": ["segment"],
+    "empty_fraction": 0.0,
+})
+
+train_segments_points_fernanandina = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "segments_points_many",
+    "images_filter": [],
+    "images_exclude": ["DJI_0079_FCD01.JPG", "DJI_0395.JPG"],
+    "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images", "San_STJB06_12012023",
+                       "Floreana_02.02.21_FMO01", "Floreana_03.02.21_FMO06", "FLMO02_28012023",
+                       ],
+    "class_filter": [ClassName.iguana, ClassName.iguana_point],
+    "annotation_types": [AnnotationType.POLYGON, AnnotationType.KEYPOINT],
+    "image_tags": ["points", "segment"],
+    "empty_fraction": 0.0,
+})
+
+val_segments_fernandina_1 = DatasetFilterConfig(**{
     "dset": "val",
-    "dataset_name": "test_segments_1",
+    "dataset_name": "segments_12",
     "images_filter": ["DJI_0079_FCD01.JPG"],
     "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images"],
     "class_filter": ["iguana"],
@@ -34,9 +61,9 @@ val_segments_1 = DatasetFilterConfig(**{
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
 })
-test_segments_1 = DatasetFilterConfig(**{
+test_segments_fernandina_1 = DatasetFilterConfig(**{
     "dset": "test",
-    "dataset_name": "test_segments_1",
+    "dataset_name": "segments_12",
     "images_filter": ["DJI_0395.JPG"],
     "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images"],
     "class_filter": ["iguana"],

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Union
 from pydantic import BaseModel, Field
 
+from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
 
@@ -21,9 +22,17 @@ class DatasetFilterConfig(BaseModel):
         default=None,
         description="List of image filenames to include in the filter."
     )
+    images_exclude: List[str] = Field(
+        default=None,
+        description="List of image filenames to exclude in the filter."
+    )
     dataset_filter: List[str] = Field(
         default=None,
         description="List of dataset identifiers or categories to include."
+    )
+    class_filter: List[str] = Field(
+        default=None,
+        description="List of class labels to include in the filter."
     )
     num: int = Field(
         default=None,
@@ -39,6 +48,10 @@ class DatasetFilterConfig(BaseModel):
     image_tags: List[str] = Field(
         default=None,
         description="List of image tags to include in the filter."
+    )
+    annotation_types: List[AnnotationType] = Field(
+        default=None,
+        description="List of annotation types to include in the filter."
     )
 
 

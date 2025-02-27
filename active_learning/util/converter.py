@@ -12,6 +12,7 @@ from shapely.geometry.point import Point
 from ultralytics.data.converter import convert_coco
 
 from active_learning.config.mapping import keypoint_id_mapping
+from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords
 from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage, \
@@ -261,11 +262,11 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
 def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) -> typing.List[ImageLabelCollection]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
-    assert "labels" in df_prediction.columns, "labels column not found in the DataFrame"
+    assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
     assert "scores" in df_prediction.columns, "scores column not found in the DataFrame"
     assert "x" in df_prediction.columns, "x column not found in the DataFrame"
     assert "y" in df_prediction.columns, "y column not found in the DataFrame"
-    assert "species" in df_prediction.columns, "species column not found in the DataFrame"
+    assert "species" in df_prediction.columns, "species str, i.e. iguana column not found in the DataFrame"
 
     ILC_list: typing.List[ImageLabelCollection] = []
 
@@ -304,6 +305,30 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
 
     return ILC_list
 
+def ifa_point_shapefile_to_hasty(gdf: gpd.GeoDataFrame, images_path: Path,
+                       labels=1, species="iguana") -> ImageLabelCollection:
+    """
+    create a Hasty ImageLabelCollection from a shapefile, which is very specific based on the iguanasFromAbove workflow which creates dots without id/name which depict iguanas
+    :param gdf:
+    :param images_path:
+    :return:
+    """
+    gdf["images"] = images_path.name
+    gdf = project_gdfcrs(gdf, images_path)
+
+    # project the global coordinates to the local coordinates of the orthomosaic
+    gdf_local = convert_gdf_to_jpeg_coords(gdf, images_path)
+
+    # rename local_x to x, local_y to y
+    gdf_local.rename(columns={"local_x": "x", "local_y": "y"}, inplace=True)
+    gdf_local["scores"] = 0
+    gdf_local["labels"] = labels
+    gdf_local["species"] = species
+
+    # create an ImageCollection of the annotations
+    ilc = herdnet_prediction_to_hasty(gdf_local, images_path=images_path.parent)
+
+    return ilc
 
 def prediction_list_to_gdf(predictions):
     data = []

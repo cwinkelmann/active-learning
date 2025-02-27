@@ -11,6 +11,7 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.util.Annotation import convert_shapefile2usable
+from active_learning.util.converter import ifa_point_shapefile_to_hasty
 from active_learning.util.geospatial_image_manipulation import create_regular_geospatial_raster_grid
 from active_learning.util.geospatial_slice import GeoSlicer
 from active_learning.util.image_manipulation import convert_image, convert_tiles_to, remove_empty_tiles
@@ -24,58 +25,47 @@ import geopandas as gpd
 # Herdnet model
 
 
-def save_tiles_to_csv(tiles, output_csv: Path, species="iguana", label=1):
-    """
-    Save raster tile filenames to a CSV file with additional metadata.
-
-    Parameters:
-        tiles (list): List of tile filenames (Paths or strings).
-        output_csv (Path): Path to the output CSV file.
-        species (str): Default species name (default: "iguana").
-        label (int): Default label (default: 1).
-
-    Returns:
-        Path: Path to the saved CSV file.
-    """
-    output_csv = Path(output_csv)
-    output_csv.parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-
-    # Open CSV file for writing
-    with open(output_csv, mode="w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-
-        # Write header
-        writer.writerow(["images", "x", "y", "species", "labels"])
-
-        # Iterate through tiles and write rows
-        for tile in tiles:
-            filename = Path(tile).name  # Extract just the filename
-            x, y = 0, 0  # Default placeholders (modify if coordinates exist)
-            writer.writerow([filename, x, y, species, label])
-
-    print(f"CSV saved to: {output_csv}")
-    return output_csv
-
-
 
 
 
 if __name__ == "__main__":
-    annotations_file = None
-    annotations_file = Path('/Users/christian/data/Manual Counting/Fer_FNF02_19122021/Fer_FNF02_19122021 counts.shp')
-    orthomosaic_path = Path("/Users/christian/data/Manual Counting/Fer_FNF02_19122021/Fer_FNF02_19122021.tif")
+    annotations_base_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Counts QGIS')
+    orthomosaic_base_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Drone Deploy orthomosaics')
 
-    if annotations_file is not None:
-        gdf = gpd.read_file(annotations_file)
-        convert_shapefile2usable(annotations_file)
-        gdf["image_name"] = orthomosaic_path.name
-        # incase the orthomosaic has a different CRS than the annotations
-        gdf = project_gdfcrs(gdf, orthomosaic_path)
+    # Counter for the number of annotations
+    from collections import Counter
+    stats = Counter()
+    annotations = annotations_base_path.glob('**/*.shp')
+    for annotataion in annotations:
+        possible_orthopath = orthomosaic_base_path / f"{annotataion.parent.stem}.tif"
 
-        # project the global coordinates to the local coordinates of the orthomosaic
-        gdf_local = convert_gdf_to_jpeg_coords(gdf, orthomosaic_path)
-        # create an ImageCollection of the annotations
-        gdf_local
+        if possible_orthopath.exists():
+            logger.info(f"Found orthomosaic for {annotataion.parent} , {annotataion.stem}")
+            stats.update(["found"])
+        else:
+            logger.warning(f"Could not find orthomosaic for {annotataion.parent.name}, {annotataion.stem}")
+            stats.update(["NOT found"])
+
+    logger.info(stats)
+    """
+    annotations_files = [
+        Path('/Users/christian/data/Manual Counting/Fer_FNF02_19122021/Fer_FNF02_19122021 counts.shp'),
+        # TODO look the following up on my disk
+        # Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Counts QGIS/Fer_FPM05_24012023/Fer_FPM05_24012023 counts.shp'),
+        Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Counts QGIS/Isa_ISPDA01_17012023/Isa_ISPDA01_17012023 counts.shp')
+    ]
+    orthomosaic_paths = [
+        Path("/Users/christian/data/Manual Counting/Fer_FNF02_19122021/Fer_FNF02_19122021.tif")
+    ]
+    """
+
+    gdfs = [gpd.read_file(annotations_file) for annotations_file in annotations_files]
+    icl = [ifa_point_shapefile_to_hasty(gdf=gdf, images_path=orthomosaic_path) for gdf, orthomosaic_path in zip(gdfs, orthomosaic_paths)]
+
+    # according to the location we can create datasets now
+
+
+
         # Then I could use the standard way of slicing the orthomosaic into tiles and save the tiles to a CSV file
 
 

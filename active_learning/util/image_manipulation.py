@@ -1,4 +1,6 @@
-""" from flight simulation sim"""
+"""
+Collection of function to manipulate images
+"""
 import copy
 import typing
 import uuid
@@ -18,7 +20,9 @@ from shapely import Polygon, affinity, box
 
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.Annotation import project_point_to_crop, project_label_to_crop
+from active_learning.util.geospatial_slice import GeoSlicer
 from com.biospheredata.converter.Annotation import add_offset_to_box
+from com.biospheredata.converter.HastyConverter import ImageFormat
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, ImageLabelCollection, PredictedImageLabel, Keypoint
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 from com.biospheredata.types.annotationbox import BboxXYXY, BboxXYWH, xywh2xyxy
@@ -713,7 +717,7 @@ def crop_out_images_v2(hi: AnnotatedImage,
                     # So far we do not do anything here
                     pass
 
-
+                # TODO readd this
                 # elif box.attributes.get("partial", False) or box.attributes.get("visibility", -1) < 2:
                 #     logger.info(f"Bor or Polygon is a partial={box.attributes.get('partial')} or is badly visible=box.attributes.get('visibility', -1)")
                 #
@@ -865,13 +869,86 @@ def pad_to_multiple(original_image_path: Path, padded_image_path: Path,
     logger.info(f"Padded image saved to {padded_image_path} with size: {new_width}x{new_height}")
     return new_width, new_height
 
-
 def sliced_predict_geotiff(geotiff_path: Path):
     """
-
+    @deprecated
     :param geotiff_path:
     :return:
     """
     slicer = GeoSlicer(base_path=geotiff_path.parent, image_name=geotiff_path.name, x_size=5120, y_size=5120)
     tiles = slicer.slice_very_big_raster()
     print(tiles)
+
+# TODO modify this so it can be integrated into the latter
+def convert_image(image_path) -> Path:
+    """
+    convert an geospatial image to a jpg
+    :param image_path:
+    :return:
+    """
+    jpg_path = image_path.with_suffix(".jpg")
+    with Image.open(image_path) as img:
+        img.convert("RGB").save(jpg_path, "JPEG", quality=95)
+
+    return jpg_path
+
+
+def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: Path) -> typing.List[Path]:
+    """
+    Convert a list of image tiles to a specified format. Either from geospatial
+    to pixel coordinates or vice versa (geospatial logic not fully implemented here).
+
+    :param tiles: A list of Path objects pointing to the input tiles.
+    :param format: The desired output image format (e.g., ImageFormat.PNG).
+    :param output_dir: The directory where converted images will be saved.
+    """
+
+    # Ensure the output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_tiles: typing.List[Path] = []
+
+    for tile in tiles:
+        if not tile.exists():
+            logger.warning("Tile does not exist: %s", tile)
+            continue
+
+        # Open the image tile
+        with Image.open(tile) as img:
+            # If a world_file is provided, you can apply geospatial transformations here
+
+            # Build the output filename (e.g., tile_name.png)
+            output_filename = f"{tile.stem}.{format.value.lower()}"
+            out_path = output_dir / output_filename
+            if format == ImageFormat.JPG:
+                img = img.convert("RGB")
+            # Save the image in the desired format
+            img.save(out_path, quality=95)
+
+            logger.info(f"Converted {tile} -> {out_path}")
+
+            output_tiles.append(out_path)
+
+    return output_tiles
+
+
+def remove_empty_tiles(tiles: typing.List[Path], threshold=0.7, empty_value = (0,0,0)) -> typing.List[Path]:
+    """
+    check amount of black pixels for each tile and remove the empty ones
+    :param threshold: percent empty pixels
+    :param tiles:
+    :return:
+    """
+    assert 0 <= threshold <= 1
+
+    non_empty_tiles = []
+    for tile in tiles:
+        with Image.open(tile) as img:
+            img = img.convert("RGB") # remove the possible alpha channel
+            img_array = np.array(img)
+            empty_pixels = np.count_nonzero(np.all(img_array == empty_value, axis=2))
+            total_pixels = img_array.shape[0] * img_array.shape[1]
+            empty_ratio = empty_pixels / total_pixels
+            if empty_ratio < threshold:
+                non_empty_tiles.append(tile)
+
+    return non_empty_tiles

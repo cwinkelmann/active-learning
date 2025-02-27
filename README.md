@@ -64,6 +64,14 @@ generate a prediction on the test set using herdnet
 ```shell
 inference_test.py
 ```
+
+This can be used too for inferencing on the whole dataset up to an orthomosaic.
+An orthomosaic will be probably to big to be inferenced at once, therefore tiling it is necessary.
+```shell
+040_prepare_orthomosaics.py 
+```
+
+
 then evaluate the results
 ```shell
 051_evaluate_point_detector.py

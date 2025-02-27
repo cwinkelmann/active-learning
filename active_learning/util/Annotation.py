@@ -1,3 +1,5 @@
+from pathlib import Path
+import geopandas as gpd
 import typing
 
 import shapely
@@ -188,7 +190,21 @@ def reframe_polygon(cutout_box: shapely.Polygon,
     else:
         logger.warning("bbox_polygon is outside the cutout box. Because of the rotation it sometimes happens")
 
+def convert_shapefile2usable(shapefile_path: Path):
+    parent_path = shapefile_path.parent
+    # Convert to GeoJSON
+    gdf = gpd.read_file(shapefile_path)
+    geojson_path = parent_path / "output.geojson"
+    gdf.to_file(geojson_path, driver="GeoJSON")
 
+    # Convert to CSV (geometry as WKT format)
+    csv_path = parent_path / "output.csv"
+    gdf.to_csv(csv_path, index=False)
+
+    print(f"GeoJSON saved to: {geojson_path}")
+    print(f"CSV saved to: {csv_path}")
+
+    return gdf
 
     # if polygon.within(cutout_box):
     #     # change coordinates to the label by using the coordinates of the cutout box

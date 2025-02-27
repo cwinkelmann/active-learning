@@ -194,6 +194,7 @@ class DataprepPipeline(object):
     process annotations by filtering, tiling and some augmentations
     """
     dataset_filter = None
+    tag_filter = None
     augmented_images = typing.Optional[typing.List[AnnotatedImage]]
     augmented_images_path = typing.Optional[typing.List[Path]]
     empty_fraction = False
@@ -221,16 +222,18 @@ class DataprepPipeline(object):
         self.hA_filtered = None
         self.hA_crops = None
         # self.images_path = None
-
+        self.rename_dictionary = None
         self.output_path = output_path
         self.output_path.mkdir(exist_ok=True, parents=True)
         self.train_images_output_path = output_path / f"crops_{self.crop_size}"
         self.train_images_output_path.mkdir(exist_ok=True, parents=True)
 
         self.images_filter = images_fitler
+        self.images_exclude = None
         self.class_filter = class_filter
         self.status_filter = status_filter
         self.annotation_types = annotation_types
+        self.tag_filter = None
 
         self.images_path = images_path
         self.empty_fraction = False
@@ -250,6 +253,8 @@ class DataprepPipeline(object):
                                    status_filter=self.status_filter,
                                    dataset_filter=self.dataset_filter,
                                    images_filter=self.images_filter,
+                                   images_exclude=self.images_exclude,
+                                    image_tags=self.tag_filter,
                                    annotation_types=self.annotation_types,
                                     num_images=self.num,
                                     sample_strategy=self.sample_strategy
@@ -272,23 +277,28 @@ class DataprepPipeline(object):
                 v.dataset_name = default_dataset_name
                 v.image_name = f"{v.ds_image_name}"
 
-            hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
-            hA_flat.save(self.output_path / hastyfilename)
+            # TODO saving sth in there is not good practice
+            # hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
+            # hA_flat.save(self.output_path / hastyfilename)
 
             self.hA_filtered = copy.deepcopy(hA_flat)
         else:
-            self.hA_filtered = hA
+            self.hA_filtered = copy.deepcopy(hA)
             flat_images_path = self.images_path
+
+        if self.rename_dictionary is not None:
+            for k, v in self.rename_dictionary.items():
+                self.hA_filtered.rename_label_class(k, v)
 
         hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
                                           overlap=self.overlap,
-                                          hA=self.hA_filtered,
-                                          images_path=flat_images_path, use_multiprocessing=False)
+                                          hA=copy.deepcopy(self.hA_filtered),
+                                          images_path=flat_images_path,
+                                          use_multiprocessing=True)
 
         self.hA_crops = hA_crop
         return hA_crop
 
-    # TODO make this static
     def data_crop_pipeline(self,
                            overlap : int,
                            crop_size : int,
@@ -330,14 +340,14 @@ class DataprepPipeline(object):
                 results = pool.map(process_image, args_list)
 
             # Collect results
-            for images, cropped_images_path in results:
-                all_images.extend(images)
+            for annotated_images, cropped_images_path in results:
+                all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
 
         else:
             for i in hA.images:
 
-                images, cropped_images_path = crop_by_regular_grid(
+                annotated_images, cropped_images_path = crop_by_regular_grid(
                                           crop_size=crop_size,
                                           full_images_path_padded=full_images_path_padded,
                                           i=i,
@@ -346,7 +356,7 @@ class DataprepPipeline(object):
                                           train_images_output_path=self.train_images_output_path,
                                           empty_fraction=self.empty_fraction)
 
-                all_images.extend(images)
+                all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
 
         hA.images = all_images

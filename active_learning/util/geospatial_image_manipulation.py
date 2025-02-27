@@ -1,18 +1,13 @@
+import geopandas as gpd
+import json
+import numpy as np
+import osgeo.gdal as gdal
+import rasterio
 from loguru import logger
 from pathlib import Path
-
-import os
-import osgeo.gdal as gdal
-import osgeo.ogr as ogr
-
-import geopandas as gpd
-from shapely.geometry import Polygon
-from typing import List, Tuple
-
-import numpy as np
-from shapely.geometry import Polygon
 from rasterio.mask import mask
-from pathlib import Path
+from shapely.geometry import Polygon
+from typing import List
 
 from active_learning.util.projection import world_to_pixel
 
@@ -75,9 +70,7 @@ def safe_world_file(raster_path: Path) -> Path:
     return world_file_path
 
 
-import json
-from pathlib import Path
-import rasterio
+
 
 def save_world_file_json(raster_path: Path) -> Path:
     """
@@ -118,11 +111,6 @@ def save_world_file_json(raster_path: Path) -> Path:
 
     print(f"JSON world file created: {json_file_path}")
     return json_file_path
-
-
-
-
-
 
 
 def create_regular_geospatial_raster_grid(full_image_path: Path,
@@ -205,8 +193,7 @@ def create_regular_geospatial_raster_grid(full_image_path: Path,
 
     return grid_gdf
 
-import geopandas as gpd
-from pathlib import Path
+
 
 def save_grid(grid_gdf: gpd.GeoDataFrame, output_path: Path):
     """
