@@ -1,5 +1,6 @@
 """
-Create patches from images and labels from hasty to be used in CVAT
+Create patches from images and labels from hasty which can be used for training a model
+
 """
 import shutil
 from loguru import logger
@@ -12,7 +13,6 @@ from active_learning.scripts.hasty_to_tile.data_configs import val_segments_fern
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 
-## TODO Download annotations from hasty
 
 
 
@@ -32,7 +32,6 @@ if __name__ == "__main__":
     hasty_annotations_images_zipped = "images_segments_completed.zip"
     annotation_types = [AnnotationType.POLYGON]
     class_filter = ["iguana"]
-    datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
     datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
     crop_size = 512
     overlap = 0

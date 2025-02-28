@@ -12,29 +12,17 @@ from active_learning.scripts.hasty_to_tile.data_configs import val_segments_fern
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 
-## TODO Download annotations from hasty
-
 
 
 if __name__ == "__main__":
-    """ This only works if the input is a hasty zip file which is very constraining. """
+    """ Take orthomosaics and geojsons to create trainign data from this"""
 
-    # ## fixed test data
-    # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT")
-    # hasty_annotations_labels_zipped = "labels_all_completed.zip"
-    # hasty_annotations_images_zipped = "images_all_completed.zip"
-    # annotation_types = [AnnotationType.KEYPOINT]
-    # class_filter = ["iguana_point"]
 
-    ## Segmentation masks
-    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other")
-    hasty_annotations_labels_zipped = "labels_all_completed.zip"
-    hasty_annotations_images_zipped = "image_all_completed.zip"
     # annotation_types = [AnnotationType.POLYGON]
     # class_filter = ["iguana", Cl]
-    datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
-    datasets = [train_segments_points_fernanandina, val_segments_fernandina_1, test_segments_fernandina_1]
-    crop_size = 512
+
+    datasets = [train_FER_1]
+    crop_size = 5000
     overlap = 0
     # amount of empty images in the dataset
 
@@ -48,10 +36,9 @@ if __name__ == "__main__":
         num = dataset.num
         ifcn = ImageFilterConstantNum(num=num, dataset_config= dataset)
 
-        uA = UnpackAnnotations()
-        hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped=labels_path / hasty_annotations_labels_zipped,
-                       hasty_annotations_images_zipped = labels_path / hasty_annotations_images_zipped)
-        logger.info(f"Unzipped {len(hA.images)} images.")
+        hA =
+        images_path =
+
         output_path_dataset_name = labels_path / dataset_name / dset
         output_path_dataset_name.mkdir(exist_ok=True, parents=True)
 

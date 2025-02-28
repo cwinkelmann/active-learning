@@ -44,9 +44,13 @@ def convert_gdf_to_jpeg_coords(gdf: gpd.GeoDataFrame, tiff_path: Path) -> gpd.Ge
         # Convert georeferenced coordinates to pixel coordinates in TIFF
         row, col = rowcol(transform, geom.x, geom.y)
         pixel_coords.append((col, row))  # (col, row) = (x, y) in TIFF
+    if len(pixel_coords) == 0:
+        logger.warning("No pixel coordinates found")
+        return gpd.GeoDataFrame()
 
     # Create a new DataFrame with pixel coordinates in TIFF space
     gdf_pixel = gdf.copy()
+
     gdf_pixel["local_x"], gdf_pixel["local_y"] = zip(*pixel_coords)
 
     return gdf_pixel

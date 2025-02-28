@@ -14,6 +14,20 @@ test_fixes = DatasetFilterConfig(**{
 
     })
 
+train_FER = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "fernandina_orthomosaic",
+    "images_filter": [],
+    "images_exclude": ["DJI_0079_FCD01.JPG", "DJI_0395.JPG"],
+    "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images", "San_STJB06_12012023",
+                       "Floreana_02.02.21_FMO01", "Floreana_03.02.21_FMO06", "FLMO02_28012023",
+                       ],
+    "class_filter": [ClassName.iguana, ClassName.iguana_point],
+    "annotation_types": [AnnotationType.POLYGON, AnnotationType.KEYPOINT],
+    "image_tags": ["points", "segment"],
+    "empty_fraction": 0.0,
+})
+
 train_segments_fernanandina_1 = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "train_segments_1",
@@ -24,6 +38,7 @@ train_segments_fernanandina_1 = DatasetFilterConfig(**{
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
 })
+
 train_segments_fernanandina_12 = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "segments_12",

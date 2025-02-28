@@ -161,6 +161,9 @@ def test_create_regular_geospatial_raster_grid(load_raster):
 def test_cut_geospatial_raster_with_grid():
     """
     Test the cut_geospatial_raster_with_grid function to ensure it correctly cuts a raster using a grid.
+
+    Attention: it happened with other orthomosaics, that the grid is NOT aligned with the original raster
+
     """
     # Define test parameters
     output_dir = Path("data/tiles")
