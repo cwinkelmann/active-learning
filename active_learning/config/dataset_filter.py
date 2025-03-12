@@ -53,6 +53,10 @@ class DatasetFilterConfig(BaseModel):
         default=None,
         description="List of annotation types to include in the filter."
     )
+    crop_size: int = Field(
+        default=512,
+        description="Size of the crop."
+    )
 
 
 class DataPrepReport(DatasetFilterConfig):

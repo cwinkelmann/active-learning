@@ -1,4 +1,5 @@
 import json
+import pandas as pd
 
 import tempfile
 
@@ -70,7 +71,6 @@ def test_iSAID2COCO(iSAID_annotations_path: Path,
     hA.save(iSAID_annotations_path.parent / "iSAID_hasty_train.json")
     assert len(hA.images) == n
 
-
 def test_sample_coco(iSAID_annotations_path):
     with open(iSAID_annotations_path, "r") as f:
         coco_data = json.load(f)
@@ -112,6 +112,45 @@ def test_hasty_to_yolo(hA_segment: HastyAnnotationV2):
 
     assert len(df_annotations) == 2, "Two rows should be returned"
     assert len(df_annotations.columns) == 87, "The number of columns should be 87"
+
+def test_hasty_to_deepforest(hA_segment: HastyAnnotationV2):
+
+    class_mapping = HastyConverter.get_label_class_mapping(hA_segment)
+    # an_image = hA_segment.sample(n=1, how=SampleStrategy.FIRST).
+    an_image = hA_segment.images[0]
+    with tempfile.TemporaryDirectory() as tmpFolder:
+        tmp_file = Path(tmpFolder) / "deepforest.csv"
+        df_annotations = HastyConverter.convert_deep_forest(hA=hA_segment, output_file=Path(tmp_file))
+
+        df_deepforest = pd.read_csv(tmp_file)
+
+        assert len(df_deepforest.columns) == 6, "The number of columns should be 6"
+        assert list(df_deepforest.columns) ==  ["image_path", "xmin", "ymin", "xmax", "ymax", "label"]
+
+        first_image = df_deepforest.to_dict(orient="records")[0]
+
+        assert first_image == {'image_path': 'Fer_FCD01-02-03_20122021_single_images___DJI_0079_FCD01_x4096_y512.jpg', 'label': 'iguana', 'xmax': 168.0, 'xmin': 51.0, 'ymax': 477.0, 'ymin': 426.0}
+
+
+def test_hasty_to_herdnetbox(hA_segment: HastyAnnotationV2):
+    class_mapping = HastyConverter.get_label_class_mapping(hA_segment)
+    # an_image = hA_segment.sample(n=1, how=SampleStrategy.FIRST).
+    an_image = hA_segment.images[0]
+
+
+    with tempfile.TemporaryDirectory() as tmpFolder:
+        tmp_file = Path(tmpFolder) / "herdnet_box.csv"
+
+        df_annotations = HastyConverter.convert_to_herdnet_box_format(hA=hA_segment, output_file=tmp_file)
+
+        df_herdnet = pd.read_csv(tmp_file)
+
+        assert len(df_herdnet.columns) == 7, "The number of columns should be 7"
+        assert list(df_herdnet.columns) ==  ["images", "x_min", "y_min", "x_max", "y_max", "species", "labels"]
+
+        first_image = df_herdnet.to_dict(orient="records")[0]
+
+        assert first_image == {'images': 'Fer_FCD01-02-03_20122021_single_images___DJI_0079_FCD01_x4096_y512.jpg', 'labels': 1, 'species': 'iguana', 'x_max': 168.0, 'x_min': 51.0, 'y_max': 477.0, 'y_min': 426.0}
 
 
 def test_sort():

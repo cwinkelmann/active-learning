@@ -80,7 +80,7 @@ def rename_single_image(island, mission_folder: str, image: Path):
         # looking for that stuff Flo_FLM05_DJI_0111_030221_condor.SRT
         return image.name
 
-def run_renaming(df_changed_images, new_path):
+def run_renaming(df_changed_images: pd.DataFrame, new_path: Path):
     for _, row in df_changed_images.iterrows():
         full_old_image_path = new_path / row.island / row.mission_folder / row['old_name']
         full_new_image_path = new_path / row.island / row.mission_folder / row['new_name']

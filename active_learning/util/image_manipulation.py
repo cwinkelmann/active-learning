@@ -849,7 +849,8 @@ def pad_to_multiple(original_image_path: Path, padded_image_path: Path,
     # Open the original image
     image = Image.open(original_image_path)
     width, height = image.size
-
+    if slice_width is None:
+        pass
     # Compute the step sizes
     step_x = slice_width - overlap
     step_y = slice_height - overlap

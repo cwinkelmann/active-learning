@@ -41,7 +41,7 @@ train_segments_fernanandina_1 = DatasetFilterConfig(**{
 
 train_segments_fernanandina_12 = DatasetFilterConfig(**{
     "dset": "train",
-    "dataset_name": "segments_12",
+    "dataset_name": "segments_12_1024",
     "images_filter": ["DJI_0366.JPG", "STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0924.JPG",
                       "DJI_0942.JPG", "DJI_0417.JPG", "DJI_0097.JPG", "DJI_0185.JPG", "DJI_0195.JPG", "DJI_0285.JPG"],
     "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images", "San_STJB06_12012023", "Floreana_02.02.21_FMO01", "Floreana_03.02.21_FMO06", "FLMO02_28012023",
@@ -50,6 +50,7 @@ train_segments_fernanandina_12 = DatasetFilterConfig(**{
     "annotation_types": [AnnotationType.POLYGON],
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
+    "crop_size": 1024
 })
 
 train_segments_points_fernanandina = DatasetFilterConfig(**{
@@ -75,6 +76,7 @@ val_segments_fernandina_1 = DatasetFilterConfig(**{
     "annotation_types": [AnnotationType.POLYGON],
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
+    "crop_size": 1024
 })
 test_segments_fernandina_1 = DatasetFilterConfig(**{
     "dset": "test",
@@ -85,6 +87,8 @@ test_segments_fernandina_1 = DatasetFilterConfig(**{
     "annotation_types": [AnnotationType.POLYGON],
     "tag_filter": ["segment"],
     "empty_fraction": 0.0,
+    "crop_size": 1024
+
 })
 
 train_fernandina = DatasetFilterConfig(**{

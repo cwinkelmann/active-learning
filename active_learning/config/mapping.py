@@ -1,6 +1,8 @@
 prefix_mapping = {
     "Española": "Esp_E",
-    "Fernandina": "Fer_FE",
+    "Española": "Esp_E",
+    "Espanola": "Esp_E",
+    "Fernandina": "Fer_F",
     "Floreana": "Flo_FL",
     "Genovesa": "Gen_G",
     "Isabela": "Isa_IS",

@@ -121,6 +121,8 @@ Based on tiles
 
 TODO then reconstruct the original big images from the tiles and the annotations
 
+## Build and Use an Image Database
+
 
 
 # Bonus Topics

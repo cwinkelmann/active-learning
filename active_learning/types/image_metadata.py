@@ -340,7 +340,7 @@ def get_exif_metadata(img_path) -> ExifData:
 
             # metadata = {**metadata, **raw_exif}
 
-            exif_metadata["datetime_digitized"] = str(datetime.strptime(exif_metadata["datetime_digitized"], "%Y:%m:%d %H:%M:%S"))
+
 
         except AttributeError:
             print('No Coordinates')

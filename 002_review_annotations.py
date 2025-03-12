@@ -19,7 +19,6 @@ from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 
 def create_fo_ds(dset, dataset_name, type, base_path, crop_size):
 
-
     labels_path = base_path / dset
     full_images_path = labels_path
     images_path = labels_path / f"crops_{crop_size}"

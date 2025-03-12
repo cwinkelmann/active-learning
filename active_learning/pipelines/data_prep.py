@@ -294,7 +294,7 @@ class DataprepPipeline(object):
                                           overlap=self.overlap,
                                           hA=copy.deepcopy(self.hA_filtered),
                                           images_path=flat_images_path,
-                                          use_multiprocessing=True)
+                                          use_multiprocessing=False)
 
         self.hA_crops = hA_crop
         return hA_crop

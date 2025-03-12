@@ -33,8 +33,7 @@ if __name__ == "__main__":
     annotation_types = [AnnotationType.POLYGON]
     class_filter = ["iguana"]
     datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
-    crop_size = 512
-    overlap = 0
+    overlap = 300
     # amount of empty images in the dataset
 
 
@@ -44,6 +43,7 @@ if __name__ == "__main__":
         logger.info(f"Starting {dataset.dataset_name}")
         dataset_name = dataset.dataset_name
         dset = dataset.dset
+        crop_size = dataset.crop_size
         num = dataset.num
         ifcn = ImageFilterConstantNum(num=num, dataset_config= dataset)
 
@@ -105,7 +105,8 @@ if __name__ == "__main__":
 
         if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
             HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dataset_name / "deep_forest_format_crops.csv")
-
+            HastyConverter.convert_to_herdnet_box_format(hA_crops, output_file=output_path_dataset_name / "herdnet_boxes_format_crops.csv")
+            logger.info(f"Wrote herdnet_box {output_path_dataset_name / 'herdnet_boxes_format_crops.csv'}, dataset_nmae {dataset_name} at {output_path_dataset_name}")
             class_names = aI.to_YOLO_annotations(output_path=output_path_dataset_name / "yolo")
             report[f"yolo_box_path_{dset}"] = output_path_dataset_name / "yolo" / "yolo_boxes"
             report[f"yolo_segments_path_{dset}"] = output_path_dataset_name / "yolo" / "yolo_segments"

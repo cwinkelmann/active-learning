@@ -313,6 +313,7 @@ def ifa_point_shapefile_to_hasty(gdf: gpd.GeoDataFrame, images_path: Path,
     :param images_path:
     :return:
     """
+    logger.info(f"convert shapefile to Hasty ImageLabelCollection, {images_path.name}")
     gdf["images"] = images_path.name
     gdf = project_gdfcrs(gdf, images_path)
 
