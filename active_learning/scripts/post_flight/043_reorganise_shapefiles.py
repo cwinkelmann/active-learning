@@ -2,6 +2,7 @@
 The shapefiles are not very well organised, named or encoded
 This script will reorganise the shapefiles into a more structured form, correct the CRS and convert them to geojson
 """
+
 import typing
 
 import pandas as pd
@@ -11,6 +12,7 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.util.projection import project_gdfcrs
+from active_learning.util.rename import get_site_code
 from geospatial_transformations import convert_to_cog, batch_convert_to_cog
 import geopandas as gpd
 shapefile_base_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Counts shp')
@@ -28,10 +30,7 @@ df_progress_report = pd.read_csv(progress_report_file)
 missing_report_entries: typing.List[str] = []
 missing_orthomosaics_entries: typing.List[str] = []
 
-import re
-def get_prefix(s):
-    match = re.match(r'^[A-Za-z]+', s)  # Match only leading letters
-    return match.group(0) if match else ''
+
 
 for i, shp_file_path in enumerate(shp_files):
     shp_name = shp_file_path.name
@@ -60,7 +59,7 @@ for i, shp_file_path in enumerate(shp_files):
         gdf["expert"] = None
     gdf["species"] = "iguana"
     gdf["island_code"] = island_code
-    gdf["site_code"] = get_prefix(shp_name.split('_')[1])
+    gdf["site_code"] = get_site_code(shp_name.split('_')[1])
 
 
     output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)

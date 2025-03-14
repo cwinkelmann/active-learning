@@ -21,7 +21,7 @@ import typing
 from loguru import logger
 
 from active_learning.config.mapping import prefix_mapping
-
+import re
 
 
 
@@ -215,3 +215,10 @@ def fix_date_format(date_str: str) -> str:
         # Insert "20" (assuming the year is in the 2000s).
         return f"{day}{month}20{year}"
     return date_str
+
+
+def get_site_code(s):
+    match = re.match(r'^[A-Za-z]+', s)  # Match only leading letters
+    return match.group(0) if match else ''
+
+

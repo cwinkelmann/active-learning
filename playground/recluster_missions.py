@@ -11,10 +11,12 @@ from loguru import logger
 from sklearn.cluster import DBSCAN
 import numpy as np
 
-gdf_all = gpd.read_file('/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024_database.shp')
+# gdf_all = gpd.read_file('/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024_database.shp')
 # TODO shapeliles suck, because of the 10 character limit
-# gdf_all = gpd.read_file('/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024_database.geojson')
+gdf_all = gpd.read_file('/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024_database.geojson')
+gdf_all.to('/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024_database.gpkg')
 gdf_all.to_crs(epsg="32715", inplace=True)
+
 
 # Ensure 'datetime' column exists
 if "datetime" in gdf_all.columns:

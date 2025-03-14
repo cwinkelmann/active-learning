@@ -20,12 +20,11 @@ from sklearn.cluster import DBSCAN
 import numpy as np
 import re
 
+from active_learning.util.rename import get_site_code
+
 gdf_all = gpd.read_file('/Volumes/G-DRIVE/Iguanas_From_Above/clustered_points_nadir.shp')
 base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above_Organized_Clusters_NADIR")
 
-def get_site_code(s):
-    match = re.match(r'^[A-Za-z]+', s)  # Match only leading letters
-    return match.group(0) if match else ''
 
 gdf_all["site_code"] = gdf_all["folder_nam"].apply(get_site_code)
 

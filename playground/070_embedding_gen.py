@@ -6,11 +6,12 @@ import torch
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+import timm
+from timm.data import resolve_data_config, create_transform
 
 class FeatureExtractor:
     def __init__(self, model_name: str):
-        import timm
-        from timm.data import resolve_data_config, create_transform
+
         self.model = timm.create_model(
             model_name, pretrained=True, num_classes=0, global_pool="avg"
         ).to("cuda" if torch.cuda.is_available() else "mps")
