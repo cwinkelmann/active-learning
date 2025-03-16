@@ -52,6 +52,77 @@ def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
 
     return gdf_all
 
+
+def calculate_bearing(point1, point2):
+    """Calculate the bearing between two points in degrees"""
+    if point1 is None or point2 is None:
+        return None
+
+    # Extract coordinates
+    lon1, lat1 = point1.x, point1.y
+    lon2, lat2 = point2.x, point2.y
+
+    # Convert to radians
+    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+
+    # Calculate bearing
+    dlon = lon2 - lon1
+    y = np.sin(dlon) * np.cos(lat2)
+    x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(dlon)
+    bearing = np.degrees(np.arctan2(y, x))
+
+    # Normalize to 0-360
+    bearing = (bearing + 360) % 360
+
+    return bearing
+
+
+def classify_bearing(bearing):
+    """Classify bearing into cardinal directions"""
+    if bearing is None:
+        return None
+
+    # Define direction ranges
+    if (bearing >= 337.5 or bearing < 22.5):
+        return "N"
+    elif (bearing >= 22.5 and bearing < 67.5):
+        return "NE"
+    elif (bearing >= 67.5 and bearing < 112.5):
+        return "E"
+    elif (bearing >= 112.5 and bearing < 157.5):
+        return "SE"
+    elif (bearing >= 157.5 and bearing < 202.5):
+        return "S"
+    elif (bearing >= 202.5 and bearing < 247.5):
+        return "SW"
+    elif (bearing >= 247.5 and bearing < 292.5):
+        return "W"
+    elif (bearing >= 292.5 and bearing < 337.5):
+        return "NW"
+    else:
+        return None
+
+
+def calculate_forward_overlap(distance, ground_width, ground_height, direction):
+    """Calculate forward overlap percentage based on distance and image footprint"""
+    if distance is None or ground_width is None or ground_height is None or direction is None:
+        return None
+
+    # For predominantly North-South flights
+    if direction in ["N", "S", "NE", "SE", "NW", "SW"]:
+        # Assuming flight direction is along the height of the image
+        overlap_distance = ground_height - distance
+        overlap_percentage = (overlap_distance / ground_height) * 100
+    # For predominantly East-West flights
+    else:  # direction in ["E", "W"]
+        # Assuming flight direction is along the width of the image
+        overlap_distance = ground_width - distance
+        overlap_percentage = (overlap_distance / ground_width) * 100
+
+    # Ensure we don't return negative overlap
+    return max(0, overlap_percentage)
+
+
 def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
     gdf_all = gdf_all.sort_values(by=['datetime_digitized'])
     # Reset index to ensure operations work on sorted data
@@ -86,8 +157,6 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
     # Handle first row (no previous point)
     gdf_all.loc[gdf_all.index[0], ['distance_to_prev', 'time_diff_seconds', 'speed_m_per_s']] = np.nan
 
-    # Clean up by dropping intermediate columns if desired
-    gdf_all = gdf_all.drop(columns=['prev_geometry', 'prev_datetime'])
     gdf_all['risk_score'] = gdf_all['speed_m_per_s'] * gdf_all['exposure_time'] * 1500
 
     # Calculate shift in millimeters of how much the drone moved during the shot
@@ -105,6 +174,50 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
         axis=1
     )
 
+    # Calculate image overlap based on GSD and distances
+    # Calculate the ground footprint dimensions in meters for each image
+    gdf_all['ground_width_m'] = gdf_all.apply(
+        lambda row: (row["image_width"] * row[gsd_col]) / 100  # Convert cm to m
+        if pd.notna(row[gsd_col]) and row[gsd_col] > 0
+        else np.nan,
+        axis=1
+    )
+
+    gdf_all['ground_height_m'] = gdf_all.apply(
+        lambda row: (row["image_height"] * row[gsd_col]) / 100  # Convert cm to m
+        if pd.notna(row[gsd_col]) and row[gsd_col] > 0
+        else np.nan,
+        axis=1
+    )
+
+    # To determine overlap, we need to know the flight direction
+    # Let's calculate the bearing between consecutive points
+    gdf_all['bearing_to_prev'] = gdf_all.apply(
+        lambda row: calculate_bearing(row['prev_geometry'], row['geometry'])
+        if row['prev_geometry'] is not None else np.nan,
+        axis=1
+    )
+
+    # Classify the bearing into approximate flight directions (N-S, E-W, etc.)
+    gdf_all['flight_direction'] = gdf_all['bearing_to_prev'].apply(
+        lambda bearing: classify_bearing(bearing) if pd.notna(bearing) else None
+    )
+
+    # Calculate overlap percentages
+    # For simplicity, we'll use a direct approach based on distance and image footprint
+    gdf_all['forward_overlap_pct'] = gdf_all.apply(
+        lambda row: calculate_forward_overlap(
+            row['distance_to_prev'],
+            row['ground_width_m'],
+            row['ground_height_m'],
+            row['flight_direction']
+        ) if pd.notna(row['distance_to_prev']) and pd.notna(row['ground_width_m'])
+        else np.nan,
+        axis=1
+    )
+
+    # Clean up by dropping intermediate columns
+    gdf_all = gdf_all.drop(columns=['prev_geometry', 'prev_datetime'])
 
     return gdf_all
 
