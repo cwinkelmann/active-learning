@@ -1,3 +1,6 @@
+import pandas as pd
+import re
+
 import multiprocessing
 import shutil
 
@@ -9,6 +12,7 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2, crop_by_regular_grid
+from active_learning.util.rename import rename_single_image
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
 from active_learning.util.converter import coco2hasty, hasty2coco, coco2yolo
 from com.biospheredata.helper.image_annotation.annotation import create_regular_raster_grid

@@ -19,7 +19,7 @@ class ImageCropMetadata(BaseModel):
     parent_label_id: Union[str, UUID]  # Assuming the label ID is a string or UUID
     cropped_image: str
     cropped_image_id: Union[str, UUID]
-    box: Optional[List[typing.Union[int, float]]] = Field(None, alias='bbox')  # Shapely polygon for bounding box
+    bbox: Optional[List[typing.Union[int, float]]] = Field(None, alias='bbox')  # Shapely polygon for bounding box
     local_coordinate: Optional[List[Keypoint]]  # Point within the cropped image
     global_coordinate: Optional[List[Keypoint]]  # Original coordinate before cropping
 

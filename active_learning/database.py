@@ -1,13 +1,16 @@
 """
 Create a database of images
 """
-
-import typing
-
+import geopandas as gpd
+import numpy as np
+import pandas as pd
 from pathlib import Path
 
-from com.biospheredata.image.image_metadata import list_images
-from com.biospheredata.types.GeoreferencedImage import GeoreferencedImage
+from active_learning.types.image_metadata import list_images
+from active_learning.util.drone_flight_check import get_analysis_ready_image_metadata, get_flight_metrics
+from helper.image import get_image_gdf
+
+from image_metadata import get_metadata_dataframe  # TODO move this from image_metadata to helper.image
 
 """
 There is the old version: GeoreferencedImage.calculate_image_metadata
@@ -17,75 +20,70 @@ And there is image_metadata.image_metadata_yaw_tilt()
 Then there is flight_image_capturing_sim
 """
 
-def get_dates(path: Path) -> typing.List[Path]:
-    pass
-
-def get_missions(path: Path) -> typing.List[Path]:
-    pass
 
 
-def build_image_database(p = Path("/Users/christian/data/2TB/ai-core/data/expedition")):
+
+
+def images_data_extraction(images_path: Path):
     """
-    Create a database of images
-
-    in the simplest case I just want to store the image path and the metadata
-    The mission itself should know its date and location beyond the image_name
-
-
+    read all images from a folder and its subfolders, calculate metadata and store it in a pandas dataframe
+    :param images_path:
     :return:
     """
+    assert images_path.is_dir()
+    images = list_images(images_path, extension="JPG", recursive=True)
+    db_name = f"{images_path.name}_database.csv" # basic metadata like exif and xmp
+    df_image_metadata_2 = get_metadata_dataframe(images)
+    # geospacial dataframe
+    gdf_image_metadata_2 = get_image_gdf(df_image_metadata_2)
+    gdf_image_metadata_2.to_file(images_path / Path(db_name).with_suffix(".geojson"),
+                                 driver="GeoJSON")
+    gdf_image_metadata_2.to_parquet(images_path / Path(db_name).with_suffix(".parquet"),
+                       compression="snappy")
 
-    georeferenced_images: typing.List[GeoreferencedImage] = []
+    return gdf_image_metadata_2
 
-    for d in get_dates(path=p):
-        for m in get_missions(d):
-            for i in list_images(m, extension="JPG"):
-                mission_date = d.stem
-                mission_name = m.stem
-                mission_code = "TODO" # break the name apart
-                gi = GeoreferencedImage(image_path=i)
-                georeferenced_images.append(gi)
+def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame):
+    """
+    # TODO it is probably a good idea to keep the above seperated from the below
+    """
 
 
+    gdf_all = gdf_image_metadata_2[gdf_image_metadata_2["model"] != "MAVIC2-ENTERPRISE-ADVANCED"]  # remove the thermal drone images
+    gdf_all = get_analysis_ready_image_metadata(gdf_all)
+
+    groups = []
+    grouped = gdf_all.groupby(['YYYYMMDD', 'flight_code', 'site_code'])
+    #   TODO refine these diagrams
+    for (date, site, site_code), group_data in grouped:
+        gdf_group_data_metrics = get_flight_metrics(group_data)
+        groups.append(gdf_group_data_metrics)
+    gdf_all = gpd.GeoDataFrame(pd.concat(groups, ignore_index=True))
+
+    # TODO detect which of the flighs where manual flights and which were automatic
+    # remove inf values and find out where they come from
+    # First replace inf/-inf with NaN
+    for col in gdf_all.select_dtypes(include=np.number).columns:
+        # Skip the geometry column if it exists
+        if col != gdf_all._geometry_column_name:
+            gdf_all[col] = gdf_all[col].replace([np.inf, -np.inf], np.nan)
 
 
-    # TODO get list of dates
-    # TODO get list of Missions
-    # TODO get list Images
+    gdf_all['time_diff_seconds'] = pd.to_numeric(gdf_all['time_diff_seconds'], errors='coerce')
+    gdf_all['distance_to_prev'] = pd.to_numeric(gdf_all['distance_to_prev'], errors='coerce')
+    gdf_all['risk_score'] = pd.to_numeric(gdf_all['risk_score'], errors='coerce')
+    gdf_all['shift_mm'] = pd.to_numeric(gdf_all['shift_mm'], errors='coerce')
+    gdf_all['shift_pixels'] = pd.to_numeric(gdf_all['shift_pixels'], errors='coerce')
 
-    return {"date": d}
+    return gdf_all
 
-# def main():
-#     """
-#     run main function
-#     :return:
-#     """
-#     base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/raw_photos_all_y")
-#     new_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/01_cleaned_photos_all")
-#     new_path.mkdir(exist_ok=True, parents=True)
-#     # encode each Mission as a GeoreferencedImage
-#     ## it should be as fast as possible
-#
-#     # save the GeoreferencedImages in a database
-#     ##
-#     df_data_changed = rename_incorrect_folders(base_path, new_path)
-#     df_data_changed.to_csv(new_path / "incorrect_dates.csv")
-#     move_folders(df_data_changed)
-#
-#     ### Now do the same for image names
-#     images_list = list(base_path.glob("*/*/*.JPG"))
-#     image_names = [i.stem for i in images_list]
-#     image_name_splits = [len(i.split("_")) for i in image_names]
-#     df_image_data = pd.DataFrame({"Image": image_names,
-#                                   "image_path": [i.parent.stem for i in images_list],
-#                                   "island": [x.parent.parent.stem for x in images_list],
-#                                   "Split": image_name_splits})
-#
-#
-#     df_image_data
-#
-#     return df_data, df_image_data
-# if __name__ == "__main__":
-#     df_data, df_image_data = main()
-#
-#     print(df_data, df_image_data)
+
+if __name__ == '__main__':
+    island_folder = Path("/Volumes/G-DRIVE/Iguanas_From_Above/fake_data/Ruegen")
+    # res = images_data_extraction(island_folder)
+
+    gdf_image_metadata_2 = gpd.read_parquet(island_folder / "Ruegen_database.parquet")
+    gdf_image_metadata_2.to_crs(epsg="32715", inplace=True)
+    gdf_all = derive_image_metadata(gdf_image_metadata_2)
+
+    gdf_all

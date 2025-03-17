@@ -19,7 +19,8 @@ from typing import List, Union, Tuple
 from shapely import Polygon, affinity, box
 
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
-from active_learning.util.Annotation import project_point_to_crop, project_label_to_crop
+from active_learning.util.Annotation import project_point_to_crop, project_label_to_crop, reframe_bounding_box, \
+    reframe_polygon
 from active_learning.util.geospatial_slice import GeoSlicer
 from com.biospheredata.converter.Annotation import add_offset_to_box
 from com.biospheredata.converter.HastyConverter import ImageFormat
@@ -324,34 +325,44 @@ def crop_out_individual_object(i: ImageLabelCollection,
 
         # add a bit of an offset
         if offset and label.bbox_polygon is not None and isinstance(label.bbox_polygon, shapely.Polygon):
-            box = add_offset_to_box(label.bbox, i.height, i.width, offset)
-            boxes.append(shapely.box(*box))
+            cutout_box = add_offset_to_box(label.bbox, i.height, i.width, offset)
+            boxes.append(shapely.box(*cutout_box))
 
         # constant boundary around the box
         elif width and height:
-            if label.bbox_polygon is not None and isinstance(label.bbox_polygon, shapely.Polygon):
-                box = resize_box(label.bbox_polygon, width, height)
-            else:
-                box = create_box_from_point(x=label.centroid.x, y=label.centroid.y, width=width, height=height)
+
+            cutout_box = create_box_from_point(x=label.incenter_centroid.x, y=label.incenter_centroid.y, width=width, height=height)
 
             # TODO write a function for this, Ensure the bounding box stays within image bounds
-            if box.bounds[0] < 0:
-                box = affinity.translate(box, -box.bounds[0], 0)
-            if box.bounds[1] < 0:
-                box = affinity.translate(box, 0, -box.bounds[1])
+            if cutout_box.bounds[0] < 0:
+                cutout_box = affinity.translate(cutout_box, -cutout_box.bounds[0], 0)
+            if cutout_box.bounds[1] < 0:
+                cutout_box = affinity.translate(cutout_box, 0, -cutout_box.bounds[1])
 
-            if box.bounds[2] > i.width:
-                box = affinity.translate(box, i.width - box.bounds[2], 0)
-            if box.bounds[3] > i.height:
-                box = affinity.translate(box, 0, i.height - box.bounds[3])
+            if cutout_box.bounds[2] > i.width:
+                cutout_box = affinity.translate(cutout_box, i.width - cutout_box.bounds[2], 0)
+            if cutout_box.bounds[3] > i.height:
+                cutout_box = affinity.translate(cutout_box, 0, i.height - cutout_box.bounds[3])
 
+
+            # TODO ensure every label type is handled correctly: Box, polygon and point
             # TODO project every keypoint, box or segmentation mask to the new crop
-            projected_keypoint = project_point_to_crop(label.incenter_centroid, box)
-            # project_label_to_crop(label, box) # TODO the code above and below can be outsourced into this.
+            projected_keypoint = project_point_to_crop(label.incenter_centroid, cutout_box)
+            projected_label = project_label_to_crop(label, cutout_box) # TODO the code above and below can be outsourced into this.
+
+            # TODO use these functions here:
+            reframe_bounding_box()
+
+            reframe_polygon()
 
             # TODO get the ids right and keep the projections
+            if label.keypoints is not None:
+                label_id = label.keypoints[0].id
+            else:
+                label_id = label.id
+
             projected_keypoint = [Keypoint(
-                id = label.keypoints[0].id, # TODO get this right for cases when there are other label types
+                id = label_id, # TODO get this right for cases when there are other label types
                 x=int(projected_keypoint.x),
                 y=int(projected_keypoint.y),
                 keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff", # TODO programmatically get the right class id
@@ -367,8 +378,9 @@ def crop_out_individual_object(i: ImageLabelCollection,
             else:
                 raise NotImplementedError("Only ImageLabel and PredictedImageLabel are supported")
 
-            boxes.append(box)
-            sliced = im.crop(box.bounds)
+            # TODO maybe do the cropping outside
+            boxes.append(cutout_box)
+            sliced = im.crop(cutout_box.bounds)
             image_id = get_image_hash(sliced)
             slice_path_jpg = output_path / Path(f"{i.image_name}_{label_id}.jpg")
             sliced.save(slice_path_jpg)
@@ -383,14 +395,14 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 width=int(width),
                 height=int(width))
 
-            # TOTO this is deprecated
+            # TODO this is deprecated
             image_mapping = ImageCropMetadata(
                             parent_image = i.image_name,
                             parent_image_id = i.image_id,
                             parent_label_id = label_id,
                             cropped_image = slice_path_jpg.name,
                             cropped_image_id = aI.image_id,
-                            box = [int(box.bounds[0]), int(box.bounds[1]), int(box.bounds[2]), int(box.bounds[3])],  # Creates a Shapely bounding box
+                            bbox = [int(cutout_box.bounds[0]), int(cutout_box.bounds[1]), int(cutout_box.bounds[2]), int(cutout_box.bounds[3])],  # Creates a Shapely bounding box
                             local_coordinate = pI.keypoints,  # Example point inside crop
                             global_coordinate = label.keypoints  # Original image point
                         )
@@ -402,6 +414,8 @@ def crop_out_individual_object(i: ImageLabelCollection,
             raise ValueError("offset or width and height must be provided")
 
     return image_mappings, cropped_annotated_images, images_set
+
+
 
 def crop_image_from_box_absolute(output_path: Path,
                                  input_image_path: Path,

@@ -12,6 +12,7 @@ import typing
 
 from loguru import logger
 
+from active_learning.config.mapping import prefix_mapping
 from active_learning.util.rename import rename_images, rename_incorrect_folders, move_folders, fix_date_format, \
     run_renaming, rename_single_image
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
 
         island, mission_folder = p.parent.parent.stem, p.parent.stem
 
-        new_image_name = rename_single_image(island, mission_folder, p)
+        new_image_name = rename_single_image(island, mission_folder, p, prefix_mapping=prefix_mapping)
 
         renaming_dict.append({"island": island, "mission_folder": mission_folder, "old_name": p.name, "new_name": new_image_name})
 

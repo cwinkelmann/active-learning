@@ -1,9 +1,20 @@
+import shutil
+
+import tempfile
+
 from pathlib import Path
 
 import pytest
 
-from active_learning.util.rename import rename_images, rename_single_image, raw_folder_to_mission, fix_date_format
+from active_learning.util.rename import rename_images, rename_single_image, raw_folder_to_mission, fix_date_format, \
+    post_flight_renaming, run_renaming
 
+
+@pytest.fixture
+def sample_mission():
+    sample_mission = Path(__file__).resolve().parent.parent.parent.joinpath("data/images/FMO05")
+
+    return sample_mission
 
 def test_rename_images():
     images_list = [
@@ -54,3 +65,32 @@ def test_raw_folder_to_mission():
     assert sorted(list(df_rename.keys())) == ['full_path', 'island', 'mission_folder', 'new_name', 'old_name']
 
     df_rename
+
+
+
+
+
+def test_post_flight_renaming(sample_mission):
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmpdirname = Path(tmpdirname)
+        island_folder = tmpdirname.joinpath("Floreana")
+        mission_folder = Path(island_folder).joinpath("FLMO05_09012023")
+        mission_folder.mkdir(parents=True, exist_ok=True)
+        for i in sample_mission.glob("*.JPG"):
+            shutil.copy(i, mission_folder)
+
+        new_path = tmpdirname / "new_path"
+        new_path.mkdir(parents=True, exist_ok=True)
+
+        df_rename = post_flight_renaming(island_folder=island_folder)
+
+        first_rename = df_rename.to_dict(orient="records")[0]
+
+        assert first_rename == {'island': 'Floreana', 'mission_folder': 'FLMO05_09012023', 'new_name': 'Flo_FLMO05_DJI_0331_09012023.JPG', 'old_name': 'DJI_0331.JPG'}
+
+        results = run_renaming(df_rename, new_path=tmpdirname)
+
+        assert len(results) == 1, "One file was renamed"
+
+        assert results[0] == mission_folder / first_rename["new_name"]

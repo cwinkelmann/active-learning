@@ -14,9 +14,6 @@ from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Tuple, Optional
 
-from util.util import get_image_id
-
-
 class ColorSpace(Enum):
     SRGB = 1
     UNCALIBRATED = 65535
@@ -207,81 +204,33 @@ class XMPMetaData(BaseModel):
         # if you use Enums in some cases.
 
 
-def list_images(path: Path, extension):
+def list_images(path: Path, extension, recursive=False):
     """
     find images in a path
 
+    :param extension:
+    :param recursive:
+    :return:
     :param path:
     :return:
     """
+    if recursive:
+        images_list = list(path.rglob(f"*.{extension}"))
+    else:
+        images_list = list(path.glob(f"*.{extension}"))
 
-    images_list = list(path.glob(f"*.{extension}"))
-    images_list = [image_path for image_path in images_list if not str(image_path).startswith(".")]
+    # remove hidden files which are especially annoying on a Mac
+    images_list = [image_path for image_path in images_list if not str(image_path.name).startswith(".")]
 
     return images_list
 
-def get_metadata_dataframe(image_list: list[Path]):
-    """
-    get the image metadata as a dataframe
 
-    :param image_list:
-    :return:
-    """
-    image_metadata = []
-
-    for image_path in image_list:
-        image_metadata.append(get_exif_metadata(image_path))
-
-    df_image_metadata = pd.DataFrame(image_metadata)
-    df_image_metadata["image_name"] = [Path(filepath).name for filepath in df_image_metadata["filepath"]]
-    return df_image_metadata
 
 def decimal_coords(coords, ref):
     decimal_degrees = coords[0] + coords[1] / 60 + coords[2] / 3600
     if ref == "S" or ref == "W":
         decimal_degrees = -decimal_degrees
     return decimal_degrees
-
-
-def xmp_metadata(img_path) -> XMPMetaData:
-    metadata = {}
-
-    try:
-        from libxmp import XMPFiles, consts
-        xmpfile = XMPFiles(file_path=str(img_path), open_forupdate=True)
-        xmp = xmpfile.get_xmp()
-        metadata["format"] = xmp.get_property(consts.XMP_NS_DC, 'format')
-
-
-        for xmp_key in [
-            "drone-dji:GpsLatitude",
-            "drone-dji:GpsLongitude",
-            "drone-dji:GimbalYawDegree",
-            "drone-dji:GimbalRollDegree",
-            "drone-dji:GimbalPitchDegree",  # the pitch is the inclination with -90 == NADIR and 0 is horizontal
-            "drone-dji:AbsoluteAltitude",
-            "drone-dji:RelativeAltitude",
-            "drone-dji:FlightRollDegree",
-            "drone-dji:FlightYawDegree",
-            "drone-dji:FlightPitchDegree"
-        ]:
-            try:
-                metadata[xmp_key] = float(xmp.get_property("http://www.dji.com/drone-dji/1.0/", xmp_key))
-                metadata_model = XMPMetaData(**metadata)
-            except Exception as e:
-                ## with phantom 4, someone wrote the metadata tag wrong: 'drone-dji:GpsLongitude' instead of 'drone-dji:GPSLongitude'
-                logger.error(f"Problem with {xmp_key}, {e}")
-        return metadata_model
-
-    except Exception as e:
-        logger.error(
-            f"Problems with XMP library. Check https://python-xmp-toolkit.readthedocs.io/en/latest/installation.html and propably https://stackoverflow.com/questions/68869984/error-installing-exempi-2-5-2-on-m1-macbook-pro-running-big-sur")
-        logger.error(f"Modify exempi.py f path is None: \
-                        m1_path = '/opt/homebrew/lib/libexempi.dylib' \
-                        if os.path.exists(m1_path): \
-                            path = m1_path" )
-        logger.error(e)
-
 
 
 def get_exif_metadata(img_path) -> ExifData:

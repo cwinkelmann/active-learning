@@ -8,6 +8,11 @@ from pathlib import Path
 from rasterio.mask import mask
 from shapely.geometry import Polygon
 from typing import List
+import numpy as np
+import geopandas as gpd
+import rasterio
+from shapely.geometry import Polygon
+from pathlib import Path
 
 from active_learning.util.projection import world_to_pixel
 
@@ -113,91 +118,7 @@ def save_world_file_json(raster_path: Path) -> Path:
     return json_file_path
 
 
-# def create_regular_geospatial_raster_grid(full_image_path: Path,
-#                                           x_size: float,
-#                                           y_size: float,
-#                                           overlap_ratio: float) -> gpd.GeoDataFrame:
-#     """
-#     Create a vector grid for a geospatial raster.
-#
-#     Parameters:
-#         full_image_path (str): Path to the raster image.
-#         x_size (float): Width of each grid cell in raster coordinate units (e.g., meters).
-#         y_size (float): Height of each grid cell in raster coordinate units (e.g., meters).
-#         overlap_ratio (float): Overlap between tiles as a fraction (0 to 1).
-#
-#     Returns:
-#         gpd.GeoDataFrame: A GeoDataFrame containing the grid polygons.
-#     """
-#     # Open raster
-#     with rasterio.open(full_image_path) as src:
-#         transform = src.transform  # Affine transform
-#         crs = src.crs  # Get CRS
-#         bounds = src.bounds  # Get bounds
-#
-#         # Raster extent in meter
-#         min_x, min_y, max_x, max_y = bounds.left, bounds.bottom, bounds.right, bounds.top
-#
-#         # Extent in pixels
-#         # Get pixel sizes (resolution in X and Y directions)
-#         pixel_size_x = transform.a  # GSD in X direction
-#         pixel_size_y = abs(transform.e)  # GSD in Y direction (absolute value)
-#
-#         # Compute extent in pixels
-#         width_pixels = int((bounds.right - bounds.left) / pixel_size_x)
-#         height_pixels = int((bounds.top - bounds.bottom) / pixel_size_y)
-#
-#         # min_x_px = bounds.left / pixel_size_x
-#         # min_y_px = bounds.bottom / pixel_size_y
-#         # max_x_px = min_x_px + width_pixels
-#         # max_y_px = min_y_px + height_pixels
-#
-#
-#         # Compute overlap
-#         x_overlap = x_size * overlap_ratio
-#         y_overlap = y_size * overlap_ratio
-#
-#         # Compute step size (tile size minus overlap)
-#         step_x = x_size * pixel_size_x - x_overlap
-#         step_y = y_size * pixel_size_y - y_overlap
-#
-#         x_size_px = x_size * pixel_size_x
-#         y_size_px = y_size * pixel_size_y
-#
-#         grid_cells = []
-#         # Generate grid
-#         tiles = []
-#         for y in np.arange(min_y, max_y, step_y):
-#             for x in np.arange(min_x, max_x, step_x):
-#                 # Define tile coordinates
-#                 x1, y1 = x, y
-#                 x2, y2 = x + x_size_px, y + y_size_px
-#
-#                 # Ensure tiles stay within bounds
-#                 x2 = min(x2, max_x)
-#                 y2 = min(y2, max_y)
-#
-#                 # project the coordinates to the CRS
-#                 # x1, x2 = pixel_size_x * x1, pixel_size_x * x2
-#                 # y1, y2 = pixel_size_y * y1, pixel_size_y * y2
-#
-#                 # Create polygon
-#                 tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
-#                 tiles.append(tile_polygon)
-#                 grid_cells.append({
-#                     "x1": x1, "y1": y1, "x2": x2, "y2": y2
-#                 })
-#
-#         # Convert to GeoDataFrame
-#         grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=crs)
-#
-#     return grid_gdf
 
-import numpy as np
-import geopandas as gpd
-import rasterio
-from shapely.geometry import Polygon
-from pathlib import Path
 
 def create_regular_geospatial_raster_grid(full_image_path: Path,
                                           x_size: float,

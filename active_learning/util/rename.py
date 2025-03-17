@@ -35,7 +35,31 @@ def image_plausibility_check(image: Path):
     # TODO check certain metadata like ISO, exposure time, aperture
 
 
-def rename_single_image(island, mission_folder: str, image: Path):
+def post_flight_renaming(island_folder: Path, prefix_mapping: dict = prefix_mapping, image_extension: str = ".JPG") -> pd.DataFrame:
+    """
+    After a flight the images should be stored in a folder with the following structure: MissionCode_DDMMYYYY
+    :param island_folder:
+    :param image_extension:
+    :return:
+    """
+    renaming_dict = []
+    pattern = re.compile(r"DJI_\d{4}\.JPG", re.IGNORECASE)
+    matching_files = [file for file in island_folder.rglob(f"*{image_extension}") if pattern.match(file.name)]
+
+    for p in matching_files:
+
+        island, mission_folder = p.parent.parent.stem, p.parent.stem
+
+        new_image_name = rename_single_image(island, mission_folder, p, prefix_mapping=prefix_mapping)
+
+        renaming_dict.append({"island": island, "mission_folder": mission_folder, "old_name": p.name, "new_name": new_image_name})
+
+    df_rename = pd.DataFrame(renaming_dict)
+
+    return df_rename
+
+
+def rename_single_image(island, mission_folder: str, image: Path, prefix_mapping: dict):
     # test if the current image fits the schema
 
     image_name_stem = image.stem
@@ -80,13 +104,35 @@ def rename_single_image(island, mission_folder: str, image: Path):
         # looking for that stuff Flo_FLM05_DJI_0111_030221_condor.SRT
         return image.name
 
-def run_renaming(df_changed_images: pd.DataFrame, new_path: Path):
+
+def run_renaming(df_changed_images: pd.DataFrame, new_path: Path, old_path: typing.Optional[Path] = None) -> typing.List[Path]:
+    """
+    iterate through dataframe and rename images
+    TODO use a type for this
+    :param df_changed_images:
+    :param new_path:
+    :return:
+    """
+    result = []
+
+    if old_path is None:
+        old_path = new_path
+    assert "old_name" in df_changed_images.columns, "old_name column is missing"
+    assert "new_name" in df_changed_images.columns, "new_name column is missing"
+
     for _, row in df_changed_images.iterrows():
-        full_old_image_path = new_path / row.island / row.mission_folder / row['old_name']
+        full_old_image_path = old_path / row.island / row.mission_folder / row['old_name']
         full_new_image_path = new_path / row.island / row.mission_folder / row['new_name']
         logger.info(f"Moving {full_old_image_path} to {full_new_image_path}")
+
         # Create destination directory if it does not exist.
         shutil.move(full_old_image_path, full_new_image_path)
+
+        result.append(full_new_image_path)
+
+    return result
+
+
 
 def rename_images(island, mission_folder, images_list: typing.List[Path]):
     """
@@ -109,7 +155,7 @@ def rename_images(island, mission_folder, images_list: typing.List[Path]):
 
     return df_rename
 
-def get_island_from_folder(folder: Path) -> str:
+def get_island_from_folder(folder: Path) -> tuple[str, str]:
     """
     Get the island from the folder
     :param folder:

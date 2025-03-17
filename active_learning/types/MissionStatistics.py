@@ -11,7 +11,7 @@ def get_area_of_flight():
     :return:
     """
 
-def get_flight_segments()
+
 
 class MissionStatistics:
     def __init__(self, mission: MissionV2, projected_CRS="EPSG:32715"):
