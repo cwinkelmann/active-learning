@@ -49,8 +49,8 @@ train_segments_fernanandina_12 = DatasetFilterConfig(**{
     "class_filter": ["iguana"],
     "annotation_types": [AnnotationType.POLYGON],
     "tag_filter": ["segment"],
-    "empty_fraction": 0.0,
-    "crop_size": 1024
+    "empty_fraction": 1.0,
+    "crop_size": 224
 })
 
 train_segments_points_fernanandina = DatasetFilterConfig(**{
@@ -75,8 +75,8 @@ val_segments_fernandina_1 = DatasetFilterConfig(**{
     "class_filter": ["iguana"],
     "annotation_types": [AnnotationType.POLYGON],
     "tag_filter": ["segment"],
-    "empty_fraction": 0.0,
-    "crop_size": 1024
+    "empty_fraction": 1.0,
+    "crop_size": 224
 })
 test_segments_fernandina_1 = DatasetFilterConfig(**{
     "dset": "test",

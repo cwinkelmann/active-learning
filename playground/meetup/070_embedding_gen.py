@@ -9,6 +9,10 @@ from tqdm import tqdm
 import timm
 from timm.data import resolve_data_config, create_transform
 
+import torch
+from PIL import Image
+from sklearn.preprocessing import normalize
+
 class FeatureExtractor:
     def __init__(self, model_name: str):
 
@@ -19,10 +23,6 @@ class FeatureExtractor:
         self.preprocess = create_transform(**resolve_data_config({}, model=self.model))
 
     def extract_features(self, image_path: str) -> np.ndarray:
-        import torch
-        from PIL import Image
-        from sklearn.preprocessing import normalize
-
         try:
             input_image = Image.open(image_path).convert("RGB")
             input_tensor = self.preprocess(input_image).unsqueeze(0).to("cuda" if torch.cuda.is_available() else "mps")
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     model_name = "vit_base_patch16_224"
     extractor = FeatureExtractor(model_name)
 
-    image_root_dir = "/Users/christian/Downloads/WAID-main/WAID/images/train_sample"  # This should contain subfolders (ClassA, ClassB, ...)
+    image_root_dir = "/Users/christian/data/WAID-main/WAID/images/train_sample"  # This should contain subfolders (ClassA, ClassB, ...)
     save_path = "embeddings_with_labels.csv"
 
     extractor.extract_from_directory(image_root_dir, save_path)

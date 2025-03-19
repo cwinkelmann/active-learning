@@ -37,8 +37,8 @@ def get_data(iSAID_annotations_path, iSAID_images_path, dataset, sample=None, ):
 if __name__ == "__main__":
 
     # TODO add the unpacking of the zip files up here
-    num = 5
-    visualise_crops = False
+    num = 1
+    visualise_crops = True
 
     # TODO the sampling here is inconsistent but saves time
     # iSAID_images_path_train = Path("/Users/christian/data/training_data/2025_01_08_isaid/DOTA/train/images")
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # class_filter = ["iguana"]
     class_filter = None
 
-    crop_size = 512
+    crop_size = 224
     overlap = 0
     report = {}
     labels_path = Path("/Users/christian/data/training_data/2025_01_08_isaid")
@@ -70,6 +70,7 @@ if __name__ == "__main__":
         "image_path": iSAID_images_path_train,
         "output_path": labels_path / "processed/train",
         "empty_fraction": 0.0,
+        "crop_size": crop_size
         # "type": "iSAID"
     }
 
@@ -81,32 +82,38 @@ if __name__ == "__main__":
             "image_path": iSAID_images_path_val,
             "output_path": labels_path / "processed/val",
             "empty_fraction": 0.0,
+            "crop_size": crop_size
         # "type": "iSAID"
 
     }
 
     train_segments = DataPrepReport(**train_json)
     val_segments = DataPrepReport(**val_json)
-    datasets = [train_segments, val_segments]
-    # datasets = [val_segments]
+
+    # datasets = [train_segments, val_segments]
+    datasets = [train_segments]
 
 
     for dataset in datasets:  # , "val", "test"]:
-        logger.info(f"Starting {dataset.dset}")
+        logger.info(f"Starting {dataset.dset} dataset")
         dset = dataset.dset
+        dataset_name = dataset.dataset_name
         num = dataset.num
-        output_path = dataset.output_path
+        crop_size = dataset.crop_size
+
+        output_path_dataset_name = labels_path / dataset_name / dset
+        output_path_dataset_name.mkdir(exist_ok=True, parents=True)
+
         images_path = dataset.images_path
 
         ifcn = ImageFilterConstantNum(num=num, sample_strategy=SampleStrategy.FIRST, dataset_config=dataset)
 
-        # TODO a config would be better than passing all these parameters
         dp = DataprepPipeline(
             annotations_labels=dataset.annotation_data,
             images_path=images_path,
               crop_size=crop_size,
               overlap=overlap,
-              output_path= output_path,
+              output_path= output_path_dataset_name,
                               )
 
         dp.images_filter = dataset.images_filter
@@ -121,47 +128,39 @@ if __name__ == "__main__":
         hA = dp.get_hA_crops()
         aI = AnnotationsIntermediary()
 
-        # TODO do need the images path?
         aI.set_hasty_annotations(hA = hA)
 
-        #$$$$$$$$ TODO convert annotation type
-
-        # TODO make boxes out of masks
-
-        coco_path = aI.coco(output_path / "coco_format.json")
+        coco_path = aI.coco(output_path_dataset_name / "coco_format.json")
         images_list = dp.get_images()
 
-        logger.info(f"Finished {dset} at {output_path}")
-        # TODO before uploading anything to CVAT labels need to be converted when necessary
+        logger.info(f"Finished {dset} at {output_path_dataset_name}")
+        HastyConverter.convert_to_herdnet_format(hA, output_file=output_path_dataset_name / "herdnet_format.csv")
 
-        HastyConverter.convert_to_herdnet_format(hA, output_file=output_path / "herdnet_format.csv")
-
-        logger.info(f"Finished converting to herdnet, {dset} at {output_path}")
-        # TODO before uploading anything to CVAT labels need to be converted when necessary
+        logger.info(f"Finished converting to herdnet, {dset} at {output_path_dataset_name}")
 
         if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
-            HastyConverter.convert_deep_forest(hA, output_file=output_path / "deep_forest_format_crops.csv")
+            HastyConverter.convert_deep_forest(hA, output_file=output_path_dataset_name / "deep_forest_format_crops.csv")
 
-            class_names = aI.to_YOLO_annotations(output_path=output_path / "yolo")
-            report[f"yolo_box_path_{dset}"] = output_path / "yolo" / "yolo_boxes"
-            report[f"yolo_segments_path_{dset}"] = output_path / "yolo" / "yolo_segments"
+            class_names = aI.to_YOLO_annotations(output_path=output_path_dataset_name / "yolo")
+            report[f"yolo_box_path_{dset}"] = output_path_dataset_name / "yolo" / "yolo_boxes"
+            report[f"yolo_segments_path_{dset}"] = output_path_dataset_name / "yolo" / "yolo_segments"
             report[f"class_names"] = class_names
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
-        destination_path = output_path / f"crops_{crop_size}_num{num}_overlap{overlap}"
+        destination_path = output_path_dataset_name / f"crops_{crop_size}_num{num}_overlap{overlap}"
 
         try:
-            shutil.move(output_path / f"crops_{crop_size}", destination_path )
+            shutil.move(output_path_dataset_name / f"crops_{crop_size}", destination_path )
         except:
-            logger.error(f"Could not move {output_path / f'crops_{crop_size}'} to {destination_path}")
+            logger.error(f"Could not move {output_path_dataset_name / f'crops_{crop_size}'} to {destination_path}")
 
         logger.info(f"Moved to {destination_path}")
         report[f"destination_path_{dset}"] = destination_path
 
 
         if visualise_crops:
-            vis_path = output_path / f"visualisations"
+            vis_path = output_path_dataset_name / f"visualisations"
             vis_path.mkdir(exist_ok=True, parents=True)
             for image in hA.images:
                 ax_s = visualise_image(image_path = destination_path / image.image_name, show=False)

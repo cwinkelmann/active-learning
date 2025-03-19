@@ -4,20 +4,19 @@ Create patches from images and labels from hasty which can be used for training 
 """
 import shutil
 from loguru import logger
+from matplotlib import pyplot as plt
 from pathlib import Path
 
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from active_learning.scripts.hasty_to_tile.data_configs import val_segments_fernandina_1, \
+from data_configs import val_segments_fernandina_1, \
     test_segments_fernandina_1, train_segments_fernanandina_12
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
-
-
-
+from util.util import visualise_image, visualise_polygons
 
 if __name__ == "__main__":
-    """ This only works if the input is a hasty zip file which is very constraining. """
+    visualise_crops = True
 
     # ## fixed test data
     # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT")
@@ -33,7 +32,8 @@ if __name__ == "__main__":
     annotation_types = [AnnotationType.POLYGON]
     class_filter = ["iguana"]
     datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
-    overlap = 300
+    datasets = [val_segments_fernandina_1]
+    overlap = 0
     # amount of empty images in the dataset
 
 
@@ -103,6 +103,9 @@ if __name__ == "__main__":
         # TODO check if the conversion from polygon to point is correct
         HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dataset_name / "herdnet_format_crops.csv")
 
+        HastyConverter.convert_to_classification(source_path=output_path_dataset_name / f"crops_{crop_size}",
+                                                 hA_crops=hA_crops, output_file=output_path_dataset_name / "classification")
+
         if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
             HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dataset_name / "deep_forest_format_crops.csv")
             HastyConverter.convert_to_herdnet_box_format(hA_crops, output_file=output_path_dataset_name / "herdnet_boxes_format_crops.csv")
@@ -128,7 +131,18 @@ if __name__ == "__main__":
 
         report[f"destination_path_{dset}"] = destination_path
 
+        if visualise_crops:
+            vis_path = output_path_dataset_name / f"visualisations"
+            vis_path.mkdir(exist_ok=True, parents=True)
+            for image in hA.images:
+                ax_s = visualise_image(image_path = destination_path / image.image_name, show=False)
 
+                filename = vis_path / f"{image.image_name}.png"
+                visualise_polygons(polygons=[p.polygon_s for p in image.labels],
+                                   labels=[p.class_name for p in image.labels],  ax=ax_s, show=False, linewidth=2,
+                                   filename=filename)
+
+                plt.close()
 
     # This YOLO data.yaml sucks
     HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,

@@ -27,7 +27,6 @@ def process_image(args):
     """
     train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap = args
 
-
     images, cropped_images_path = crop_by_regular_grid(
         crop_size,
         full_images_path_padded,
@@ -38,7 +37,6 @@ def process_image(args):
         empty_fraction=empty_fraction
     )
     return images, cropped_images_path
-
 
 
 class UnpackAnnotations(object):
@@ -66,7 +64,6 @@ class UnpackAnnotations(object):
             raise ValueError("labels_path must be a string")
         self._labels_path = value
 
-
     def get_hasty_annotations(self):
         return self.hA
 
@@ -92,13 +89,15 @@ class UnpackAnnotations(object):
             output_path = hasty_annotations_labels_zipped.parent
 
         hA, images_path = HastyConverter.from_zip(output_path=output_path,
-                                     hasty_annotations_labels_zipped=hasty_annotations_labels_zipped,
-                                     hasty_annotations_images_zipped=hasty_annotations_images_zipped
-                                     )
+                                                  hasty_annotations_labels_zipped=hasty_annotations_labels_zipped,
+                                                  hasty_annotations_images_zipped=hasty_annotations_images_zipped
+                                                  )
 
         return hA, images_path
 
+
 from enum import Enum
+
 
 class AnnotationFormat(Enum):
     HASTY = "hasty"
@@ -131,7 +130,6 @@ class AnnotationsIntermediary(object):
     def add_images_path(self, images_path):
         logger.warning("not implemented yed")
 
-
     def get_deepforest_annotations(self, output_path):
         HastyConverter.convert_deep_forest(self.hA, output_file=output_path / "deep_forest_format.csv")
         logger.info(f"DeepForest annotations saved to {output_path / 'deep_forest_format.csv'}")
@@ -150,7 +148,6 @@ class AnnotationsIntermediary(object):
         class_names = [key for key, value in sorted(class_mapping.items(), key=lambda item: item[1])]
         return class_names
 
-
     def coco(self, output_path):
         coco_annotations = hasty2coco(self.hA)
         output_path.parent.mkdir(exist_ok=True, parents=True)
@@ -159,8 +156,8 @@ class AnnotationsIntermediary(object):
 
     @staticmethod
     def from_hasty_zip(base_path: Path,
-                 hasty_annotations_labels_zipped: str,
-                 hasty_annotations_images_zipped: str):
+                       hasty_annotations_labels_zipped: str,
+                       hasty_annotations_images_zipped: str):
         """
         Unzip downloaded zipped hasty json 1.1. files to base_path
         :param base_path:
@@ -242,9 +239,6 @@ class DataprepPipeline(object):
         self.images_path = images_path
         self.empty_fraction = False
 
-
-
-
     def run(self, flatten=True):
         """
         Run the data pipeline
@@ -252,17 +246,17 @@ class DataprepPipeline(object):
         """
         ## TODO make sure the data is already flattened
         hA = hasty_filter_pipeline(
-                                   hA=self.hA,
-                                   class_filter=self.class_filter,
-                                   status_filter=self.status_filter,
-                                   dataset_filter=self.dataset_filter,
-                                   images_filter=self.images_filter,
-                                   images_exclude=self.images_exclude,
-                                    image_tags=self.tag_filter,
-                                   annotation_types=self.annotation_types,
-                                    num_images=self.num,
-                                    sample_strategy=self.sample_strategy
-                                   )
+            hA=self.hA,
+            class_filter=self.class_filter,
+            status_filter=self.status_filter,
+            dataset_filter=self.dataset_filter,
+            images_filter=self.images_filter,
+            images_exclude=self.images_exclude,
+            image_tags=self.tag_filter,
+            annotation_types=self.annotation_types,
+            num_images=self.num,
+            sample_strategy=self.sample_strategy
+        )
         if self.images_filter_func is not None:
             hA = self.images_filter_func(hA)
 
@@ -304,8 +298,8 @@ class DataprepPipeline(object):
         return hA_crop
 
     def data_crop_pipeline(self,
-                           overlap : int,
-                           crop_size : int,
+                           overlap: int,
+                           crop_size: int,
                            hA: HastyAnnotationV2,
                            images_path: Path,
                            use_multiprocessing: bool = True
@@ -318,7 +312,6 @@ class DataprepPipeline(object):
         :param hA:
         :return:
         """
-
 
         # TODO use a temporary folder for this
         # TODO add the grid externally
@@ -340,7 +333,7 @@ class DataprepPipeline(object):
                           full_images_path_padded, i, images_path, overlap) for i in hA.images]
 
             # Use multiprocessing pool
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count()+5) as pool:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 5) as pool:
                 results = pool.map(process_image, args_list)
 
             # Collect results
@@ -350,15 +343,15 @@ class DataprepPipeline(object):
 
         else:
             for i in hA.images:
-
                 annotated_images, cropped_images_path = crop_by_regular_grid(
-                                          crop_size=crop_size,
-                                          full_images_path_padded=full_images_path_padded,
-                                          i=i,
-                                          images_path=images_path,
-                                          overlap=overlap,
-                                          train_images_output_path=self.train_images_output_path,
-                                          empty_fraction=self.empty_fraction)
+                    crop_size=crop_size,
+                    full_images_path_padded=full_images_path_padded,
+                    i=i,
+                    images_path=images_path,
+                    overlap=overlap,
+                    train_images_output_path=self.train_images_output_path,
+                    empty_fraction=self.empty_fraction,
+                    edge_black_out=True)
 
                 all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
@@ -375,8 +368,6 @@ class DataprepPipeline(object):
         self.augmented_images_path = all_images_path
 
         return hA_crops
-
-
 
     def get_hA_filtered(self) -> HastyAnnotationV2:
         return self.hA_filtered
@@ -400,6 +391,3 @@ class DataprepPipeline(object):
     def set_images_num(self, num, sample_strategy):
         self.num = num
         self.sample_strategy = sample_strategy
-
-
-

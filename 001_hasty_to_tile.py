@@ -1,20 +1,15 @@
 """
 Create patches from images and labels from hasty to be used in CVAT
 """
-import copy
 import shutil
-
 from loguru import logger
 from pathlib import Path
 
 from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.converter.HastyConverter import AnnotationType
-from com.biospheredata.types.serialisation import save_model_to_file
-from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2
-from com.biospheredata.visualization.visualize_result import visualise_image
+from com.biospheredata.converter.HastyConverter import HastyConverter
 
 ## TODO Download annotations from hasty
 
@@ -53,9 +48,7 @@ if __name__ == "__main__":
 
     class_filter = ["iguana"]
 
-
-
-    crop_size = 512
+    crop_size = 224
     overlap = 0
     # amount of empty images in the dataset
 
