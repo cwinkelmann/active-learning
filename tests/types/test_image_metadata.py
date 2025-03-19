@@ -1,10 +1,11 @@
+import pytest
 from exif import Orientation, ResolutionUnit, Saturation, SceneCaptureType, Sharpness, WhiteBalance, MeteringMode, \
     LightSource, GpsAltitudeRef, ExposureProgram, ExposureMode, ColorSpace
 
 from active_learning.types.image_metadata import ExifData, XMPMetaData
 
-
-def test_exif_image_metadata():
+@pytest.fixture
+def sample_data():
     sample_data = {
         "_exif_ifd_pointer": 332,
         "_gps_ifd_pointer": 746,
@@ -64,6 +65,10 @@ def test_exif_image_metadata():
         "y_and_c_positioning": 1,
         "y_resolution": 72.0
     }
+    return sample_data
+
+def test_exif_image_metadata(sample_data):
+
 
     exif_instance = ExifData(**sample_data)
     json_str = exif_instance.model_dump_json()
@@ -80,7 +85,7 @@ def test_exif_meta_with_image():
     """
     raise NotImplementedError
 
-    assert isinstance(photo_loaded, ExifData)
+    assert isinstance(photo_loaded, ExtendImageMetaData)
     assert photo_loaded.compression == 7
 
 def test_xmp_metadata_with_image():
@@ -88,3 +93,5 @@ def test_xmp_metadata_with_image():
     raise NotImplementedError
     assert isinstance(photo_loaded, XMPMetaData)
     assert photo_loaded.compression == 7
+
+

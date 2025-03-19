@@ -6,11 +6,9 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from active_learning.types.image_metadata import list_images
+from active_learning.types.image_metadata import list_images, get_image_metadata, get_image_gdf, \
+    convert_to_serialisable_dataframe
 from active_learning.util.drone_flight_check import get_analysis_ready_image_metadata, get_flight_metrics
-from helper.image import get_image_gdf
-
-from image_metadata import get_metadata_dataframe  # TODO move this from image_metadata to helper.image
 
 """
 There is the old version: GeoreferencedImage.calculate_image_metadata
@@ -30,22 +28,30 @@ def images_data_extraction(images_path: Path):
     :param images_path:
     :return:
     """
-    assert images_path.is_dir()
+    assert images_path.is_dir(), f"{images_path} is not a directory"
     images = list_images(images_path, extension="JPG", recursive=True)
     db_name = f"{images_path.name}_database.csv" # basic metadata like exif and xmp
-    df_image_metadata_2 = get_metadata_dataframe(images)
-    # geospacial dataframe
-    gdf_image_metadata_2 = get_image_gdf(df_image_metadata_2)
-    gdf_image_metadata_2.to_file(images_path / Path(db_name).with_suffix(".geojson"),
+    image_metadata = get_image_metadata(images)
+
+    lst_image_metadata = [x.to_series() for x in image_metadata]
+    df_image_metadata = pd.DataFrame(lst_image_metadata)
+
+    # geospatial dataframe
+    gdf_image_metadata = get_image_gdf(df_image_metadata)
+
+    gdf_image_metadata_ser = convert_to_serialisable_dataframe(gdf_image_metadata)
+
+    gdf_image_metadata_ser.to_file(images_path / Path(db_name).with_suffix(".geojson"),
                                  driver="GeoJSON")
-    gdf_image_metadata_2.to_parquet(images_path / Path(db_name).with_suffix(".parquet"),
+
+    gdf_image_metadata_ser.to_parquet(images_path / Path(db_name).with_suffix(".parquet"),
                        compression="snappy")
 
-    return gdf_image_metadata_2
+    return gdf_image_metadata
 
-def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame):
+def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
-    # TODO it is probably a good idea to keep the above seperated from the below
+    Calculate different metrics from the image metadata like distance between images, time between images, etc.
     """
 
 
@@ -54,7 +60,7 @@ def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame):
 
     groups = []
     grouped = gdf_all.groupby(['YYYYMMDD', 'flight_code', 'site_code'])
-    #   TODO refine these diagrams
+
     for (date, site, site_code), group_data in grouped:
         gdf_group_data_metrics = get_flight_metrics(group_data)
         groups.append(gdf_group_data_metrics)
