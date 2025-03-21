@@ -151,23 +151,137 @@ def coco2yolo(
     return source_dir
 
 
-def AED2COCO(aed_path: Path,
-              source_dir: Path,
-              images: typing.List[Path]) -> Path:
-    """convert the African Elephants dataset to COCO format
-    TODO, this would only work if annotations are converted to boxes by assuming a box size
-    """
-
-    raise NotImplementedError("This function is not implemented yet")
 
 
-def iSAID2Hasty(isaid_path: Path) -> Path:
-    """convert the iSAID dataset to COCO format
-    TODO, this would only work if annotations are converted to boxes by assuming a box size
-    """
-    with open(isaid_path, "r") as f:
-        isaid = json.load(f)
-    pass
+def dota2coco(input_data):
+    # Parse input data
+    lines = input_data.strip().split('\n')
+
+    # Extract metadata
+    metadata = {}
+    for i, line in enumerate(lines):
+        if ':' in line:
+            key, value = line.split(':', 1)
+            metadata[key] = value
+            continue
+        else:
+            annotation_start = i
+            break
+
+    # Initialize COCO format dictionary
+    coco_format = {
+        "info": {
+            "description": "Converted from custom annotation format",
+            "url": "",
+            "version": "1.0",
+            "year": datetime.now().year,
+            "contributor": "",
+            "date_created": datetime.now().strftime("%Y-%m-%d")
+        },
+        "licenses": [
+            {
+                "id": 1,
+                "name": "Unknown",
+                "url": ""
+            }
+        ],
+        "images": [
+            {
+                "id": 1,
+                "width": 10000,  # Placeholder, adjust based on your image
+                "height": 10000,  # Placeholder, adjust based on your image
+                "file_name": "image.jpg",  # Placeholder
+                "license": 1,
+                "flickr_url": "",
+                "coco_url": "",
+                "date_captured": datetime.now().strftime("%Y-%m-%d")
+            }
+        ],
+        "annotations": [],
+        "categories": [
+            {
+                "id": 1,
+                "name": "small-vehicle",
+                "supercategory": "vehicle"
+            }
+        ]
+    }
+
+    # Add source information if available
+    if "imagesource" in metadata:
+        coco_format["images"][0]["source"] = metadata["imagesource"]
+
+    # Add GSD information if available
+    if "gsd" in metadata:
+        coco_format["images"][0]["gsd"] = float(metadata["gsd"])
+
+    # Process annotations
+    annotation_id = 1
+    category_ids = {"small-vehicle": 1}  # Map category names to IDs
+
+    for i in range(annotation_start, len(lines)):
+        parts = lines[i].strip().split()
+
+        if len(parts) < 11:  # Need at least 8 coordinates + category + score
+            continue
+
+        # Extract polygon coordinates (x1, y1, x2, y2, x3, y3, x4, y4)
+        polygon = [
+            float(parts[0]), float(parts[1]),  # x1, y1
+            float(parts[2]), float(parts[3]),  # x2, y2
+            float(parts[4]), float(parts[5]),  # x3, y3
+            float(parts[6]), float(parts[7])  # x4, y4
+        ]
+
+        # Calculate segmentation (format required by COCO)
+        segmentation = [polygon]
+
+        # Extract category name and score
+        category_name = parts[8]
+        score = float(parts[9])
+
+        # Add category to categories if not exists
+        if category_name not in category_ids:
+            category_id = len(category_ids) + 1
+            category_ids[category_name] = category_id
+            coco_format["categories"].append({
+                "id": category_id,
+                "name": category_name,
+                "supercategory": "object"
+            })
+
+        # Calculate bounding box [x, y, width, height]
+        x_coords = [polygon[0], polygon[2], polygon[4], polygon[6]]
+        y_coords = [polygon[1], polygon[3], polygon[5], polygon[7]]
+        x_min, y_min = min(x_coords), min(y_coords)
+        width, height = max(x_coords) - x_min, max(y_coords) - y_min
+
+        # Calculate polygon area
+        # For a simple approximation, we can use the shoelace formula
+        area = 0
+        n = 4  # Number of vertices
+        for i in range(n):
+            j = (i + 1) % n
+            area += x_coords[i] * y_coords[j]
+            area -= y_coords[i] * x_coords[j]
+        area = abs(area) / 2
+
+        # Create annotation
+        annotation = {
+            "id": annotation_id,
+            "image_id": 1,
+            "category_id": category_ids[category_name],
+            "segmentation": segmentation,
+            "area": area,
+            "bbox": [x_min, y_min, width, height],
+            "iscrowd": 0,
+            "score": score
+        }
+
+        coco_format["annotations"].append(annotation)
+        annotation_id += 1
+
+    return coco_format
 
 
 def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_conversion", dataset_name = None) -> HastyAnnotationV2:

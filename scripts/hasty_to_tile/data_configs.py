@@ -41,7 +41,7 @@ train_segments_fernanandina_1 = DatasetFilterConfig(**{
 
 train_segments_fernanandina_12 = DatasetFilterConfig(**{
     "dset": "train",
-    "dataset_name": "segments_12_1024",
+    "dataset_name": "segments_12",
     "images_filter": ["DJI_0366.JPG", "STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0924.JPG",
                       "DJI_0942.JPG", "DJI_0417.JPG", "DJI_0097.JPG", "DJI_0185.JPG", "DJI_0195.JPG", "DJI_0285.JPG"],
     "dataset_filter": ["Fer_FCD01-02-03_20122021_single_images", "San_STJB06_12012023", "Floreana_02.02.21_FMO01", "Floreana_03.02.21_FMO06", "FLMO02_28012023",
@@ -106,18 +106,27 @@ train_floreana_small = DatasetFilterConfig(**{
 })
 
 train_floreana_big = DatasetFilterConfig(**{
-    "dset": "train_floreana_big",
+    "dset": "train",
+    "dataset_name": "train_floreana_big",
     "dataset_filter": ["FMO03", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # big Floreana subset
     # "num": 1,
-    "empty_fraction": 0.0
+            "empty_fraction": 1.0,
+        "crop_size": 224,
+"class_filter": ["iguana_point"],
+"tag_filter": ["points"],
 })
 
-val_fmo03 = DatasetFilterConfig(**{
+val_fmo05 = DatasetFilterConfig(**{
         "dset": "val",
-        # "images_filter": ["DJI_0465.JPG"],
-        "dataset_filter": ["FMO03"],
+    "dataset_name": "val_FMO05",
+
+    # "images_filter": ["DJI_0465.JPG"],
+        "dataset_filter": ["FMO05"],
         # "dataset_filter": None,
-        "empty_fraction": 0.0
+                "empty_fraction": 1.0,
+        "crop_size": 224,
+        "class_filter": ["iguana_point"],
+"tag_filter": ["points"],
 
     })
 
@@ -139,31 +148,33 @@ test_fmo02 = DatasetFilterConfig(**{
     })
 
 
-datasets = [
+datasets_floreana = [
     {
         "dset": "train",
         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
-        # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        "dataset_filter": ["FMO05"],
+        "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+        # "dataset_filter": ["FMO05"],
         # "dataset_filter": None,
-        "num": 1,
-        "empty_fraction": 0.0
+        # "num": 1,
+        "empty_fraction": 1.0,
+        "crop_size": 224
     },
     {
         "dset": "val",
         # "images_filter": ["DJI_0465.JPG"],
-        "dataset_filter": ["FMO03"],
+        "dataset_filter": ["FMO03", "FMO02"],
         # "dataset_filter": None,
-        "empty_fraction": 0.0
+        "empty_fraction": 1.0,
+        "crop_size": 224
 
     },
-    {
-        "dset": "test",
-        # "images_filter": ["DJI_0554.JPG"],
-        "dataset_filter": ["FMO02"],
-        "empty_fraction": 0.0
-
-    }
+    # {
+    #     "dset": "test",
+    #     # "images_filter": ["DJI_0554.JPG"],
+    #     "dataset_filter": ["FMO02"],
+    #     "empty_fraction": 0.0
+    #
+    # }
 ]
 
 ## Data preparation based on segmentation masks

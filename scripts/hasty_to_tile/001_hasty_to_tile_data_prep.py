@@ -10,29 +10,30 @@ from pathlib import Path
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from data_configs import val_segments_fernandina_1, \
-    test_segments_fernandina_1, train_segments_fernanandina_12
+    test_segments_fernandina_1, train_segments_fernanandina_12, datasets_floreana, train_floreana_big, val_fmo05
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from util.util import visualise_image, visualise_polygons
 
 if __name__ == "__main__":
-    visualise_crops = True
+    visualise_crops = False
 
     # ## fixed test data
-    # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT")
-    # hasty_annotations_labels_zipped = "labels_all_completed.zip"
-    # hasty_annotations_images_zipped = "images_all_completed.zip"
-    # annotation_types = [AnnotationType.KEYPOINT]
-    # class_filter = ["iguana_point"]
+    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other")
+    hasty_annotations_labels_zipped = "labels_all_completed.zip"
+    hasty_annotations_images_zipped = "image_all_completed.zip"
+    annotation_types = [AnnotationType.KEYPOINT]
+    class_filter = ["iguana_point"]
+    datasets = [train_floreana_big, val_fmo05]
 
-    ## Segmentation masks
-    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining")
-    hasty_annotations_labels_zipped = "labels_segments_completed.zip"
-    hasty_annotations_images_zipped = "images_segments_completed.zip"
-    annotation_types = [AnnotationType.POLYGON]
-    class_filter = ["iguana"]
-    datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
-    datasets = [val_segments_fernandina_1]
+    # ## Segmentation masks
+    # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining")
+    # hasty_annotations_labels_zipped = "labels_segments_completed.zip"
+    # hasty_annotations_images_zipped = "images_segments_completed.zip"
+    # annotation_types = [AnnotationType.POLYGON]
+    # class_filter = ["iguana"]
+    # datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
+    # datasets = [val_segments_fernandina_1]
     overlap = 0
     # amount of empty images in the dataset
 
@@ -45,6 +46,7 @@ if __name__ == "__main__":
         dset = dataset.dset
         crop_size = dataset.crop_size
         num = dataset.num
+
         ifcn = ImageFilterConstantNum(num=num, dataset_config= dataset)
 
         uA = UnpackAnnotations()
@@ -134,8 +136,11 @@ if __name__ == "__main__":
         if visualise_crops:
             vis_path = output_path_dataset_name / f"visualisations"
             vis_path.mkdir(exist_ok=True, parents=True)
-            for image in hA.images:
-                ax_s = visualise_image(image_path = destination_path / image.image_name, show=False)
+            for image in hA_crops.images:
+                logger.info(f"Visualising {image.image_name}")
+                assert destination_path.joinpath(image.image_name).exists(), f"{destination_path.joinpath(image.image_name)} does not exist"
+
+                ax_s = visualise_image(image_path = destination_path / image.image_name, show=False, title=f"Visualisation of {len([p.polygon_s for p in image.labels])} labels in {image.image_name}")
 
                 filename = vis_path / f"{image.image_name}.png"
                 visualise_polygons(polygons=[p.polygon_s for p in image.labels],
