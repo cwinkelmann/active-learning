@@ -19,20 +19,138 @@ from sklearn.preprocessing import normalize
 
 
 class FeatureExtractor:
-    def __init__(self, model_name: Optional[str] = None, model_path: Optional[Path] = None):
-        self.device = "cuda" if torch.cuda.is_available() else "mps"
-        if model_name is not None:
+    def __init__(
+            self,
+            model_name: Optional[str] = None,
+            model_path: Optional[Union[str, Path]] = None,
+            num_classes: int = 0,
+            global_pool: str = "avg"
+    ):
+        """
+        Initialize the feature extractor with either a pretrained timm model or a custom checkpoint.
+
+        Args:
+            model_name: Name of the timm model to use
+            model_path: Path to a custom checkpoint
+            num_classes: Number of output classes (0 for feature extraction)
+            global_pool: Global pooling type ("avg", "max", etc.)
+        """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else
+                                   "mps" if torch.backends.mps.is_available() else
+                                   "cpu")
+        print(f"Using device: {self.device}")
+
+        if model_name is not None and model_path is None:
+            print(f"Loading pretrained model: {model_name}")
             self.model = timm.create_model(
-                model_name, pretrained=True, num_classes=0, global_pool="avg"
+                model_name,
+                pretrained=True,
+                num_classes=num_classes,
+                global_pool=global_pool
             ).to(self.device)
-        elif model_path is not None:
-            self.model = torch.load(model_path).to(self.device)
+
+        elif model_path is not None and model_name is not None:
+            model_path = Path(model_path) if not isinstance(model_path, Path) else model_path
+            print(f"Loading checkpoint from: {model_path}")
+
+            if not model_path.exists():
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+
+            try:
+                # First try loading as a complete model
+                checkpoint = torch.load(model_path, map_location=self.device)
+
+                # Check if it's a complete model or just a state dict
+                if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+                    # It's a standard checkpoint dictionary with state_dict
+                    print("Detected checkpoint dictionary with state_dict")
+
+                    # We need a base model to load the state dict into
+                    if not model_name:
+                        # Try to get model_name from the checkpoint if available
+                        model_name = checkpoint.get("model_name")
+                        if not model_name:
+                            raise ValueError(
+                                "When loading just a state_dict, model_name must be provided or included in the checkpoint")
+
+                    # Create the base model
+                    self.model = timm.create_model(
+                        model_name,
+                        pretrained=False,
+                        num_classes=num_classes,
+                        global_pool=global_pool
+                    ).to(self.device)
+
+                    # Load the state dict
+                    self.model.load_state_dict(checkpoint["state_dict"], strict=False)
+
+                elif isinstance(checkpoint, dict) and all(k in checkpoint for k in ["model", "optimizer", "epoch"]):
+                    # It's a training checkpoint with model, optimizer, etc.
+                    print("Detected training checkpoint with model and optimizer")
+                    self.model = checkpoint["model"].to(self.device)
+
+                    # Modify the classifier if needed
+                    if num_classes != self.model.num_classes and hasattr(self.model, "reset_classifier"):
+                        print(f"Resetting classifier to {num_classes} classes")
+                        self.model.reset_classifier(num_classes, global_pool)
+
+                elif isinstance(checkpoint, dict) and not isinstance(checkpoint.get("model", None), torch.nn.Module):
+                    # It's likely just a state dict
+                    print("Detected state dictionary")
+
+                    # We need a base model to load the state dict into
+                    if not model_name:
+                        raise ValueError("When loading just a state_dict, model_name must be provided")
+
+                    # Create the base model
+                    self.model = timm.create_model(
+                        model_name,
+                        pretrained=False,
+                        num_classes=num_classes,
+                        global_pool=global_pool
+                    ).to(self.device)
+
+                    # Try to load the state dict
+                    try:
+                        self.model.load_state_dict(checkpoint, strict=False)
+                    except Exception as e:
+                        print(f"Error loading state dict directly: {e}")
+                        print("Trying to access 'state_dict' key...")
+                        if "state_dict" in checkpoint:
+                            self.model.load_state_dict(checkpoint["state_dict"], strict=False)
+                        else:
+                            raise ValueError(f"Could not load state dict: {e}")
+
+                elif isinstance(checkpoint, torch.nn.Module):
+                    # It's a full model
+                    print("Detected full model object")
+                    self.model = checkpoint.to(self.device)
+
+                    # Modify the classifier if needed
+                    if (hasattr(self.model, "num_classes") and
+                            num_classes != 0 and
+                            num_classes != self.model.num_classes and
+                            hasattr(self.model, "reset_classifier")):
+                        print(f"Resetting classifier to {num_classes} classes")
+                        self.model.reset_classifier(num_classes, global_pool)
+
+                else:
+                    raise ValueError(f"Unsupported checkpoint format")
+
+            except Exception as e:
+                raise ValueError(f"Failed to load checkpoint: {e}")
+
         else:
             raise ValueError("Must provide either a model name or a model path.")
 
+        # Set model to evaluation mode
         self.model.eval()
 
-        self.preprocess = create_transform(**resolve_data_config({}, model=self.model))
+        # Create preprocessing transform
+        data_config = resolve_data_config({}, model=self.model)
+        self.preprocess = create_transform(**data_config)
+
+        print(f"Model loaded successfully. Input size: {data_config.get('input_size')}")
 
     def extract_features(self, image_path: Union[str, Path]) -> Optional[np.ndarray]:
         """Extract features from a single image.

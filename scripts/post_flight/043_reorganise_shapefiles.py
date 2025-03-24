@@ -30,6 +30,7 @@ df_progress_report = pd.read_csv(progress_report_file)
 missing_report_entries: typing.List[str] = []
 missing_orthomosaics_entries: typing.List[str] = []
 
+shapefile_orthomosaic_mapping = []
 
 
 for i, shp_file_path in enumerate(shp_files):
@@ -44,6 +45,12 @@ for i, shp_file_path in enumerate(shp_files):
         logger.error(f"Orthomosaic not found: {images_path}")
         missing_orthomosaics_entries.append(images_path)
         continue
+    else:
+        logger.info(f"Orthomosaic found: {images_path}")
+
+    if possible_orthomosaic_name == "Esp_EM04_13012021":
+        print("debug")
+
     gdf = project_gdfcrs(gdf, images_path)
     expert_value = df_progress_report.loc[
         df_progress_report['Orthophoto/Panorama name'] == possible_orthomosaic_name, 'Expert']
@@ -65,14 +72,17 @@ for i, shp_file_path in enumerate(shp_files):
     output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
     output_file = output_dir / island_code / shp_name
     output_file = output_file.with_suffix('.geojson')
-    if output_file.exists():
-        logger.info(f"File already exists: {output_file}")
-    else:
-        logger.info(f"Creating {output_file.name} in {island_code}, full path: {output_file}")
 
-        gdf.to_file(output_file, driver='GeoJSON')
+    logger.info(f"Creating {output_file.name} in {island_code}, full path: {output_file}")
+
+    gdf.to_file(output_file, driver='GeoJSON')
+
+    shapefile_orthomosaic_mapping.append(
+        {"images_path": images_path, "shp_file_path": shp_file_path, "shp_name": shp_name, "geojson_path": output_file, "expert": expert_value})
 
 logger.info(f"Missing report entries: {missing_report_entries}")
+
+pd.DataFrame(shapefile_orthomosaic_mapping).to_csv(output_dir / 'shapefile_orthomosaic_mapping.csv')
 
 with open(output_dir / 'missing_report_entries.txt', 'w') as f:
     for item in missing_report_entries:

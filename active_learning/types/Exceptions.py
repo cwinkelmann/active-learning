@@ -16,3 +16,7 @@ class NotEnoughLabelsError(InvalidLabelCountError):
 
     def __init__(self, message: str = "The number of labels is too low") -> None:
         super().__init__(message)
+
+
+class ProjectionError(ValueError):
+    pass

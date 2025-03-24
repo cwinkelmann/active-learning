@@ -87,13 +87,18 @@ class ModelFineTuner:
 
         if checkpoint_path:
             print(f"Loading checkpoint from {checkpoint_path}")
-            self.model = torch.load(checkpoint_path)
+            self.model = timm.create_model(
+                model_name,
+                pretrained=pretrained,
+                num_classes=num_classes,
+                checkpoint_path=checkpoint_path,
+            )
         else:
             print(f"Creating model: {model_name} with {num_classes} classes")
             self.model = timm.create_model(
                 model_name,
                 pretrained=pretrained,
-                num_classes=num_classes
+                num_classes=num_classes,
             )
 
         # Move model to device
@@ -329,6 +334,16 @@ class ModelFineTuner:
             self.val_loader = None
             print("No validation data provided")
 
+    # Fixed training loop to prevent double backward error
+
+    import torch
+    import torch.nn as nn
+    from torch.utils.data import DataLoader
+    from tqdm.auto import tqdm
+    import time
+    from pathlib import Path
+    from typing import Optional, Union
+
     def train(
             self,
             epochs: int = 10,
@@ -342,21 +357,7 @@ class ModelFineTuner:
             clip_grad_norm: float = 0
     ):
         """
-        Train the model.
-
-        Args:
-            epochs: Number of epochs
-            optimizer_name: Name of optimizer
-            learning_rate: Initial learning rate
-            weight_decay: Weight decay for regularization
-            lr_scheduler: Type of learning rate scheduler
-            mixed_precision: Whether to use mixed precision
-            save_path: Path to save the best model
-            early_stopping_patience: Early stopping patience (0 to disable)
-            clip_grad_norm: Max norm for gradient clipping (0 to disable)
-
-        Returns:
-            Best validation accuracy
+        Train the model with fixes for ViT tensor shape issues.
         """
         if save_path:
             save_path = Path(save_path)
@@ -382,15 +383,69 @@ class ModelFineTuner:
         else:
             scheduler = None
 
+        # Custom wrapper for ViT forward pass to handle tensor shape issues
+        def safe_forward(model, images):
+            # Try the forward pass with shape handling
+            try:
+                outputs = model(images)
+                return outputs
+            except RuntimeError as e:
+                if "view size is not compatible" in str(e) or "permute" in str(e):
+                    # Try reshaping inputs before passing to model
+                    shape = images.shape
+                    # Try to make tensors contiguous if that's the issue
+                    images = images.contiguous()
+                    try:
+                        outputs = model(images)
+                        print("Resolved by using contiguous tensor")
+                        return outputs
+                    except RuntimeError:
+                        pass
+
+                    # Try an alternative approach for ViT
+                    if 'vit' in self.model_name.lower():
+                        # Create a new tensor with the same data but different layout
+                        try:
+                            # Reshape according to ViT's expected input format
+                            batch_size, channels, height, width = shape
+                            patch_size = 16  # Standard for ViT
+
+                            # Make sure dimensions are divisible by patch size
+                            if height % patch_size != 0 or width % patch_size != 0:
+                                # Resize to nearest valid dimensions
+                                new_height = (height // patch_size) * patch_size
+                                new_width = (width // patch_size) * patch_size
+                                print(f"Resizing from {height}x{width} to {new_height}x{new_width}")
+                                images = torch.nn.functional.interpolate(
+                                    images,
+                                    size=(new_height, new_width),
+                                    mode='bilinear'
+                                )
+
+                            outputs = model(images)
+                            print("Resolved by proper patch-size alignment")
+                            return outputs
+                        except RuntimeError as e2:
+                            # If still failing, re-raise with more info
+                            print(f"Shape transformation failed: {e2}")
+
+                # If we couldn't resolve it, re-raise the error
+                raise e
+
         # Loss function
         criterion = nn.CrossEntropyLoss()
 
         # For mixed precision
         scaler = None
+        if mixed_precision and torch.cuda.is_available():
+            from torch.cuda.amp import autocast, GradScaler
+            scaler = GradScaler()
+            print("Using mixed precision training")
 
         # Training loop
         best_val_acc = 0
         no_improve_epochs = 0
+        best_model_state = None
 
         for epoch in range(epochs):
             start_time = time.time()
@@ -398,34 +453,93 @@ class ModelFineTuner:
             # Training phase
             self.model.train()
             train_loss = 0
+            batch_count = 0
 
             for batch_idx, (images, targets) in enumerate(tqdm(self.train_loader, desc=f"Epoch {epoch + 1}/{epochs}")):
                 images, targets = images.to(self.device), targets.to(self.device)
 
                 # Zero gradients
                 optimizer.zero_grad()
-                # Standard precision training
-                outputs = self.model(images)
-                loss = criterion(outputs, targets)
 
-                # Backward pass
-                loss.backward()
+                try:
+                    if scaler is not None:
+                        # Mixed precision training
+                        with autocast():
+                            outputs = safe_forward(self.model, images)
+                            # Handle different output formats
+                            if isinstance(outputs, dict) and 'logits' in outputs:
+                                outputs = outputs['logits']
+                            elif isinstance(outputs, tuple):
+                                outputs = outputs[0]
 
-                # Gradient clipping if enabled
-                if clip_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip_grad_norm)
+                            # Ensure outputs has correct shape for loss function
+                            if outputs.dim() > 2:
+                                batch_size = outputs.shape[0]
+                                outputs = outputs.reshape(batch_size, -1)
 
-                # Update weights
-                optimizer.step()
+                            loss = criterion(outputs, targets)
 
-                # Update running loss
-                train_loss += loss.item()
+                        # Scale gradients and optimize
+                        scaler.scale(loss).backward()
+
+                        if clip_grad_norm > 0:
+                            scaler.unscale_(optimizer)
+                            torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip_grad_norm)
+
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        # Standard precision training
+                        outputs = safe_forward(self.model, images)
+
+                        # Handle different output formats
+                        if isinstance(outputs, dict) and 'logits' in outputs:
+                            outputs = outputs['logits']
+                        elif isinstance(outputs, tuple):
+                            outputs = outputs[0]
+
+                        # Ensure outputs has correct shape for loss function
+                        if outputs.dim() > 2:
+                            batch_size = outputs.shape[0]
+                            outputs = outputs.reshape(batch_size, -1)
+
+                        loss = criterion(outputs, targets)
+
+                        # Backward pass
+                        loss.backward()
+
+                        if clip_grad_norm > 0:
+                            torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip_grad_norm)
+
+                        optimizer.step()
+
+                    # Update running loss
+                    train_loss += loss.item()
+                    batch_count += 1
+
+                except RuntimeError as e:
+                    error_msg = str(e)
+                    print(f"Error in batch {batch_idx}: {error_msg}")
+
+                    if "CUDA out of memory" in error_msg:
+                        print("CUDA out of memory - clearing cache")
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+
+                    # Skip problematic batch
+                    optimizer.zero_grad()
+                    continue
+
+            # Skip epoch if no batches were processed
+            if batch_count == 0:
+                print(f"Epoch {epoch + 1}/{epochs} - No batches were successfully processed. Trying next epoch...")
+                continue
 
             # Calculate average training loss
-            avg_train_loss = train_loss / len(self.train_loader)
+            avg_train_loss = train_loss / batch_count
             self.history['train_loss'].append(avg_train_loss)
 
-            # Validation phase if we have validation data
+            # Validation phase
             val_loss = 0
             val_acc = 0
 
@@ -433,34 +547,58 @@ class ModelFineTuner:
                 self.model.eval()
                 correct = 0
                 total = 0
+                val_batch_count = 0
 
                 with torch.no_grad():
                     for images, targets in tqdm(self.val_loader, desc="Validation"):
                         images, targets = images.to(self.device), targets.to(self.device)
 
-                        # Forward pass
-                        outputs = self.model(images)
-                        loss = criterion(outputs, targets)
+                        try:
+                            # Forward pass using the safe forward function
+                            outputs = safe_forward(self.model, images)
 
-                        # Calculate accuracy
-                        _, predicted = torch.max(outputs.data, 1)
-                        total += targets.size(0)
-                        correct += (predicted == targets).sum().item()
+                            # Handle different output formats
+                            if isinstance(outputs, dict) and 'logits' in outputs:
+                                outputs = outputs['logits']
+                            elif isinstance(outputs, tuple):
+                                outputs = outputs[0]
 
-                        # Update running loss
-                        val_loss += loss.item()
+                            # Ensure outputs has correct shape for loss function
+                            if outputs.dim() > 2:
+                                batch_size = outputs.shape[0]
+                                outputs = outputs.reshape(batch_size, -1)
 
-                # Calculate metrics
-                avg_val_loss = val_loss / len(self.val_loader)
-                val_acc = correct / total
+                            loss = criterion(outputs, targets)
 
-                # Update history
-                self.history['val_loss'].append(avg_val_loss)
-                self.history['val_accuracy'].append(val_acc)
+                            # Calculate accuracy
+                            _, predicted = torch.max(outputs.data, 1)
+                            total += targets.size(0)
+                            correct += (predicted == targets).sum().item()
 
-                # Update LR scheduler if using ReduceLROnPlateau
-                if lr_scheduler == 'reduce_on_plateau':
-                    scheduler.step(avg_val_loss)
+                            # Update running loss
+                            val_loss += loss.item()
+                            val_batch_count += 1
+                        except Exception as e:
+                            print(f"Error in validation batch: {e}")
+                            continue
+
+                # Calculate metrics only if validation succeeded
+                if val_batch_count > 0:
+                    avg_val_loss = val_loss / val_batch_count
+                    val_acc = correct / total if total > 0 else 0
+
+                    # Update history
+                    self.history['val_loss'].append(avg_val_loss)
+                    self.history['val_accuracy'].append(val_acc)
+
+                    # Update LR scheduler if using ReduceLROnPlateau
+                    if lr_scheduler == 'reduce_on_plateau':
+                        scheduler.step(avg_val_loss)
+                else:
+                    print("No validation batches were processed successfully")
+                    # Add placeholder for history
+                    self.history['val_loss'].append(float('nan'))
+                    self.history['val_accuracy'].append(float('nan'))
 
             # Update LR scheduler if not ReduceLROnPlateau
             if scheduler and lr_scheduler != 'reduce_on_plateau':
@@ -474,18 +612,28 @@ class ModelFineTuner:
 
             # Print epoch summary
             print(f"Epoch {epoch + 1}/{epochs} - {epoch_time:.1f}s - Train Loss: {avg_train_loss:.4f}", end="")
-            if self.val_loader:
+            if self.val_loader and val_batch_count > 0:
                 print(f" - Val Loss: {avg_val_loss:.4f} - Val Acc: {val_acc:.4f}")
             else:
                 print("")
 
-            # Save best model if we have validation data
-            if self.val_loader and val_acc > best_val_acc:
+            # Save best model if we have valid validation results
+            if self.val_loader and val_batch_count > 0 and val_acc > best_val_acc:
                 best_val_acc = val_acc
+                best_model_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
 
                 if save_path:
-                    torch.save(self.model, save_path)
-                    print(f"Model saved to {save_path}")
+                    try:
+                        torch.save({
+                            'state_dict': best_model_state,
+                            'model_name': self.model_name,
+                            'num_classes': self.num_classes,
+                            'val_acc': val_acc,
+                            'epoch': epoch
+                        }, save_path)
+                        print(f"Model saved to {save_path}")
+                    except Exception as e:
+                        print(f"Error saving model: {e}")
 
                 no_improve_epochs = 0
             else:
@@ -496,12 +644,15 @@ class ModelFineTuner:
                 print(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 
-        # Load best model if we saved it
-        if save_path and save_path.exists() and self.val_loader:
-            self.model = torch.load(save_path)
-            print(f"Loaded best model from {save_path}")
+        # Load best model if we have one
+        if best_model_state is not None:
+            try:
+                self.model.load_state_dict(best_model_state)
+                print("Loaded best model from memory")
+            except Exception as e:
+                print(f"Error loading best model: {e}")
 
-        return best_val_acc if self.val_loader else None
+        return best_val_acc if self.val_loader and val_batch_count > 0 else None
 
     def evaluate(self, test_loader=None, detailed=True):
         """
@@ -688,6 +839,12 @@ class ModelFineTuner:
         else:
             return all_preds
 
+    def save_state_dict(self, path):
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(self.model.state_dict(), path)
+        print(f"Model state_dict saved to {path}")
+
     def save_model(self, path):
         """
         Save the model to the specified path.
@@ -854,27 +1011,159 @@ class ModelFineTuner:
 
         return orig_img, overlay
 
+    def extract_features(self, image_path):
+        """
+        Extract the feature vector using the model's built-in forward_features method
+
+        Args:
+            image_path: Path to the image
+
+        Returns:
+            Feature vector as numpy array
+        """
+        # Load and preprocess image
+        img = Image.open(image_path).convert('RGB')
+        img_tensor = self.val_transform(img).unsqueeze(0).to(self.device)
+
+        # Set model to eval mode
+        self.model.eval()
+
+        # Extract features using the model's forward_features method
+        with torch.no_grad():
+            if hasattr(self.model, 'forward_features'):
+                features = self.model.forward_features(img_tensor)
+
+                # Handle ViT models differently than CNNs
+                if 'vit' in self.model_name.lower():
+                    # For ViT, use the class token (first token) or pool over all tokens
+                    if features.ndim == 3:  # Shape: [B, N, D] where B=batch, N=tokens, D=dimensions
+                        # Option 1: Use class token (CLS token)
+                        features = features[:, 0]  # Use CLS token
+
+                        # Option 2 (alternative): Use mean of all tokens
+                        # features = features.mean(dim=1)
+                else:
+                    # For CNN models, do spatial pooling if needed
+                    if features.ndim == 4:  # Shape: [B, C, H, W]
+                        features = features.mean(dim=[2, 3])  # Global average pooling
+            else:
+                # Alternative if forward_features is not available
+                print("Model doesn't have forward_features method, using alternative approach")
+                # Temporarily replace classifier
+                if hasattr(self.model, 'fc'):
+                    original_fc = self.model.fc
+                    self.model.fc = nn.Identity()
+                    features = self.model(img_tensor)
+                    self.model.fc = original_fc
+                elif hasattr(self.model, 'head'):
+                    original_head = self.model.head
+                    self.model.head = nn.Identity()
+                    features = self.model(img_tensor)
+                    self.model.head = original_head
+                elif hasattr(self.model, 'classifier'):
+                    original_classifier = self.model.classifier
+                    self.model.classifier = nn.Identity()
+                    features = self.model(img_tensor)
+                    self.model.classifier = original_classifier
+                else:
+                    raise ValueError("Cannot extract features: Model structure not recognized")
+
+        return features.cpu().numpy()
+
+    def extract_features_batch(self, image_paths):
+        """
+        Extract feature vectors for a batch of images using forward_features
+
+        Args:
+            image_paths: List of paths to images
+
+        Returns:
+            Numpy array of feature vectors
+        """
+        # Create a dataset and dataloader for the images
+        dummy_labels = [0] * len(image_paths)  # Dummy labels
+        dataset = CustomImageDataset(image_paths, dummy_labels, transform=self.val_transform)
+        dataloader = DataLoader(dataset, batch_size=32, shuffle=False, num_workers=4)
+
+        # Set model to eval mode
+        self.model.eval()
+
+        # Extract features
+        all_features = []
+
+        with torch.no_grad():
+            for images, _ in tqdm(dataloader, desc="Extracting features"):
+                images = images.to(self.device)
+
+                # Use forward_features if available
+                if hasattr(self.model, 'forward_features'):
+                    features = self.model.forward_features(images)
+                    # Global average pooling for spatial features if needed
+                    if len(features.shape) > 2:
+                        features = features.mean(dim=[2, 3])
+                else:
+                    # Alternative if forward_features is not available
+                    # Temporarily replace classifier
+                    if hasattr(self.model, 'fc'):
+                        original_fc = self.model.fc
+                        self.model.fc = nn.Identity()
+                        features = self.model(images)
+                        self.model.fc = original_fc
+                    elif hasattr(self.model, 'head'):
+                        original_head = self.model.head
+                        self.model.head = nn.Identity()
+                        features = self.model(images)
+                        self.model.head = original_head
+                    elif hasattr(self.model, 'classifier'):
+                        original_classifier = self.model.classifier
+                        self.model.classifier = nn.Identity()
+                        features = self.model(images)
+                        self.model.classifier = original_classifier
+                    else:
+                        raise ValueError("Cannot extract features: Model structure not recognized")
+
+                all_features.append(features.cpu().numpy())
+
+        return np.vstack(all_features)
+
 
 if __name__ == "__main__":
+
+    model_name = "timm/resnet34.a1_in1k"
+    model_name = "dla34.in1k"
+    # model_name = "mvitv2_small.fb_in1k"
+
+
+
     # Initialize fine-tuner
     fine_tuner = ModelFineTuner(
-        model_name="timm/resnet34.a1_in1k",  # Use any timm model
+        model_name=model_name,  # Use any timm model
         num_classes=2,  # Number of your classes
         freeze_base=True,  # Start with frozen base for transfer learning
         device=torch.device("mps")
     )
 
-    # iguanas
-    train_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/train/classification")
-    val_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/val/classification")
-    model_path = "final_model_iguanas.pth"
-    model_stage1_path = "final_model_iguanas_stage1.pth"
+    image_path = "/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/train/classification/iguana/Floreana_02.02.21_FMO01___DJI_0942_x1344_y2240.jpg"
+
+    features = fine_tuner.extract_features(image_path)
 
     # iguanas
-    train_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other/train_floreana_big/classification")
-    val_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other/val/classification")
-    model_path = "final_model_iguanas_points.pth"
-    model_stage1_path = "final_model_iguanas_points_stage1.pth"
+    train_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/val/classification")
+    val_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/val/classification")
+    model_path = "final_model_iguanas_2025_03_23.pth"
+    model_stage1_path = "final_model_iguanas_stage1.pth"
+
+    # cats and dogs
+    train_dir = Path("/Users/christian/Downloads/kagglecatsanddogs_5340/PetImages224_train_val_small/train/")
+    val_dir = Path("/Users/christian/Downloads/kagglecatsanddogs_5340/PetImages224_train_val_small/val/")
+    model_path = f"final_model_cats_2025_03_23.pth"
+    model_stage1_path = "final_model_cats_stage1.pth"
+
+    # # iguanas
+    # train_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other/train_floreana_big/classification")
+    # val_dir = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other/val/classification")
+    # model_path = "final_model_iguanas_points.pth"
+    # model_stage1_path = "final_model_iguanas_points_stage1.pth"
 
     # # cats and dogs
     # train_dir = Path("/Users/christian/Downloads/kagglecatsanddogs_5340/PetImages224_train_val/train")
@@ -886,16 +1175,19 @@ if __name__ == "__main__":
     fine_tuner.prepare_data(
         train_dir=train_dir,
         val_dir=val_dir,
-        batch_size=10
+        batch_size=2,
+        num_workers=2,
     )
 
 
-    # Train with frozen base first
-    fine_tuner.train(
-        epochs=5,
-        learning_rate=3e-4,
-        save_path=model_stage1_path
-    )
+    # # Train with frozen base first
+    # fine_tuner.train(
+    #     epochs=1,
+    #     learning_rate=3e-4,
+    #     save_path=model_stage1_path
+    # )
+    #
+    # features_2 = fine_tuner.extract_features(image_path=image_path)
 
     # Unfreeze layers for fine-tuning
     fine_tuner.unfreeze()
@@ -905,18 +1197,35 @@ if __name__ == "__main__":
         epochs=5,
         learning_rate=1e-4,
         save_path=model_path,
-        early_stopping_patience=3
+        early_stopping_patience=5
     )
+
+    features_3 = fine_tuner.extract_features(image_path=image_path)
+
+
+    # Generate class activation map for an image
+    fine_tuner.get_class_activation_map(image_path)
 
     # Evaluate the model
     results = fine_tuner.evaluate(detailed=True)
 
+
     # Plot training history
     fine_tuner.plot_training_history()
 
+
     # Save the final model
-    fine_tuner.save_model(model_path)
+    fine_tuner.save_state_dict(model_path)
 
-    # Generate class activation map for an image
-    fine_tuner.get_class_activation_map("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining/segments_12/train/classification/iguana/Floreana_02.02.21_FMO01___DJI_0942_x1344_y2240.jpg")
 
+    fine_tuner_loaded = ModelFineTuner(
+        model_name=model_name,  # Use any timm model
+        num_classes=2,  # Number of your classes
+        freeze_base=True,  # Start with frozen base for transfer learning
+        device=torch.device("mps"),
+        checkpoint_path=model_path
+    )
+
+    features_3_loaded = fine_tuner_loaded.extract_features(image_path=image_path)
+
+    assert features_3_loaded.shape == features_2.shape

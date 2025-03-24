@@ -18,3 +18,4 @@ geopandas
 sahi==0.11.20
 osgeo
 piq==0.8.0
+umap-learn

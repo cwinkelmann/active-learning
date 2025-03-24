@@ -10,6 +10,7 @@ import geopandas as gpd
 from PIL import Image
 from loguru import logger
 
+from active_learning.types.Exceptions import ProjectionError
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import PredictedImageLabel
 
@@ -32,7 +33,9 @@ def convert_gdf_to_jpeg_coords(gdf: gpd.GeoDataFrame, tiff_path: Path) -> gpd.Ge
         tiff_width, tiff_height = dataset.width, dataset.height  # Get TIFF dimensions
 
     # Assert the GeoDataFrame CRS matches the image CRS
-    assert gdf.crs == image_crs, f"CRS mismatch: GDF {gdf.crs} != TIFF {image_crs}"
+    if gdf.crs.to_epsg() != image_crs.to_epsg():
+        logger.error(f"CRS mismatch: GDF {gdf.crs} != TIFF {image_crs}, with path {tiff_path}")
+        raise ProjectionError(f"CRS mismatch: GDF {gdf.crs} != TIFF {image_crs}, with path {tiff_path}")
 
     # Convert each point in the GeoDataFrame to TIFF pixel coordinates
     pixel_coords = []
@@ -198,6 +201,7 @@ def project_gdfcrs(gdf: gpd.GeoDataFrame, orthomosaic_path: Path) -> gpd.GeoData
     with rasterio.open(orthomosaic_path) as dataset:
         ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
 
+    ortho_crs.to_epsg()
     # Project the GeoDataFrame to the orthomosaic CRS
     gdf_proj = gdf.to_crs(ortho_crs)
 

@@ -45,9 +45,28 @@ def get_tsn_embeddings(
     # Load embeddings from CSV
     df = pd.read_csv(embedding_file, index_col=0)
 
+
+
     # Extract feature vectors and labels
     embeddings = df.iloc[:, :-1].values  # All columns except last (features only)
     class_labels = df["class"].values  # Extract class labels
+
+    # TODO where does the variance come from?
+    from sklearn.decomposition import PCA
+    pca = PCA()
+    pca.fit(embeddings)
+    print(pca.explained_variance_ratio_)
+
+    # Get the principal components (eigenvectors)
+    components = pca.components_
+
+    # The first row of components corresponds to the first principal component
+    # (the one with highest variance)
+    first_pc = components[0]
+
+    # Find which original dimension has the largest absolute contribution to the first PC
+    contributions = np.abs(first_pc)
+    most_important_dimension = np.argmax(contributions)
 
 
     # Normalize embeddings
@@ -55,8 +74,16 @@ def get_tsn_embeddings(
 
     # Apply t-SNE
     print(f"Applying t-SNE with perplexity={perplexity}...")
-    tsne = TSNE(n_components=n_components, perplexity=perplexity, random_state=random_state, init="random")
+    tsne = TSNE(n_components=n_components, perplexity=perplexity, random_state=random_state,  max_iter=2000,              # Number of iterations
+    n_iter_without_progress=300,  # Early stopping patience
+    min_grad_norm=1e-7,       # Convergence criterion
+    metric='euclidean',       # Distance metric
+    init='pca',               )
     embeddings_2d = tsne.fit_transform(embeddings)
+
+    # import umap
+    # reducer = umap.UMAP(n_neighbors=15, min_dist=0.1)
+    # embeddings_2d = reducer.fit_transform(embeddings)
 
     # Convert to DataFrame for visualization
     df_tsne = pd.DataFrame(embeddings_2d, columns=["X", "Y"])
@@ -185,7 +212,6 @@ def perform_clustering(
         df_tsne_embeddings: pd.DataFrame,
         n_clusters: int = 5,
         random_state: int = 42,
-        load_existing_tsne: bool = False
 ) -> pd.DataFrame:
     """
     Load embeddings and perform K-means clustering, returning the enriched dataframe.
@@ -375,7 +401,8 @@ def display_misclassified_grid(
         cols: int = 5,
         rows: int = 1,
         figsize: tuple = (15, 3),
-        save_path: Optional[Union[str, Path]] = None
+        save_path: Optional[Union[str, Path]] = None,
+        true_class_column: str = "true_class"
 ) -> None:
     """
     Display misclassified images in a simple grid.
@@ -389,7 +416,7 @@ def display_misclassified_grid(
     """
     # Get file names
     file_names = misclassified_df["file_name"].tolist()
-    class_names = misclassified_df["true_class"].tolist()
+    class_names = misclassified_df[true_class_column].tolist()
 
     # Calculate grid dimensions
     n_images = len(file_names)
@@ -414,7 +441,7 @@ def display_misclassified_grid(
                 ax.imshow(img)
 
                 # Get classification info
-                true_class = misclassified_df.iloc[i]["true_class"]
+                true_class = misclassified_df.iloc[i][true_class_column]
                 pred_class = misclassified_df.iloc[i]["predicted_class"]
 
                 # Set title with classification info

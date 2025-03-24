@@ -1258,7 +1258,7 @@ def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: 
             # Save the image in the desired format
             img.save(out_path, quality=95)
 
-            logger.info(f"Converted {tile} -> {out_path}")
+            # logger.info(f"Converted {tile} -> {out_path}")
 
             output_tiles.append(out_path)
 

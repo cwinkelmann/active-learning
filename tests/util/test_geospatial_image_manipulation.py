@@ -212,5 +212,9 @@ def test_GeoSlicer(FMO02_full_orthophoto_grid: gpd.GeoDataFrame, orthomosaic_pat
         dot_annotations_path = slicer.slice_annotations(dot_annotations)
         df_project_annotations = pd.read_csv(dot_annotations_path)
 
-        assert len(df_project_annotations) == 10, "only one slice should be created"
+        assert len(df_project_annotations) == 10, "10 annotations should be projected"
+
+        assert df_project_annotations
+
+        print("\t✅ All tests passed for GeoSlicer()!")
 

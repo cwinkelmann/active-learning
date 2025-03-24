@@ -140,6 +140,18 @@ def create_regular_geospatial_raster_grid(full_image_path: Path,
     with rasterio.open(full_image_path) as src:
         transform = src.transform  # Affine transform
         crs = src.crs  # Get CRS
+
+        if crs is not None and crs.to_epsg() is None:
+            # If it's UTM zone 16S, manually set the EPSG
+            if "UTM zone 16S" in str(crs):
+                epsg_code = "EPSG:32716"
+                pass
+            # Check for UTM zone 15S
+            elif "UTM zone 15S" in str(crs):
+                epsg_code = "EPSG:32715"
+        else:
+            epsg_code = f"EPSG:{crs.to_epsg()}"
+
         bounds = src.bounds  # Get bounds
 
         # Raster extent in world coordinates (meters or degrees)
@@ -163,6 +175,7 @@ def create_regular_geospatial_raster_grid(full_image_path: Path,
 
         grid_cells = []
         tiles = []
+        image_name = full_image_path.stem
 
         # Generate grid based on pixel-based slicing
         for y in np.arange(min_y, max_y, step_y):
@@ -178,10 +191,20 @@ def create_regular_geospatial_raster_grid(full_image_path: Path,
                 # Create polygon
                 tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
                 tiles.append(tile_polygon)
-                grid_cells.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2})
+
+                # Generate a unique tile name based on image name and coordinates
+
+                # Alternative coordinate-based naming if preferred
+                # Using world coordinates rounded to a reasonable precision
+                coord_tile_name = f"{image_name}_{int(x1)}_{int(y1)}_{int(x2)}_{int(y2)}"
+
+                grid_cells.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                                   "tile_name": coord_tile_name,
+                                   "image_name": image_name,
+                                   })
 
         # Convert to GeoDataFrame
-        grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=crs)
+        grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=epsg_code)
 
     return grid_gdf
 
@@ -323,7 +346,8 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
             # Define output format
             if compression == "JP2":
                 driver = gdal.GetDriverByName("JP2OpenJPEG")
-                tile_filename = output_dir / f"tile_{idx}.jp2"
+                # tile_filename = output_dir / f"tile_{idx}.jp2"
+                tile_filename = output_dir / f"{row['tile_name']}.jp2"
                 options = [
                     "QUALITY=" + str(quality),
                     "COMPRESS=JP2",
@@ -332,6 +356,8 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
             else:
                 driver = gdal.GetDriverByName("GTiff")
                 tile_filename = output_dir / f"tile_{idx}.tif"
+                tile_filename = output_dir / f"{row['tile_name']}.tif"
+
                 options = [
                     "COMPRESS=LZW",
                     "TILED=YES"
@@ -369,9 +395,9 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
             #               output_path=tile_filename, threshold=90, driver=driver, options=options)
 
             saved_tiles.append(tile_filename)
-            print(f"Saved: {tile_filename}")
+            # logger.info(f"Saved geospatial tile: {tile_filename}")
 
         except Exception as e:
-            print(f"Failed to cut tile {idx}: {e}")
+            logger.error(f"Failed to cut tile {idx}: {e}")
 
     return saved_tiles
