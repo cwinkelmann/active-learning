@@ -15,10 +15,230 @@ from osgeo import gdal
 import geopandas as gpd
 
 from active_learning.types.Exceptions import ProjectionError
-from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal
+from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal, \
+    create_regular_geospatial_raster_grid
 from active_learning.util.projection import world_to_pixel
 
+import numpy as np
+import geopandas as gpd
+import rasterio
+from pathlib import Path
+from shapely.geometry import Polygon
 
+
+class ImageGrid(object):
+    """ base class for creating a grid on top of images """
+
+
+
+class GeoSpatialRasterGrid(ImageGrid):
+    """
+    Class for creating and managing geospatial raster grids.
+
+    This class handles the creation of vector grids from raster data,
+    with the ability to filter grids based on point data containment.
+    """
+
+    def __init__(self, raster_path=None):
+        """
+        Initialize the GeoSpatialRasterGrid with an optional raster path.
+
+        Parameters:
+            raster_path (Path, optional): Path to the raster image.
+        """
+        self.raster_path = raster_path
+        self.grid_gdf = None
+        self.crs = None
+        self.transform = None
+        self.bounds = None
+        self.pixel_size_x = None
+        self.pixel_size_y = None
+
+        if raster_path:
+            self._load_raster_metadata()
+
+    def _load_raster_metadata(self):
+        """Load metadata from the raster file."""
+        with rasterio.open(self.raster_path) as src:
+            self.transform = src.transform
+            self.crs = src.crs
+            self.bounds = src.bounds
+
+            # Get pixel sizes (resolution in X and Y directions)
+            self.pixel_size_x = self.transform.a  # Pixel width in world units
+            self.pixel_size_y = abs(self.transform.e)  # Pixel height (absolute value)
+
+    def _get_epsg_code(self):
+        """Determine the EPSG code for the raster."""
+        if self.crs is None:
+            return None
+
+        if self.crs.to_epsg() is None:
+            # Handle specific UTM zones
+            if "UTM zone 16S" in str(self.crs):
+                return "EPSG:32716"
+            elif "UTM zone 15S" in str(self.crs):
+                return "EPSG:32715"
+            else:
+                # Return the WKT string if no specific handling is available
+                return str(self.crs)
+        else:
+            return f"EPSG:{self.crs.to_epsg()}"
+
+    def create_regular_grid(self, x_size, y_size, overlap_ratio=0.0):
+        """
+        Create a vector grid for the geospatial raster, slicing based on pixel sizes.
+
+        this similar to         create_regular_geospatial_raster_grid(full_image_path=self.raster_path,
+                                              x_size=x_size,
+                                              y_size=y_size,
+                                              overlap_ratio=0.0)
+
+        Parameters:
+            x_size (float): Width of each grid cell in pixels.
+            y_size (float): Height of each grid cell in pixels.
+            overlap_ratio (float): Overlap between tiles as a fraction (0 to 1).
+
+        Returns:
+            gpd.GeoDataFrame: The created grid as a GeoDataFrame.
+        """
+        if not self.raster_path:
+            raise ValueError("Raster path not set. Either initialize with a path or set it with set_raster_path().")
+
+        # Ensure raster metadata is loaded
+        if self.transform is None:
+            self._load_raster_metadata()
+
+        # Convert to GeoDataFrame
+        epsg_code = self._get_epsg_code()
+
+
+
+        # Get bounds
+        min_x, min_y, max_x, max_y = self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
+
+        # Compute tile sizes in world coordinates
+        x_size_world = x_size * self.pixel_size_x
+        y_size_world = y_size * self.pixel_size_y
+
+        # Compute overlap in world coordinates
+        x_overlap_world = x_size_world * overlap_ratio
+        y_overlap_world = y_size_world * overlap_ratio
+
+        # Compute step size (tile size minus overlap)
+        step_x = x_size_world - x_overlap_world
+        step_y = y_size_world - y_overlap_world
+
+        grid_cells = []
+        tiles = []
+        image_name = Path(self.raster_path).stem
+
+        # Generate grid based on pixel-based slicing
+        for y in np.arange(min_y, max_y, step_y):
+            for x in np.arange(min_x, max_x, step_x):
+                # Define tile coordinates
+                x1, y1 = x, y
+                x2, y2 = x + x_size_world, y + y_size_world
+
+                # Ensure tiles stay within bounds
+                x2 = min(x2, max_x)
+                y2 = min(y2, max_y)
+
+                # Create polygon
+                tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+                tiles.append(tile_polygon)
+
+                # Generate a unique tile name based on image name and coordinates
+                coord_tile_name = f"{image_name}_{int(x1)}_{int(y1)}_{int(x2)}_{int(y2)}"
+
+                grid_cells.append({
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2,
+                    "tile_name": coord_tile_name,
+                    "image_name": image_name,
+                })
+
+        # Convert to GeoDataFrame
+        epsg_code = self._get_epsg_code()
+        self.grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=epsg_code)
+
+        return self.grid_gdf
+
+
+
+
+    def filter_by_points(self, points_gdf):
+        """
+        Filter the grid to include only cells that contain at least one point.
+
+        Parameters:
+            points_gdf (gpd.GeoDataFrame): GeoDataFrame containing point geometries.
+
+        Returns:
+            gpd.GeoDataFrame: Filtered grid containing only cells with points.
+        """
+        if self.grid_gdf is None:
+            raise ValueError("Grid not created. Call create_grid() first.")
+
+        # Ensure the CRS of points matches the grid
+        if points_gdf.crs != self.grid_gdf.crs:
+            points_gdf = points_gdf.to_crs(self.grid_gdf.crs)
+
+        # Filter grid cells that contain at least one point
+        # More efficient approach than the lambda function in the original code
+        spatial_index = points_gdf.sindex
+
+        # Function to check if a polygon contains any points
+        def contains_points(polygon):
+            possible_matches_idx = list(spatial_index.intersection(polygon.bounds))
+            if len(possible_matches_idx) > 0:
+                possible_matches = points_gdf.iloc[possible_matches_idx]
+                return any(possible_matches.within(polygon))
+            return False
+
+        def contains_no_points(polygon):
+            possible_matches_idx = list(spatial_index.intersection(polygon.bounds))
+            if len(possible_matches_idx) == 0:
+                # No potential matches in the bounding box, so no points in the polygon
+                return True
+            else:
+                # Check if any of the possible matches are actually within the polygon
+                possible_matches = points_gdf.iloc[possible_matches_idx]
+                return not any(possible_matches.within(polygon))
+
+        # Apply the filter
+        occupied_grid_cells = self.grid_gdf[self.grid_gdf.geometry.apply(contains_points)]
+        empty_gridcells = self.grid_gdf[self.grid_gdf.geometry.apply(contains_no_points)]
+
+        return occupied_grid_cells, empty_gridcells
+
+    def set_raster_path(self, raster_path):
+        """
+        Set or update the raster path and reload metadata.
+
+        Parameters:
+            raster_path (Path): Path to the raster image.
+        """
+        self.raster_path = raster_path
+        self._load_raster_metadata()
+
+    def get_grid(self):
+        """
+        Get the current grid.
+
+        Returns:
+            gpd.GeoDataFrame: The current grid.
+        """
+        return self.grid_gdf
+
+
+# Example usage:
+# grid_manager = GeoSpatialRasterGrid(Path("path/to/raster.tif"))
+# grid = grid_manager.create_grid(x_size=256, y_size=256, overlap_ratio=0.2)
+# points_gdf = gpd.read_file("path/to/points.shp")
+# filtered_grid = grid_manager.filter_by_points(points_gdf)
 
 
 
