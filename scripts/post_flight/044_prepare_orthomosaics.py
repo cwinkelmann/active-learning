@@ -96,8 +96,15 @@ def main(annotations_file: Path,
     # Run the function
 
     grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
-    grid = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0.0)
-    grid_gdf, gdf_empty_cells = grid_manager.filter_by_points(gdf_points)
+
+    grid_manager.gdf_raster_mask.to_file(filename= vis_output_dir / f"raster_mask_{orthomosaic_path.stem}.geojson", driver='GeoJSON')
+
+    grid_gdf, gdf_empty_cells = grid_manager.create_balanced_dataset_grids(points_gdf=gdf_points,
+                                               box_size_x=tile_size,
+                                               box_size_y=tile_size,)
+
+    # grid = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0.0)
+    # grid_gdf, gdf_empty_cells = grid_manager.filter_by_points(gdf_points)
 
     # grid_gdf = create_regular_geospatial_raster_grid(full_image_path=Path(orthomosaic_path),
     #                                                  x_size=tile_size,
@@ -142,7 +149,6 @@ def main(annotations_file: Path,
                                        output_dir=output_dir)
 
     ### TODO create herdnet annotations for each tile
-
     if visualise_crops:
         vis_path = vis_output_dir / f"visualisations"
         vis_path.mkdir(exist_ok=True, parents=True)
@@ -211,11 +217,12 @@ if __name__ == "__main__":
 
             # if not orthomosaic_path.name == "Isa_ISPF05_16122021.tif":
             #     continue
+            if row["island_code"] == "Isa":
+                pass
+
 
             island_code = orthomosaic_path.parts[-2]
             tile_folder_name = orthomosaic_path.stem
-
-
 
             visualise_crops = False
             format = ImageFormat.JPG

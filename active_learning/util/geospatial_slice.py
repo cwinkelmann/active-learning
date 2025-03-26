@@ -39,23 +39,107 @@ class GeoSpatialRasterGrid(ImageGrid):
     with the ability to filter grids based on point data containment.
     """
 
-    def __init__(self, raster_path=None):
+    def __init__(self, raster_path: Path):
         """
         Initialize the GeoSpatialRasterGrid with an optional raster path.
 
         Parameters:
             raster_path (Path, optional): Path to the raster image.
         """
-        self.raster_path = raster_path
-        self.grid_gdf = None
+        self.raster_path: Path = raster_path
+        self.grid_gdf:  typing.Optional[gpd.GeoDataFrame] = None
         self.crs = None
         self.transform = None
         self.bounds = None
         self.pixel_size_x = None
         self.pixel_size_y = None
+        self.gdf_raster_mask: typing.Optional[gpd.GeoDataFrame] = None
 
         if raster_path:
             self._load_raster_metadata()
+            self._get_extent_polygon()
+
+    def _get_extent_polygon(self):
+        """
+        Calculate which part of the raster are actual pixel and which is blank space
+        :return: GeoDataFrame containing polygon of the non-blank areas
+        """
+        if not self.raster_path:
+            raise ValueError("Raster path not set. Either initialize with a path or set it with set_raster_path().")
+
+        # Ensure raster metadata is loaded
+        if self.transform is None:
+            self._load_raster_metadata()
+
+        with rasterio.open(self.raster_path) as src:
+            # For large rasters, use downsampling to improve performance
+            scale_factor = max(1, min(10, src.width // 1000, src.height // 1000))
+
+            if scale_factor > 1:
+                # Read at reduced resolution for large images
+                data = src.read(
+                    out_shape=(
+                        src.count,
+                        int(src.height / scale_factor),
+                        int(src.width / scale_factor)
+                    ),
+                    resampling=rasterio.warp.Resampling.nearest
+                )
+
+                # Adjust transform for downsampled resolution
+                transform = src.transform * src.transform.scale(
+                    (src.width / data.shape[2]),
+                    (src.height / data.shape[1])
+                )
+            else:
+                # Read at full resolution for smaller images
+                data = src.read()
+                transform = src.transform
+
+            # Create mask where any band has non-zero values
+            if data.shape[0] >= 3:  # RGB or multi-band image
+                mask = (data[0] != 0) | (data[1] != 0) | (data[2] != 0)
+            else:  # Single-band image
+                mask = data[0] != 0
+
+            # Get shapes of all non-zero regions
+            shapes = rasterio.features.shapes(
+                mask.astype('uint8'),
+                mask=mask,
+                transform=transform
+            )
+
+            # Convert shapes to polygons
+            polygons = []
+            for shape, value in shapes:
+                if value == 1:  # Only include non-zero areas
+                    try:
+                        polygons.append(Polygon(shape['coordinates'][0]))
+                    except Exception:
+                        # Skip invalid polygons
+                        continue
+
+            # Create a GeoDataFrame with the polygons
+            if polygons:
+                gdf = gpd.GeoDataFrame(geometry=polygons, crs=src.crs)
+
+                # Dissolve all polygons into one if multiple exist
+                if len(polygons) > 1:
+                    gdf = gdf.dissolve()
+                    gdf = gdf.reset_index(drop=True)
+
+                # Simplify the geometry to reduce complexity
+                simplify_tolerance = self.pixel_size_x * max(1, scale_factor // 2)
+                gdf['geometry'] = gdf['geometry'].simplify(tolerance=simplify_tolerance)
+
+                self.gdf_raster_mask = gdf
+                return self.gdf_raster_mask
+            else:
+                # Return empty GeoDataFrame if no non-zero pixels found
+
+                self.gdf_raster_mask = gpd.GeoDataFrame(geometry=[], crs=src.crs)
+                return self.gdf_raster_mask
+
 
     def _load_raster_metadata(self):
         """Load metadata from the raster file."""
@@ -67,6 +151,8 @@ class GeoSpatialRasterGrid(ImageGrid):
             # Get pixel sizes (resolution in X and Y directions)
             self.pixel_size_x = self.transform.a  # Pixel width in world units
             self.pixel_size_y = abs(self.transform.e)  # Pixel height (absolute value)
+
+
 
     def _get_epsg_code(self):
         """Determine the EPSG code for the raster."""
@@ -166,6 +252,206 @@ class GeoSpatialRasterGrid(ImageGrid):
 
         return self.grid_gdf
 
+    def object_centered_grid(self, points_gdf, box_size_x, box_size_y):
+        """
+        Create a grid where each cell is centered on a point in the points_gdf.
+
+        Parameters:
+            points_gdf (gpd.GeoDataFrame): GeoDataFrame containing point geometries to center grids on.
+            box_size_x (float): Width of each grid cell in pixels.
+            box_size_y (float): Height of each grid cell in pixels.
+
+        Returns:
+            gpd.GeoDataFrame: A grid where each cell is centered on a point.
+        """
+        if not self.raster_path:
+            raise ValueError("Raster path not set. Either initialize with a path or set it with set_raster_path().")
+
+        # Ensure raster metadata is loaded
+        if self.transform is None:
+            self._load_raster_metadata()
+
+        # Ensure the CRS of points matches the raster
+        if points_gdf.crs != self.crs:
+            points_gdf = points_gdf.to_crs(self.crs)
+
+        # Convert box size from pixels to world coordinates
+        box_width_world = box_size_x * self.pixel_size_x
+        box_height_world = box_size_y * self.pixel_size_y
+
+        # Half dimensions for centering
+        half_width = box_width_world / 2
+        half_height = box_height_world / 2
+
+        grid_cells = []
+        tiles = []
+        image_name = Path(self.raster_path).stem
+
+        # For each point, create a centered box
+        for idx, point in points_gdf.iterrows():
+            # Get point coordinates
+            x_center, y_center = point.geometry.x, point.geometry.y
+
+            # Calculate box corners
+            x1 = x_center - half_width
+            y1 = y_center - half_height
+            x2 = x_center + half_width
+            y2 = y_center + half_height
+
+            # Create polygon
+            tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+            tiles.append(tile_polygon)
+
+            # Generate a unique tile name
+            coord_tile_name = f"{image_name}_centered_{int(x_center)}_{int(y_center)}"
+
+            grid_cells.append({
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2,
+                "center_x": x_center,
+                "center_y": y_center,
+                "tile_name": coord_tile_name,
+                "image_name": image_name,
+                "point_id": idx  # Store the original point ID
+            })
+
+        # Convert to GeoDataFrame
+        epsg_code = self._get_epsg_code()
+        centered_grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=epsg_code)
+
+        return centered_grid_gdf
+
+    def create_empty_regions_grid(self, points_gdf, box_size_x, box_size_y, min_distance_pixels=400):
+        """
+        Create a grid of rectangles that are guaranteed to be empty (no points within min_distance_pixels).
+
+        Parameters:
+            points_gdf (gpd.GeoDataFrame): GeoDataFrame containing point geometries to avoid.
+            box_size_x (float): Width of each grid cell in pixels.
+            box_size_y (float): Height of each grid cell in pixels.
+            min_distance_pixels (float): Minimum distance in pixels from any point to consider a region empty.
+
+        Returns:
+            gpd.GeoDataFrame: Grid of empty regions.
+        """
+        if not self.raster_path:
+            raise ValueError("Raster path not set. Either initialize with a path or set it with set_raster_path().")
+
+        # Ensure raster metadata is loaded
+        if self.transform is None:
+            self._load_raster_metadata()
+
+        # Ensure the CRS of points matches the raster
+        if points_gdf.crs != self.crs:
+            points_gdf = points_gdf.to_crs(self.crs)
+
+        # Convert pixel distances to world coordinates
+        min_distance_world = min_distance_pixels * self.pixel_size_x  # Assuming square pixels or using x-resolution
+        box_width_world = box_size_x * self.pixel_size_x
+        box_height_world = box_size_y * self.pixel_size_y
+
+        # Get bounds of the raster
+        min_x, min_y, max_x, max_y = self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
+
+        # First, create a regular grid covering the entire raster
+        # We'll use a non-overlapping grid as a starting point
+        step_x = box_width_world
+        step_y = box_height_world
+
+        # Generate candidate grid cells
+        candidate_cells = []
+        candidate_geometries = []
+        image_name = Path(self.raster_path).stem
+
+        for y in np.arange(min_y, max_y, step_y):
+            for x in np.arange(min_x, max_x, step_x):
+                # Define tile coordinates
+                x1, y1 = x, y
+                x2, y2 = x + box_width_world, y + box_height_world
+
+                # Ensure tiles stay within bounds
+                x2 = min(x2, max_x)
+                y2 = min(y2, max_y)
+
+                # Calculate center
+                center_x = (x1 + x2) / 2
+                center_y = (y1 + y2) / 2
+
+                # Create polygon
+                tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+                candidate_geometries.append(tile_polygon)
+
+                # Generate a unique tile name
+                coord_tile_name = f"{image_name}_empty_{int(x1)}_{int(y1)}_{int(x2)}_{int(y2)}"
+
+                candidate_cells.append({
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2,
+                    "center_x": center_x,
+                    "center_y": center_y,
+                    "tile_name": coord_tile_name,
+                    "image_name": image_name,
+                })
+
+        # Create a GeoDataFrame for all candidate grid cells
+        candidate_gdf = gpd.GeoDataFrame(data=candidate_cells, geometry=candidate_geometries, crs=self.crs)
+
+        # Buffer points by min_distance_world to create exclusion zones
+        buffered_points = points_gdf.copy()
+        buffered_points['geometry'] = buffered_points.geometry.buffer(min_distance_world)
+
+        # Filter out any candidate cell that intersects with any buffered point
+        def is_far_from_all_points(cell_geom):
+            return not any(buffered_points.intersects(cell_geom))
+
+        # Apply the filter
+        empty_grid_cells = candidate_gdf[candidate_gdf.geometry.apply(is_far_from_all_points)]
+
+        return empty_grid_cells
+
+    def create_balanced_dataset_grids(self, points_gdf, box_size_x, box_size_y, num_empty_samples=None,
+                                      min_distance_pixels=400, random_seed=42):
+        """
+        Create both object-centered grids and guaranteed empty grids for a balanced dataset.
+
+        Parameters:
+            points_gdf (gpd.GeoDataFrame): GeoDataFrame containing point geometries.
+            box_size_x (float): Width of each grid cell in pixels.
+            box_size_y (float): Height of each grid cell in pixels.
+            num_empty_samples (int, optional): Number of empty samples to select. If None, will match the number of points.
+            min_distance_pixels (float): Minimum distance in pixels from any point to consider a region empty.
+            random_seed (int): Random seed for reproducible sampling of empty regions.
+
+        Returns:
+            tuple: (object_centered_grid, empty_regions_grid) - Two GeoDataFrames
+        """
+        # Get the object-centered grid
+        object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
+
+        # Get the empty regions grid
+        all_empty_regions = self.create_empty_regions_grid(points_gdf, box_size_x, box_size_y, min_distance_pixels)
+
+        # Determine how many empty samples to select
+        if num_empty_samples is None:
+            num_empty_samples = len(object_grid)
+
+        # If we need to sample from the empty regions
+        if len(all_empty_regions) > num_empty_samples:
+            # Randomly select the required number of empty regions
+            empty_regions = all_empty_regions.sample(n=num_empty_samples, random_state=random_seed)
+        else:
+            # If we don't have enough empty regions, use all available
+            empty_regions = all_empty_regions
+
+        # Add a label column to distinguish between the two sets
+        object_grid['has_object'] = True
+        empty_regions['has_object'] = False
+
+        return object_grid, empty_regions
 
 
 

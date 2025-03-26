@@ -48,23 +48,30 @@ for i, shp_file_path in enumerate(shp_files):
         print("debug")
 
     gdf = project_gdfcrs(gdf, images_path)
-    expert_value = df_progress_report.loc[
-        df_progress_report['Orthophoto/Panorama name'] == possible_orthomosaic_name, 'Expert']
 
-    island = df_progress_report.loc[
-        df_progress_report['Orthophoto/Panorama name'] == possible_orthomosaic_name, 'Island']
+    matching_rows = df_progress_report[df_progress_report['Orthophoto/Panorama name'] == possible_orthomosaic_name]
 
-    field_phase = df_progress_report.loc[
-        df_progress_report['Orthophoto/Panorama name'] == possible_orthomosaic_name, 'Field phase']
+    # Handle the different possible cases
+    if matching_rows.empty:
+        # No matches found
+        island = None
+        expert_value = None
+        field_phase = None
+    else:
+        # Get the first value (which could be null/NaN)
+        island = matching_rows['Island'].iloc[0]
+        expert_value = matching_rows['Expert'].iloc[0]
+        field_phase = matching_rows['Field phase'].iloc[0]
 
-    gdf["expert"] = expert_value
-    gdf["field_phase"] = field_phase
-    gdf["island"] = island
+        # If you want to convert pandas NaN to None
+        if pd.isna(island):
+            island = None
 
-    if expert_value.empty:
+    if expert_value is None:
         logger.error(f"Report Entry not found for {shp_name}")
         missing_report_entries.append(shp_name)
-        gdf["expert"] = None
+
+    gdf["expert"] = expert_value
     gdf["species"] = "iguana"
     gdf["island_code"] = island_code
     gdf["site_code"] = get_site_code(shp_name.split('_')[1])
@@ -89,6 +96,8 @@ for i, shp_file_path in enumerate(shp_files):
     )
 
 logger.info(f"Missing report entries: {missing_report_entries}")
+
+logger.info(f"Missing orthomosaics: {missing_orthomosaics_entries}")
 
 pd.DataFrame(shapefile_orthomosaic_mapping).to_csv(output_dir / 'shapefile_orthomosaic_mapping.csv')
 
