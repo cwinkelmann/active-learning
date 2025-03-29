@@ -57,11 +57,14 @@ for i, shp_file_path in enumerate(shp_files):
         island = None
         expert_value = None
         field_phase = None
+        program = None
     else:
         # Get the first value (which could be null/NaN)
         island = matching_rows['Island'].iloc[0]
         expert_value = matching_rows['Expert'].iloc[0]
         field_phase = matching_rows['Field phase'].iloc[0]
+        program = matching_rows['Orthophoto/Panorama'].iloc[0]
+
 
         # If you want to convert pandas NaN to None
         if pd.isna(island):
@@ -75,6 +78,8 @@ for i, shp_file_path in enumerate(shp_files):
     gdf["species"] = "iguana"
     gdf["island_code"] = island_code
     gdf["site_code"] = get_site_code(shp_name.split('_')[1])
+    gdf["program"] = program
+
 
     output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
     output_file = output_dir / island_code / shp_name
@@ -101,7 +106,7 @@ logger.info(f"Missing orthomosaics: {missing_orthomosaics_entries}")
 
 pd.DataFrame(shapefile_orthomosaic_mapping).to_csv(output_dir / 'shapefile_orthomosaic_mapping.csv')
 
-with open(output_dir / 'missing_report_entries.txt', 'w') as f:
+with open(output_dir / 'missing_shapefile_report_entries.txt', 'w') as f:
     for item in missing_report_entries:
         f.write(f"{item}\n")
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from geospatial_transformations import convert_to_cog, batch_convert_to_cog
 
 dd_cog_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog')
-dd_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics')
+dd_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Drone Deploy orthomosaics')
 metashape_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Agisoft orthomosaics')
 
 dd = [f for f in dd_path.glob('*.tif') if not f.name.startswith('.')]
@@ -18,18 +18,33 @@ dd_cog = [f for f in dd_cog_path.glob('*.tif')  if not f.name.startswith('.')]
 ms = [f for f in metashape_path.glob('*.tif')  if not f.name.startswith('.')]
 
 # copy images to new folder
-output_dir = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/merged_with_dataset")
+output_DD_dir = dd_cog_path
+output_MS_dir = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/MS_COG")
+output_DD_dir.mkdir(exist_ok=True)
+output_MS_dir.mkdir(exist_ok=True)
 
-for i, img in enumerate(dd_cog):
-    img_name = img.name
-    island_code = img_name.split('_')[0]
-    output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
-    output_file = output_dir / island_code / img_name
-    if output_file.exists():
-        logger.info(f"File already exists: {output_file}")
-    else:
-        logger.info(f"Copying Drone deploy COG {img} to {output_dir / island_code / img_name}")
-        shutil.copy(img, output_file)
+# for i, img in enumerate(ms):
+#     img_name = img.name
+#     island_code = img_name.split('_')[0]
+#     output_MS_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
+#     output_file = output_MS_dir / island_code / img_name
+#
+#     if output_file.exists():
+#         logger.info(f"Metashape created File already exists: {output_file}")
+#     else:
+#         logger.info(f"creating cog out of metashape {img} to {output_file}")
+#         convert_to_cog(img, output_file)
+
+# for i, img in enumerate(dd_cog):
+#     img_name = img.name
+#     island_code = img_name.split('_')[0]
+#     output_MS_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
+#     output_file = output_MS_dir / island_code / img_name
+#     if output_file.exists():
+#         logger.info(f"File already exists: {output_file}")
+#     else:
+#         logger.info(f"Copying Drone deploy COG {img} to {output_MS_dir / island_code / img_name}")
+#         shutil.copy(img, output_file)
 
 
 output_files = []
@@ -37,33 +52,21 @@ input_files = []
 for i, img in enumerate(dd):
     img_name = img.name
     island_code = img_name.split('_')[0]
-    output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
-    output_file = output_dir / island_code / img_name
+    output_DD_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
+    output_file = output_DD_dir / island_code / img_name
     if output_file.exists():
         logger.info(f"DD File already exists: {output_file}")
     else:
         input_files.append(img)
-        output_file = output_dir / island_code / img_name
+        output_file = output_DD_dir / island_code / img_name
         output_files.append(output_file)
 
-        logger.info(f"convert {img} to cog at {output_dir / island_code / img_name}")
-        try:
-            convert_to_cog(img, output_dir / island_code / img_name)
-        except Exception as e:
-            logger.error(f"Error converting {img} to cog: {e}")
+        logger.info(f"convert {img} to cog at {output_DD_dir / island_code / img_name}")
+        # try:
+        #     convert_to_cog(img, output_DD_dir / island_code / img_name)
+        # except Exception as e:
+        #     logger.error(f"Error converting {img} to cog: {e}")
 
-batch_convert_to_cog(input_files=input_files, output_files=output_files, output_dir=output_dir, max_workers=3)
-
-
-for i, img in enumerate(ms):
-    img_name = img.name
-    island_code = img_name.split('_')[0]
-    output_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
-    output_file = output_dir / island_code / img_name
+batch_convert_to_cog(input_files=input_files, output_files=output_files, output_dir=output_DD_dir, max_workers=3)
 
 
-    if output_file.exists():
-        logger.info(f"Metashape created File already exists: {output_file}")
-    else:
-        logger.info(f"copying metashape {img} to {output_file}")
-        shutil.copy(img, output_file)

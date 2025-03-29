@@ -340,7 +340,11 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
     projection = raster_ds.GetProjection()
     res = geo_transform[1]  # resolution, GSD
     for idx, row in grid_gdf.iterrows():
+
+        # TODO parallisize this
         tile_geom = row.geometry  # Extract geometry for current tile
+
+
 
         try:
             # Define output format
@@ -363,39 +367,38 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
                     "TILED=YES"
                 ]
 
-            x_min, y_min, x_max, y_max = tile_geom.bounds
+            if not tile_filename.exists():
 
-            # Convert georeferenced coordinates to pixel coordinates
-            x_offset, y_offset = world_to_pixel(geo_transform, x_min, y_max)
-            x_offset_end, y_offset_end = world_to_pixel(geo_transform, x_max, y_min)
+                x_min, y_min, x_max, y_max = tile_geom.bounds
 
-            # Calculate the width and height in pixels
-            x_size = x_offset_end - x_offset
-            y_size = y_offset_end - y_offset
+                # Convert georeferenced coordinates to pixel coordinates
+                x_offset, y_offset = world_to_pixel(geo_transform, x_min, y_max)
+                x_offset_end, y_offset_end = world_to_pixel(geo_transform, x_max, y_min)
 
-            return_value = gdal.Translate(destName=str(tile_filename),
-                                          srcDS=raster_path,
-                                          projWin=(x_min, y_max, x_max, y_min),
-                                          format='GTiff',
-                                          creationOptions=[
-                                              'COMPRESS=JPEG',  # Apply JPEG compression
-                                              'JPEG_QUALITY=95',  # Set JPEG quality (1-100)
-                                              # Use YCbCr color space for better compression
-                                              'TILED=YES',  # Enable tiling for optimized access
-                                              'BLOCKXSIZE=256',  # Set tile width
-                                              'BLOCKYSIZE=256'  # Set tile height
-                                          ],
-                                          xRes=res,
-                                          yRes=-res,
-                                          )
+                # Calculate the width and height in pixels
+                x_size = x_offset_end - x_offset
+                y_size = y_offset_end - y_offset
 
-            # process_slice(dataset=raster_ds,
-            #               x_offset=x_offset, y_offset=y_offset,
-            #               x_size=x_size, y_size=y_size,
-            #               output_path=tile_filename, threshold=90, driver=driver, options=options)
+                return_value = gdal.Translate(destName=str(tile_filename),
+                                              srcDS=raster_path,
+                                              projWin=(x_min, y_max, x_max, y_min),
+                                              format='GTiff',
+                                              creationOptions=[
+                                                  'COMPRESS=JPEG',  # Apply JPEG compression
+                                                  'JPEG_QUALITY=100',  # Set JPEG quality (1-100)
+                                                  # Use YCbCr color space for better compression
+                                                  'TILED=YES',  # Enable tiling for optimized access
+                                                  'BLOCKXSIZE=256',  # Set tile width
+                                                  'BLOCKYSIZE=256'  # Set tile height
+                                              ],
+                                              xRes=res,
+                                              yRes=-res,
+                                              )
+            else:
+                # Tile already exists
+                pass
 
             saved_tiles.append(tile_filename)
-            # logger.info(f"Saved geospatial tile: {tile_filename}")
 
         except Exception as e:
             logger.error(f"Failed to cut tile {idx}: {e}")

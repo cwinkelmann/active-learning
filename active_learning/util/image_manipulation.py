@@ -1227,7 +1227,7 @@ def convert_image(image_path) -> Path:
     return jpg_path
 
 
-def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: Path) -> typing.List[Path]:
+def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: Path) -> typing.Generator[Path, None, None]:
     """
     Convert a list of image tiles to a specified format. Either from geospatial
     to pixel coordinates or vice versa (geospatial logic not fully implemented here).
@@ -1258,11 +1258,9 @@ def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: 
             # Save the image in the desired format
             img.save(out_path, quality=95)
 
-            # logger.info(f"Converted {tile} -> {out_path}")
-
             output_tiles.append(out_path)
 
-    return output_tiles
+            yield out_path
 
 
 def remove_empty_tiles(tiles: typing.List[Path], threshold=0.7, empty_value = (0,0,0)) -> typing.List[Path]:
