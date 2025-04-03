@@ -152,6 +152,7 @@ class FeatureExtractor:
 
         print(f"Model loaded successfully. Input size: {data_config.get('input_size')}")
 
+
     def extract_features(self, image_path: Union[str, Path]) -> Optional[np.ndarray]:
         """Extract features from a single image.
 

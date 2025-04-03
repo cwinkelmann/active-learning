@@ -203,6 +203,6 @@ def project_gdfcrs(gdf: gpd.GeoDataFrame, orthomosaic_path: Path) -> gpd.GeoData
 
     ortho_crs.to_epsg()
     # Project the GeoDataFrame to the orthomosaic CRS
-    gdf_proj = gdf.to_crs(ortho_crs)
+    gdf_proj = gdf.to_crs(epsg=ortho_crs.to_epsg())
 
     return gdf_proj

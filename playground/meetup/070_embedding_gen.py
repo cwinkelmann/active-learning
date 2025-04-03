@@ -20,14 +20,15 @@ from active_learning.feature_extraction.timm_feature_extraction import FeatureEx
 
 # Example usage
 if __name__ == "__main__":
-    model_name = "vit_base_patch16_224"
+    # model_name = "vit_base_patch16_224"
     model_name = "timm/resnet34.a1_in1k"
-    model_name = "dla34.in1k"
+    # model_name = "dla34.in1k"
 
     # extractor = FeatureExtractor(model_name)
     model_path = "final_model_iguanas_2025_03_23.pth"
 
     model_path = "/Users/christian/PycharmProjects/hnee/active_learning/active_learning/pipelines/final_model_cats_2025_03_23.pth"
+    model_path = "/Users/christian/PycharmProjects/hnee/pytorch-image-models/output/iguanas_empty_resnet34.a1_in1k/model_best.pth.tar"
     extractor = FeatureExtractor(model_path=model_path, model_name=model_name)
 
     # cats and dogs

@@ -14,11 +14,11 @@ from loguru import logger
 from matplotlib import pyplot as plt
 from pathlib import Path
 
-from active_learning.types.Exceptions import ProjectionError, NoLabelsError
+from active_learning.types.Exceptions import ProjectionError, NoLabelsError, AnnotationFileNotSetError
 from active_learning.util.geospatial_image_manipulation import create_regular_geospatial_raster_grid
 from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGrid
 from active_learning.util.image_manipulation import convert_tiles_to, remove_empty_tiles
-from active_learning.util.projection import convert_gdf_to_jpeg_coords
+from active_learning.util.projection import convert_gdf_to_jpeg_coords, project_gdfcrs
 from active_learning.util.super_resolution import super_resolve, SuperResolution
 from com.biospheredata.converter.HastyConverter import ImageFormat
 from geospatial_transformations import get_gsd, get_geotiff_compression
@@ -80,8 +80,10 @@ def main(annotations_file: Path,
 
     if len(gdf_points) == 0:
         raise NoLabelsError(f"No labels found in {annotations_file}")
-    # incase the orthomosaic has a different CRS than the annotations
-    # gdf_points = project_gdfcrs(gdf_points, orthomosaic_path)
+
+
+    # incase the orthomosaic has a different CRS than the annotations # TODO check if I really want to do this here
+    gdf_points = project_gdfcrs(gdf_points, orthomosaic_path)
     # project the global coordinates to the local coordinates of the orthomosaic
 
 
@@ -149,7 +151,7 @@ def main(annotations_file: Path,
                                        output_dir=output_empty_dir)
 
     # TODO increase image quality
-    sr = SuperResolution(scale_factor=2, model_type=None)
+    sr = SuperResolution(scale_factor=scale_factor, model_type=None)
     for ct in converted_empty_tiles:
         # sr_path = ct.parent / f"{ct.stem}_sr{ct.suffix}"
         sr_path = ct
@@ -172,13 +174,15 @@ def main(annotations_file: Path,
                                        output_dir=output_dir)
 
     # TODO increase image quality
-    sr = SuperResolution(scale_factor=2, model_type=None)
+    sr = SuperResolution(scale_factor=scale_factor, model_type=None)
     for ct in converted_tiles:
 
         #sr_path = ct.parent / f"{ct.stem}_sr{ct.suffix}"
         sr_path = ct
         sr.super_resolution(input_path=ct, output_path=sr_path)
 
+    gdf_sliced_points["local_pixel_x"] = gdf_sliced_points["local_pixel_x"] * scale_factor
+    gdf_sliced_points["local_pixel_y"] = gdf_sliced_points["local_pixel_y"] * scale_factor
 
     ### TODO create herdnet annotations for each tile
     if visualise_crops:
@@ -211,7 +215,6 @@ def main(annotations_file: Path,
     df_herdnet.loc[:, "species"] = "iguana"
     df_herdnet.loc[:, "labels"] = 1
     df_herdnet.loc[:, "island_code"] = island_code
-
     return df_herdnet
 
 
@@ -220,12 +223,15 @@ if __name__ == "__main__":
     # annotations_file = Path('/Users/christian/data/Manual Counting/Fer_FNF02_19122021/Fer_FNF02_19122021 counts.shp')
     # annotations_file = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/Fer/Fer_FNE02_19122021 counts.geojson')
     # orthomosaic_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/DD_MS_COG_ALL/Fer/Fer_FNE02_19122021.tif")
+    resolution = 224 
+    scale_factor = 2
 
+    # See 043_reorganise_shapefiles for the creation of this file
     orthomosaic_shapefile_mapping_path = Path(
-        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/shapefile_orthomosaic_mapping.csv")
+        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/enriched_GIS_progress_report_with_stats.csv")
     df_mapping = pd.read_csv(orthomosaic_shapefile_mapping_path)
 
-    tile_size = 224 // 2
+    tile_size = resolution // scale_factor
     # /Volumes/G-DRIVE/DD_MS_COG_ALL_TILES
     output_dir = Path(f"/Volumes/2TB/DD_MS_COG_ALL_TILES/herdnet_{tile_size}/iguana")
     output_empty_dir = Path(f"/Volumes/2TB/DD_MS_COG_ALL_TILES/herdnet_{tile_size}/empty")
@@ -243,20 +249,36 @@ if __name__ == "__main__":
     problematic_data_pairs = []
 
     for index, row in df_mapping.iterrows():
-
+        print(f"Processing {index}")
         try:
-            orthomosaic_path = Path(row["images_path"])
-            annotations_file = Path(row["geojson_path"])
+            quality = row["Orthophoto/Panorama quality"]
+            if quality == "Bad":
+                continue
+            HasAgisoftOrthomosaic = row["HasAgisoftOrthomosaic"]
+            HasDroneDeployOrthomosaic = row["HasDroneDeployOrthomosaic"]
+            HasShapefile = row["HasShapefile"]
+            annotations_file = row["shp_file_path"]
+            if HasShapefile:
+                try:
+                    annotations_file = Path(annotations_file)
+                except Exception as e:
+                    raise AnnotationFileNotSetError(f"Could not set annotations file: {annotations_file}")
+            else:
+                continue
+            if HasAgisoftOrthomosaic or HasDroneDeployOrthomosaic:
+                orthomosaic_path = Path(row["images_path"])
+            else:
+                continue
+
 
             island_code = row["island_code"]
+            logger.info(f"Processing {orthomosaic_path.name}")
 
-            # if not orthomosaic_path.name == "Pnz_PZE10_08012023.tif":
+            # if not orthomosaic_path.name == "Esp_EGB02_12012021.tif":
             #     continue
 
             # island_code = orthomosaic_path.parts[-2]
             tile_folder_name = orthomosaic_path.stem
-
-            logger.info(f"Processing {orthomosaic_path.name}")
 
             visualise_crops = False
             format = ImageFormat.JPG
@@ -268,10 +290,13 @@ if __name__ == "__main__":
                                       output_dir=output_dir,
                                       output_empty_dir=output_empty_dir,
                                       vis_output_dir=vis_output_dir,
-                                      tile_size=tile_size, visualise_crops=visualise_crops, format=format)
+                                      tile_size=tile_size,
+                                      visualise_crops=visualise_crops,
+                                      format=format)
 
             logger.info(f"Done with {orthomosaic_path.name}")
 
+            # TODO apply the scale factor
             herdnet_annotations.append(herdnet_annotation)
 
             gc.collect()
@@ -287,6 +312,10 @@ if __name__ == "__main__":
         except NoLabelsError:
             row["reason"] = "NoLabelsError"
             logger.error(f"KeyError: {row}")
+            problematic_data_pairs.append(row)
+        except AnnotationFileNotSetError:
+            row["reason"] = "AnnotationFileNotSetError"
+            logger.error(f"AnnotationFileNotSetError: {row}")
             problematic_data_pairs.append(row)
 
 

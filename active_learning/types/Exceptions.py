@@ -1,4 +1,10 @@
-class InvalidLabelCountError(ValueError):
+class InvalidLabelError(ValueError):
+    """ Base class for exceptions in this module. """
+
+    def __init__(self, message: str = "Invalid labels") -> None:
+        super().__init__(message)
+
+class InvalidLabelCountError(InvalidLabelError):
     """Exception raised for invalid label numbers."""
 
     def __init__(self, message: str = "The label number is invalid") -> None:
@@ -23,6 +29,11 @@ class NoLabelsError(InvalidLabelCountError):
     def __init__(self, message: str = "No labels provided") -> None:
         super().__init__(message)
 
+class AnnotationFileNotSetError(InvalidLabelError):
+    """Exception raised when the annotation file is not set."""
+
+    def __init__(self, message: str = "Annotation file not set") -> None:
+        super().__init__(message)
 
 class ProjectionError(ValueError):
     pass
