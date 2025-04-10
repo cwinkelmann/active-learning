@@ -10,6 +10,10 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+import numpy as np
+from PIL import Image
 
 class LogitExtractor:
     def __init__(
@@ -33,6 +37,12 @@ class LogitExtractor:
             global_pool: Global pooling type ("avg", "max", etc.)
         """
         # Determine device
+        self.df_false_positives = None
+        self.df_false_positives = None
+        self.df_true_positives = None
+        self.df_true_negatives = None
+
+
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else
                                        "mps" if torch.backends.mps.is_available() else
@@ -553,65 +563,104 @@ class LogitExtractor:
 
         return fig
 
-    def visualize_confident_errors(
+    def filter_prediction_errors(
             self,
-            dataframe: pd.DataFrame,
+            df_logits: pd.DataFrame,
+            true_label_column: str = "true_class",
+            predicted_label_column: str = "predicted_class",
+            confidence_column: str = "confidence",
+            sort_by_confidence: bool = True,
+            sort_order_ascending: bool = True,
+            object_class: str = "iguana",
+            empty_class: str = "empty",
+    ) -> pd.DataFrame:
+        """
+        Filter dataframe to get misclassifications, optionally focusing on false positives.
+
+        Args:
+            df_logits: DataFrame containing prediction results with filenames as index
+            true_label_column: Name of the column containing true class labels
+            predicted_label_column: Name of the column containing predicted labels
+            confidence_column: Name of the column containing confidence values
+            get_false_positives: If True, only return false positives (predicted_label != 0)
+            sort_by_confidence: Whether to sort errors by confidence
+            sort_order_ascending: Sort direction (True for ascending, False for descending)
+            n_images: Maximum number of images to return
+
+        Returns:
+            pd.DataFrame: Filtered dataframe containing error cases
+        """
+        # Check if required columns exist
+        for col in [true_label_column, predicted_label_column]:
+            if col not in df_logits.columns:
+                raise ValueError(f"Column '{col}' not found in DataFrame")
+
+        # Get misclassified images
+        df_errors = df_logits[df_logits[true_label_column] != df_logits[predicted_label_column]].copy()
+        df_correct = df_logits[df_logits[true_label_column] == df_logits[predicted_label_column]].copy()
+
+        # Get false positives if requested # TODO refactor this
+        df_false_positives = df_errors[df_errors[predicted_label_column] == object_class]
+
+        df_false_negatives = df_errors[df_errors[predicted_label_column] != object_class]
+
+        df_true_negatives = df_correct[df_correct[predicted_label_column] == empty_class]
+        df_true_positives = df_correct[df_correct[predicted_label_column] == object_class]
+
+        if len(df_errors) == 0:
+            print("No misclassifications found!")
+            return pd.DataFrame()  # Return empty dataframe
+
+        # Sort by confidence if requested and available
+        if sort_by_confidence and confidence_column in df_errors.columns:
+            # Use absolute value of confidence to get most confident regardless of direction
+            df_errors['abs_confidence'] = df_errors[confidence_column].abs()
+            df_errors = df_errors.sort_values('abs_confidence', ascending=sort_order_ascending)
+
+        self.df_false_positives = df_false_positives
+        self.df_false_negatives = df_false_negatives
+        self.df_true_negatives = df_true_negatives
+        self.df_true_positives = df_true_positives
+        self.df_errors = df_errors
+
+
+        return df_errors
+
+    def visualize_errors(
+            self,
+            errors_df: pd.DataFrame,
             image_dir: Union[str, Path],
             true_label_column: str = "true_class",
             predicted_label_column: str = "predicted_class",
             confidence_column: str = "confidence",
             n_images: int = 16,
             grid_size: Tuple[int, int] = None,
-            sort_by_confidence: bool = True,
-            title: str = "Most Confident Misclassifications",
+            title: str = "Misclassifications",
             save_path: Optional[Union[str, Path]] = None
     ) -> plt.Figure:
         """
-        Create a grid visualization of the most confident misclassifications.
+        Create a grid visualization of misclassifications.
 
         Args:
-            dataframe: DataFrame containing prediction results with filenames as index
+            errors_df: DataFrame containing filtered prediction errors with filenames as index
             image_dir: Directory containing the image files
             true_label_column: Name of the column containing true class labels
             predicted_label_column: Name of the column containing predicted labels
             confidence_column: Name of the column containing confidence values
             n_images: Maximum number of images to display
             grid_size: Optional tuple of (rows, cols). If None, determined automatically
-            sort_by_confidence: Whether to sort errors by confidence (True) or alphabetically by filename (False)
             title: Plot title
             save_path: Optional path to save the plot
 
         Returns:
             matplotlib.figure.Figure: The created figure object
         """
-        try:
-            import matplotlib.pyplot as plt
-            from matplotlib import gridspec
-            import numpy as np
-            from PIL import Image
-        except ImportError:
-            raise ImportError("Matplotlib and PIL are required. Install with 'pip install matplotlib pillow'")
-
-        # Check if required columns exist
-        for col in [true_label_column, predicted_label_column]:
-            if col not in dataframe.columns:
-                raise ValueError(f"Column '{col}' not found in DataFrame")
-
         # Convert image_dir to Path
         image_dir = Path(image_dir) if isinstance(image_dir, str) else image_dir
 
-        # Get misclassified images
-        errors_df = dataframe[dataframe[true_label_column] != dataframe[predicted_label_column]].copy()
-
         if len(errors_df) == 0:
-            print("No misclassifications found!")
+            print("No images to display!")
             return None
-
-        # Sort by confidence if requested and available
-        if sort_by_confidence and confidence_column in errors_df.columns:
-            # Use absolute value of confidence to get most confident regardless of direction
-            errors_df['abs_confidence'] = errors_df[confidence_column].abs()
-            errors_df = errors_df.sort_values('abs_confidence', ascending=False)
 
         # Limit to n_images
         errors_df = errors_df.head(n_images)
@@ -639,14 +688,11 @@ class LogitExtractor:
             # Get filename from index
             filename = idx
             true_class = row[true_label_column]
-            # Construct image path - try different extensions if needed
-            img_path = None
 
-            # If filename already has extension, try direct path
+            # Construct image path
             direct_path = image_dir / true_class / filename
             if direct_path.exists():
                 img_path = direct_path
-
 
                 try:
                     # Read image
@@ -688,7 +734,6 @@ class LogitExtractor:
             print(f"Saved grid visualization to {save_path}")
 
         return fig
-
 
 # Example usage
 if __name__ == "__main__":
@@ -736,7 +781,7 @@ if __name__ == "__main__":
 
     images_list = [i for i in image_root_dir.rglob("*.jpg") if not str(i).startswith(".")]
     # randomply sample 100 images
-    # images_list = random.sample(images_list, 500)
+    images_list = random.sample(images_list, 500)
     class_labels = [x.parent.stem for x in images_list]
 
     results_df = extractor2.extract_from_image_list(
@@ -751,6 +796,15 @@ if __name__ == "__main__":
     plt.show()
     results_df
 
-    fig_2 = extractor2.visualize_confident_errors(dataframe=results_df, image_dir=image_root_dir)
+    errors = extractor2.filter_prediction_errors(
+            df_logits=results_df,
+            sort_by_confidence=True
+        )
+    fig = extractor2.visualize_binary_logits(dataframe=extractor2.df_false_positives)
+    plt.show()
+
+    fig_2 = extractor2.visualize_errors(errors_df=extractor2.df_false_positives,
+                                        image_dir=image_root_dir,
+                                        title="False Positive Prediction Errors",)
 
     plt.show()

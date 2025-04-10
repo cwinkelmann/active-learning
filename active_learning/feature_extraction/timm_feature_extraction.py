@@ -19,6 +19,9 @@ from sklearn.preprocessing import normalize
 
 
 class FeatureExtractor:
+    """
+    Extract features from images using a pretrained timm model or a custom checkpoint.
+    """
     def __init__(
             self,
             model_name: Optional[str] = None,
@@ -268,3 +271,7 @@ class FeatureExtractor:
 
         return df
 
+
+
+if __name__ == "__main__":
+    FeatureExtractor()
