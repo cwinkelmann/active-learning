@@ -9,18 +9,18 @@ from pathlib import Path
 
 from geospatial_transformations import convert_to_cog, batch_convert_to_cog
 
-dd_cog_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog')
-dd_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Drone Deploy orthomosaics')
+# dd_cog_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog')
+# dd_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Drone Deploy orthomosaics')
 metashape_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Agisoft orthomosaics')
 
-dd = [f for f in dd_path.glob('*.tif') if not f.name.startswith('.')]
-dd_cog = [f for f in dd_cog_path.glob('*.tif')  if not f.name.startswith('.')]
-ms = [f for f in metashape_path.glob('*.tif')  if not f.name.startswith('.')]
+# dd = [f for f in dd_path.glob('*.tif') if not f.name.startswith('.')]
+# dd_cog = [f for f in dd_cog_path.glob('*.tif')  if not f.name.startswith('.')]
+ms = [f for f in metashape_path.glob('*/*.tif')  if not f.name.startswith('.')]
 
 # copy images to new folder
-output_DD_dir = dd_cog_path
-output_MS_dir = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/MS_COG")
-output_DD_dir.mkdir(exist_ok=True)
+# output_DD_dir = dd_cog_path
+output_MS_dir = Path("/Volumes/2TB/Manual_Counting/AgisoftMetashape Orthomosaics")
+# output_DD_dir.mkdir(exist_ok=True)
 output_MS_dir.mkdir(exist_ok=True)
 
 # for i, img in enumerate(ms):
@@ -49,24 +49,24 @@ output_MS_dir.mkdir(exist_ok=True)
 
 output_files = []
 input_files = []
-for i, img in enumerate(dd):
+for i, img in enumerate(ms):
     img_name = img.name
     island_code = img_name.split('_')[0]
-    output_DD_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
-    output_file = output_DD_dir / island_code / img_name
+    output_MS_dir.joinpath(island_code).mkdir(exist_ok=True, parents=True)
+    output_file = output_MS_dir / island_code / img_name
     if output_file.exists():
-        logger.info(f"DD File already exists: {output_file}")
+        logger.info(f"MS File already exists: {output_file}")
     else:
         input_files.append(img)
-        output_file = output_DD_dir / island_code / img_name
+        output_file = output_MS_dir / island_code / img_name
         output_files.append(output_file)
 
-        logger.info(f"convert {img} to cog at {output_DD_dir / island_code / img_name}")
+        logger.info(f" {i}/{len(ms):} convert {img} to cog at {output_MS_dir / island_code / img_name}")
         # try:
         #     convert_to_cog(img, output_DD_dir / island_code / img_name)
         # except Exception as e:
         #     logger.error(f"Error converting {img} to cog: {e}")
 
-batch_convert_to_cog(input_files=input_files, output_files=output_files, output_dir=output_DD_dir, max_workers=3)
+batch_convert_to_cog(input_files=input_files, output_files=output_files, output_dir=output_MS_dir, max_workers=3)
 
 
