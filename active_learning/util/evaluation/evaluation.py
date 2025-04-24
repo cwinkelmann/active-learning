@@ -33,6 +33,7 @@ def evaluate_predictions(
         type: AnnotationType = AnnotationType.KEYPOINT,
         sample_field_name="prediction") -> fo.Sample:
     """
+    TODO get the comments right. This function
     Evaluate the predictions
     :return:
     """
@@ -77,7 +78,7 @@ def evaluate_predictions(
 
         sample.save()
     else:
-        logger.warning(f"There should be one single image left, but {len(filtered_predictions)} are left.")
+        logger.error(f"There should be one single image left, but {len(filtered_predictions)} are left.")
 
     return sample
 
@@ -204,7 +205,7 @@ def evaluate_in_fifty_one(dataset_name: str, images_set: typing.List[Path],
 
 
 def submit_for_cvat_evaluation(dataset: fo.Dataset,
-                               images_set: typing.List[Path],
+                               # images_set: typing.List[Path],
                           detections: typing.List[ImageLabelCollection],
                           type=AnnotationType.KEYPOINT):
     """

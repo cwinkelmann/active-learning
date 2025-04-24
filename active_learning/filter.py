@@ -32,13 +32,13 @@ class ImageFilter():
 T = typing.TypeVar('T')
 def sample_hasty(l: typing.List[T],
                  n: int = None,
-                percentage: float = None,
-                method: SampleStrategy = SampleStrategy.FIRST) -> typing.List[T]:
+                 percentage: typing.Optional[float] = None,
+                 method: SampleStrategy = SampleStrategy.FIRST) -> typing.List[T]:
     """
     Sample the Hasty format to get a smaller dataset.
     :param hA:
-    :param n:
-    :param percentage:
+    :param n: total number of elements to sample
+    :param percentage: fraction of the dataset to sample
     :param method:
     :return:
     """
@@ -125,9 +125,68 @@ def sample_coco(coco_annotations_format: Dict, n: int = None,
 
     return sampled_coco
 
+class ImageLabelFilterAttribute(ImageFilter):
+    """
+    Get labels with a specific attribute
+
+    """
+
+    def __init__(self, dataset_config: DatasetFilterConfig, remove_unlabeled: bool = True):
+        super().__init__()
+        self.attribute_filter = dataset_config.attribute_filter
+        self.remove_unlabeled = remove_unlabeled
+
+
+    def __call__(self, hA: HastyAnnotationV2):
+        """ get images with a specific attribute
+        :return:
+        """
+        assert isinstance(hA, HastyAnnotationV2), "hA must be a HastyAnnotationV2 object"
+        hA = super().__call__(hA)
+
+        hA_filtered = copy.deepcopy(hA)
+        # iterate over filters
+        if self.attribute_filter is not None:
+            for dfa in self.attribute_filter:
+
+                for i, img in enumerate(hA_filtered.images):
+                    labels_to_keep = []
+                    for il, l in enumerate(img.labels):
+                        keep_label = False
+
+                        print(f"label_num: {il} label: {l}, dfa: {dfa}")
+                        if l.attributes is not None and len(l.attributes) > 0:
+                            if dfa.name in l.attributes:
+                                if l.attributes[dfa.name] in dfa.values:
+                                    # keep this label because the attribute is in the filter
+                                    keep_label = True
+
+                                else:
+                                    # remove this label
+                                    keep_label = False
+                        elif not self.remove_unlabeled:
+                            keep_label = True
+
+                        if keep_label:
+                            labels_to_keep.append(l)
+
+                    img.labels = labels_to_keep
+
+
+
+        # sum the amount of labels
+        num_labels_before_filter = hA.label_count()
+        num_labels_after_filter = hA_filtered.label_count()
+        logger.info(f"{num_labels_before_filter=}, {num_labels_after_filter=}")
+        if num_labels_after_filter == 0:
+            logger.error(f"Number of labels after filtering: {num_labels_after_filter}")
+
+        return hA_filtered
+
 
 class ImageFilterConstantNum(ImageFilter):
-    """ Get N images Randomly or First N images
+    """
+    Get N images Randomly or First N images
 
     """
 
@@ -135,12 +194,14 @@ class ImageFilterConstantNum(ImageFilter):
     def __init__(self, num: int,
                  sample_strategy: SampleStrategy = SampleStrategy.RANDOM,
                  seed: int = 42,
+                 min_labels: typing.Optional[int] = None,
                  dataset_config: DatasetFilterConfig = None):
 
         super().__init__()
         self.num = num
         self.sample_strategy = sample_strategy
         self.dataset_config = dataset_config
+        self.min_labels = min_labels
 
         random.seed(seed)
 
@@ -152,6 +213,12 @@ class ImageFilterConstantNum(ImageFilter):
         hA = super().__call__(hA)
 
         hA_filtered = copy.deepcopy(hA)
+
+        if self.min_labels is not None and self.min_labels > 0:
+            # remove every image with less than min_labels labels
+            hA_filtered.images = [img for img in hA_filtered.images if len(img.labels) >= self.min_labels]
+
+        [l for i in hA_filtered.images for l in i.labels if l.bbox is not None]
 
         if self.num is not None:
             if self.num > len(hA.images):

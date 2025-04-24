@@ -1,4 +1,5 @@
 import rasterio
+import shapely
 import typing
 import rasterio
 from rasterio.transform import rowcol, xy
@@ -97,6 +98,20 @@ def convert_jpeg_to_geotiff_coords(gdf_pixel: gpd.GeoDataFrame, tiff_path: Path,
 
     return gdf_geo
 
+def get_orthomosaic_crs(orthomosaic_path: Path):
+    # Open the orthomosaic to get its CRS
+    with rasterio.open(orthomosaic_path) as dataset:
+        ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
+
+        return ortho_crs
+
+def get_orthomosaic_epsg(orthomosaic_path: Path):
+    # Open the orthomosaic to get its CRS
+    with rasterio.open(orthomosaic_path) as dataset:
+        ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
+
+        return ortho_crs.to_epsg()
+
 
 def world_to_pixel(geo_transform, x, y):
     """
@@ -136,6 +151,8 @@ def pixel_to_world(geo_transform, pixel_x, pixel_y):
     y = geo_transform[3] + pixel_x * geo_transform[4] + pixel_y * geo_transform[5]
     return x, y
 
+def pixel_to_world_point(geo_transform, pixel_x, pixel_y) -> shapely.Point:
+    return shapely.Point(pixel_to_world(geo_transform, pixel_x, pixel_y))
 
 def get_geotransform(orthomsoaic_path: Path):
     """
@@ -197,12 +214,7 @@ def project_gdfcrs(gdf: gpd.GeoDataFrame, orthomosaic_path: Path) -> gpd.GeoData
     Returns:
     - gdf_proj (geopandas.GeoDataFrame): New GeoDataFrame with projected geometries.
     """
-    # Open the orthomosaic to get its CRS
-    with rasterio.open(orthomosaic_path) as dataset:
-        ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
 
-    ortho_crs.to_epsg()
-    # Project the GeoDataFrame to the orthomosaic CRS
-    gdf_proj = gdf.to_crs(epsg=ortho_crs.to_epsg())
+    gdf_proj = gdf.to_crs(epsg=get_orthomosaic_epsg(orthomosaic_path))
 
     return gdf_proj

@@ -1,6 +1,7 @@
 """
 calculate the similarity between two images using the Structural Similarity Index (SSIM), FSIM,
  and Mean Squared Error (MSE) metrics
+ TODO refactor this
 """
 import cv2
 import matplotlib.pyplot as plt

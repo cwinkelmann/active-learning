@@ -2,6 +2,8 @@ import geopandas as gpd
 import json
 import numpy as np
 import osgeo.gdal as gdal
+gdal.UseExceptions()
+
 import rasterio
 from loguru import logger
 from pathlib import Path
@@ -317,7 +319,7 @@ def cut_geospatial_raster_with_grid(raster_path: Path,
 
 
 def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDataFrame, output_dir: Path,
-                                         compression: str = "geotiff", quality: int = 85) -> List[Path]:
+                                         compression: str = "geotiff", quality: int = 95) -> List[Path]:
     """
     Cut a geospatial raster into tiles using a grid and save as GeoTIFF or JPEG 2000 using GDAL.
 
@@ -340,11 +342,7 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
     projection = raster_ds.GetProjection()
     res = geo_transform[1]  # resolution, GSD
     for idx, row in grid_gdf.iterrows():
-
-        # TODO parallisize this
         tile_geom = row.geometry  # Extract geometry for current tile
-
-
 
         try:
             # Define output format
@@ -384,8 +382,8 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
                                               projWin=(x_min, y_max, x_max, y_min),
                                               format='GTiff',
                                               creationOptions=[
-                                                  'COMPRESS=JPEG',  # Apply JPEG compression
-                                                  'JPEG_QUALITY=100',  # Set JPEG quality (1-100)
+                                                  'COMPRESS=LZW',  # Apply JPEG compression
+                                                  # 'JPEG_QUALITY=100',  # Set JPEG quality (1-100)
                                                   # Use YCbCr color space for better compression
                                                   'TILED=YES',  # Enable tiling for optimized access
                                                   'BLOCKXSIZE=256',  # Set tile width

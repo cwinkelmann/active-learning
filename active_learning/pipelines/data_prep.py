@@ -11,6 +11,7 @@ from PIL import Image
 from loguru import logger
 from pathlib import Path
 
+from active_learning.filter import ImageFilter
 from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2, crop_by_regular_grid
 from active_learning.util.rename import rename_single_image
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
@@ -34,7 +35,8 @@ def process_image(args):
         images_path,
         overlap=overlap,
         train_images_output_path=train_images_output_path,
-        empty_fraction=empty_fraction
+        empty_fraction=empty_fraction,
+        edge_black_out=True
     )
     return images, cropped_images_path
 
@@ -92,7 +94,6 @@ class UnpackAnnotations(object):
                                                   hasty_annotations_labels_zipped=hasty_annotations_labels_zipped,
                                                   hasty_annotations_images_zipped=hasty_annotations_images_zipped
                                                   )
-
         return hA, images_path
 
 
@@ -199,7 +200,7 @@ class DataprepPipeline(object):
     augmented_images = typing.Optional[typing.List[AnnotatedImage]]
     augmented_images_path = typing.Optional[typing.List[Path]]
     empty_fraction = False
-    images_filter_func: typing.Callable = None
+    images_filter_func: typing.List[typing.Callable]  = []
 
     _image_type = "jpg"
 
@@ -242,9 +243,11 @@ class DataprepPipeline(object):
     def run(self, flatten=True):
         """
         Run the data pipeline
+
+        flatten - if True, flatten the images to a single folder
+
         :return:
         """
-        ## TODO make sure the data is already flattened
         hA = hasty_filter_pipeline(
             hA=self.hA,
             class_filter=self.class_filter,
@@ -257,8 +260,9 @@ class DataprepPipeline(object):
             num_images=self.num,
             sample_strategy=self.sample_strategy
         )
-        if self.images_filter_func is not None:
-            hA = self.images_filter_func(hA)
+        if len(self.images_filter_func) != 0:
+            for i in self.images_filter_func:
+                hA = i(hA)
 
         if flatten:
             # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
@@ -302,10 +306,11 @@ class DataprepPipeline(object):
                            crop_size: int,
                            hA: HastyAnnotationV2,
                            images_path: Path,
-                           use_multiprocessing: bool = True
+                           use_multiprocessing: bool = True,
+                            edge_black_out=True,
                            ):
         """
-        crop the images
+        crop the images by a regular grid
         :param stage:
         :param overlap:
         :param crop_size:
@@ -343,6 +348,7 @@ class DataprepPipeline(object):
 
         else:
             for i in hA.images:
+                # TODO split these steps: create a grid first, then crop
                 annotated_images, cropped_images_path = crop_by_regular_grid(
                     crop_size=crop_size,
                     full_images_path_padded=full_images_path_padded,
@@ -351,7 +357,7 @@ class DataprepPipeline(object):
                     overlap=overlap,
                     train_images_output_path=self.train_images_output_path,
                     empty_fraction=self.empty_fraction,
-                    edge_black_out=True)
+                    edge_black_out=edge_black_out)
 
                 all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
@@ -361,7 +367,8 @@ class DataprepPipeline(object):
             project_name="crops",
             images=all_images,
             export_format_version="1.1",
-            label_classes=hA.label_classes
+            label_classes=hA.label_classes,
+
         )
 
         self.augmented_images = all_images
@@ -391,3 +398,7 @@ class DataprepPipeline(object):
     def set_images_num(self, num, sample_strategy):
         self.num = num
         self.sample_strategy = sample_strategy
+
+    def add_images_filter_func(self, ifcn_att: ImageFilter):
+        assert isinstance(ifcn_att, ImageFilter)
+        self.images_filter_func.append( ifcn_att )

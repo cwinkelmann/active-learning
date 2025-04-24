@@ -116,6 +116,18 @@ train_floreana_big = DatasetFilterConfig(**{
 "tag_filter": ["points"],
 })
 
+
+train_floreana_big = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "train_floreana_big",
+    "dataset_filter": ["FMO03", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # big Floreana subset
+    # "num": 1,
+            "empty_fraction": 1.0,
+        "crop_size": 640,
+"class_filter": ["iguana_point"],
+"tag_filter": ["points"],
+})
+
 val_fmo05 = DatasetFilterConfig(**{
         "dset": "val",
     "dataset_name": "val_FMO05",

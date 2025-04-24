@@ -147,8 +147,8 @@ def main(annotations_file: Path,
 
     logger.info(f"cut empty tiles from the orthomosaic into {len(slicer_occupied.grid)} tiles")
     slicer_empty.slice_very_big_raster(num_chunks=len(gdf_points) // 20 + 1, num_workers=3)
-    converted_empty_tiles = convert_tiles_to(tiles=slicer_empty.slices, format=format,
-                                       output_dir=output_empty_dir)
+    converted_empty_tiles = convert_tiles_to(tiles=slicer_empty.gdf_slices, format=format,
+                                             output_dir=output_empty_dir)
 
     # TODO increase image quality
     sr = SuperResolution(scale_factor=scale_factor, model_type=None)

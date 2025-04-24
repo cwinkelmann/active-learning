@@ -26,6 +26,13 @@ if __name__ == "__main__":
     class_filter = ["iguana_point"]
     datasets = [train_floreana_big, val_fmo05]
 
+    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other")
+    hasty_annotations_labels_zipped = "labels_all_completed.zip"
+    hasty_annotations_images_zipped = "image_all_completed.zip"
+    annotation_types = [AnnotationType.BOUNDING_BOX]
+    class_filter = ["iguana"]
+    datasets = [train_floreana_big, val_fmo05]
+
     # ## Segmentation masks
     # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining")
     # hasty_annotations_labels_zipped = "labels_segments_completed.zip"
@@ -65,6 +72,8 @@ if __name__ == "__main__":
 
         dp.dataset_filter = dataset.dataset_filter
         dp.images_filter = dataset.images_filter
+
+        # TODO fix this
         dp.images_filter_func = ifcn
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types

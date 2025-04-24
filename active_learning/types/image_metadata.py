@@ -15,6 +15,8 @@ from shapely.geometry import Point
 from typing import Tuple, Optional
 import hashlib
 
+from active_learning.util.image import get_image_id
+
 
 class ColorSpace(Enum):
     SRGB = 1
@@ -517,7 +519,7 @@ def image_hash(img_path: Path):
     :param img:
     :return:
     """
-
+    logger.warning(f"Deprecated, use image_id instead")
     img = PIL_Image.open(img_path)
     md5hash = hashlib.md5(img.tobytes())
     return md5hash.hexdigest()
@@ -659,7 +661,7 @@ def get_exif_metadata(img_path) -> ExifData:
     """
     with open(img_path, 'rb') as src:
         # exif.Image, NOT PIL.Image
-        img = Image(src)
+        img = ExifImage(src)
 
     ## work on the EXIF data
     if img.has_exif:
@@ -729,17 +731,17 @@ def get_image_size(img_path):
 
     return file_stats.st_size / (1024 * 1024)
 
-def get_image_id(filename):
-    """
-    generate an id from the image itself which can be used to find images which are exactly the same
-    @param filename:
-    @return:
-    """
-    logger.warning(f"Use get_image_id from image.py")
-    with open(filename, "rb") as f:
-        bytes = f.read()  # read entire file as bytes
-        readable_hash = hashlib.sha256(bytes).hexdigest()
-    return readable_hash
+# def get_image_id(filename):
+#     """
+#     generate an id from the image itself which can be used to find images which are exactly the same
+#     @param filename:
+#     @return:
+#     """
+#     logger.warning(f"DEPRECTEAD: Use get_image_id from image.py")
+#     with open(filename, "rb") as f:
+#         bytes = f.read()  # read entire file as bytes
+#         readable_hash = hashlib.sha256(bytes).hexdigest()
+#     return readable_hash
 
 
 def get_mosaic_slice_name(mission_name, creation_date):

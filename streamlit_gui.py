@@ -1,4 +1,5 @@
 """
+
 """
 import numpy as np
 import streamlit as st
@@ -14,7 +15,9 @@ from active_learning.util.rename import get_island_from_folder, rename_images
 st.set_page_config(page_title="Mission GUI", layout="wide")
 
 # Create tabs using st.tabs
-tabs = st.tabs(["post mission", "mission stats", "iguana_detection"])
+tabs = st.tabs(["post mission",
+                "mission stats",
+                "iguana_detection"])
 
 # ---------------------------
 # POST MISSION TAB

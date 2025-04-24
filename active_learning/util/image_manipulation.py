@@ -22,6 +22,7 @@ from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.Annotation import project_point_to_crop, project_label_to_crop, reframe_bounding_box, \
     reframe_polygon
 from active_learning.util.geospatial_slice import GeoSlicer
+from active_learning.util.image import get_image_id
 from com.biospheredata.converter.Annotation import add_offset_to_box
 from com.biospheredata.converter.HastyConverter import ImageFormat
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, ImageLabelCollection, PredictedImageLabel, Keypoint
@@ -336,12 +337,15 @@ def crop_out_individual_object(i: ImageLabelCollection,
         label_id = label.id
 
         # add a bit of an offset
-        if offset and label.bbox_polygon is not None and isinstance(label.bbox_polygon, shapely.Polygon):
+        if offset is not None and label.bbox_polygon is not None and isinstance(label.bbox_polygon, shapely.Polygon):
             cutout_box = add_offset_to_box(label.bbox, i.height, i.width, offset)
-            boxes.append(shapely.box(*cutout_box))
+            # boxes.append(shapely.box(*cutout_box))
+
+            width = cutout_box[2] - cutout_box[0]
+            height = cutout_box[3] - cutout_box[1]
 
         # constant boundary around the box
-        elif width and height:
+        if width and height:
 
             cutout_box = create_box_from_point(x=label.incenter_centroid.x, y=label.incenter_centroid.y, width=width, height=height)
 
@@ -360,21 +364,23 @@ def crop_out_individual_object(i: ImageLabelCollection,
             # TODO ensure every label type is handled correctly: Box, polygon and point
             # TODO project every keypoint, box or segmentation mask to the new crop
             projected_keypoint = project_point_to_crop(label.incenter_centroid, cutout_box)
-            projected_label = project_label_to_crop(label, cutout_box) # TODO the code above and below can be outsourced into this.
+
+            logger.warning(f"implement the other projections")
+            # projected_label = project_label_to_crop(label, cutout_box) # TODO the code above and below can be outsourced into this.
 
             # TODO use these functions here:
-            reframe_bounding_box()
+            # reframe_bounding_box()
 
-            reframe_polygon()
+            # reframe_polygon()
 
             # TODO get the ids right and keep the projections
-            if label.keypoints is not None:
+            if label.keypoints is not None and len(label.keypoints) > 0:
                 label_id = label.keypoints[0].id
             else:
                 label_id = label.id
 
             projected_keypoint = [Keypoint(
-                id = label_id, # TODO get this right for cases when there are other label types
+                id = label_id, # TODO get this right for cases when there are other label types other than points
                 x=int(projected_keypoint.x),
                 y=int(projected_keypoint.y),
                 keypoint_class_id = "ed18e0f9-095f-46ff-bc95-febf4a53f0ff", # TODO programmatically get the right class id
@@ -393,7 +399,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
             # TODO maybe do the cropping outside
             boxes.append(cutout_box)
             sliced = im.crop(cutout_box.bounds)
-            image_id = get_image_hash(sliced)
+            image_id = get_image_id(image=sliced)
             slice_path_jpg = output_path / Path(f"{i.image_name}_{label_id}.jpg")
             sliced.save(slice_path_jpg)
             images_set.append(slice_path_jpg)
@@ -715,6 +721,7 @@ class RasterCropper():
                             id=str(uuid.uuid4()),
                             class_name=annotation.class_name,
                             bbox=[int(x) for x in translated_inner_polygon.bounds],
+                            attributes=annotation.attributes,
                         )
                         slice_labels.append(il)
 
@@ -730,6 +737,8 @@ class RasterCropper():
                             id=annotation.id,
                             class_name=annotation.class_name,
                             polygon=translated_coords,
+                            attributes=annotation.attributes,
+
                         )
                         slice_labels.append(il)
                         # a part of the box is outside of the sliding window, we want to black it out
@@ -752,6 +761,8 @@ class RasterCropper():
                             id=annotation.id,
                             class_name=annotation.class_name,
                             keypoints=box_keypoints,
+                            attributes=annotation.attributes,
+
                         )
                         slice_labels.append(il)
 
@@ -889,6 +900,7 @@ def crop_out_images_v2(hi: AnnotatedImage,
                        dataset_name: str = DATA_SET_NAME,
                        include_empty = False,
                        edge_blackout = True) -> typing.Tuple[List[AnnotatedImage], List[Path]]:
+
     """ iterate through rasters and crop out the tiles from the image return the new images and an annotations file
 
     :param include_empty:

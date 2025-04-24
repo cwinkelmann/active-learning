@@ -14,6 +14,9 @@ import math
 from loguru import logger
 from osgeo import gdal
 import geopandas as gpd
+import multiprocessing
+import numpy as np
+from tqdm import tqdm
 
 from active_learning.types.Exceptions import ProjectionError
 from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal, \
@@ -202,8 +205,6 @@ class GeoSpatialRasterGrid(ImageGrid):
         # Convert to GeoDataFrame
         epsg_code = self._get_epsg_code()
 
-
-
         # Get bounds
         min_x, min_y, max_x, max_y = self.bounds.left, self.bounds.bottom, self.bounds.right, self.bounds.top
 
@@ -236,6 +237,7 @@ class GeoSpatialRasterGrid(ImageGrid):
 
                 # Create polygon
                 tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+
                 tiles.append(tile_polygon)
 
                 # Generate a unique tile name based on image name and coordinates
@@ -249,10 +251,24 @@ class GeoSpatialRasterGrid(ImageGrid):
                     "tile_name": coord_tile_name,
                     "image_name": image_name,
                 })
+            else:
+                # Skip tiles that are outside the raster mask
+                pass
 
         # Convert to GeoDataFrame
         epsg_code = self._get_epsg_code()
         self.grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=epsg_code)
+
+        # remove empties # TODO check if this is right
+        # Get indices of grid polygons that intersect with raster mask
+        intersecting_indices = gpd.sjoin(
+            self.grid_gdf,
+            self.gdf_raster_mask,
+            predicate='intersects',
+            how='inner'
+        ).index
+        self.grid_gdf = self.grid_gdf.loc[intersecting_indices]
+
 
         return self.grid_gdf
 
@@ -752,7 +768,7 @@ class GeoSpatialRasterGrid(ImageGrid):
 # points_gdf = gpd.read_file("path/to/points.shp")
 # filtered_grid = grid_manager.filter_by_points(points_gdf)
 
-def _process_grid_chunk(args):
+def _process_grid_chunk(args) -> gpd.GeoDataFrame:
     """
     Worker function to process a chunk of the grid.
 
@@ -762,6 +778,7 @@ def _process_grid_chunk(args):
     Returns:
         List of paths to the sliced raster files
     """
+    assert len(args) == 4, "Expected 4 arguments: grid_chunk, raster_path, output_dir, crs"
     grid_chunk, raster_path, output_dir, crs = args
 
     # Convert back to GeoDataFrame if needed
@@ -773,11 +790,16 @@ def _process_grid_chunk(args):
         )
 
     # Process this chunk
-    return cut_geospatial_raster_with_grid_gdal(
+    slice = cut_geospatial_raster_with_grid_gdal(
         raster_path=raster_path,
         grid_gdf=grid_chunk,
         output_dir=output_dir
     )
+
+    grid_chunk["slice_path"] = slice
+
+    return grid_chunk
+
 
 
 
@@ -786,6 +808,7 @@ class GeoSlicer():
     Helper to slice geospational rasters into smaller parts
     """
     def __init__(self, base_path: Path, image_name: str, grid: gpd.GeoDataFrame, output_dir: Path):
+        self.gdf_slices: gpd.GeoDataFrame = None
         self.sliced_paths: typing.List[Path] = []
         self.slice_dict: typing.List[typing.Dict[Path, Path]] = []
         self.image_names: typing.List[Path]
@@ -951,7 +974,6 @@ class GeoSlicer():
         Returns:
             List of paths to the sliced raster files
         """
-        import multiprocessing
 
         # Determine number of workers
         if num_workers is None:
@@ -962,8 +984,7 @@ class GeoSlicer():
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Split the grid into chunks for parallel processing
-        import numpy as np
-        from tqdm import tqdm
+
 
         if len(self.grid) < num_chunks:
             num_chunks = len(self.grid)
@@ -976,14 +997,14 @@ class GeoSlicer():
             for chunk in grid_dfs
         ]
 
-        logger.info(f"Processing raster in parallel using {num_workers} workers")
-        all_slices = []
+        logger.info(f"Processing raster in parallel using {num_workers} workers to process {len(self.grid)} grid cells")
+        all_slices: typing.List[Path] = []
 
         if num_workers == 1:
             # Single process mode - useful for debugging
             for args in tqdm(args_list, desc="Processing grid chunks"):
-                slices = _process_grid_chunk(args)
-                all_slices.extend(slices)
+                gdf_slices = _process_grid_chunk(args)
+                all_slices.extend(gdf_slices)
         else:
             # Use concurrent.futures which handles pickling better than multiprocessing.Pool
             import concurrent.futures
@@ -993,20 +1014,25 @@ class GeoSlicer():
                 futures = {executor.submit(_process_grid_chunk, args): i for i, args in enumerate(args_list)}
 
                 for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures),
-                                   desc="Processing grid chunks"):
+                                   desc=f"Processing grid chunks with {len(futures)} tasks"):
                     try:
-                        slices = future.result()
-                        all_slices.extend(slices)
+                        gdf_slices = future.result()
+                        all_slices.append(gdf_slices)
                     except Exception as e:
                         logger.error(f"Error processing chunk {futures[future]}: {str(e)}")
 
         # Store the results
-        self.slices = all_slices
+        gdf_all_slices = gpd.GeoDataFrame(
+            pd.concat(all_slices, ignore_index=True),
+            geometry='geometry',
+            crs=self.grid.crs
+        )
+        self.gdf_slices = gdf_all_slices
 
         # Report statistics
-        logger.info(f"Created {len(all_slices)} slices from {len(self.grid)} grid cells")
+        logger.info(f"Created {len(gdf_all_slices)} slices from {len(self.grid)} grid cells")
 
-        return all_slices
+        return self.gdf_slices
 
 
 

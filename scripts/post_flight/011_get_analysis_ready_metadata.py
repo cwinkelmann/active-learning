@@ -11,7 +11,7 @@
 # from sklearn.cluster import DBSCAN
 # import numpy as np
 #
-# from active_learning.config.mapping import get_island_code, drone_mapping
+# from active_learning.configs.mapping import get_island_code, drone_mapping
 # from active_learning.util.drone_flight_check import get_analysis_ready_image_metadata, get_flight_metrics
 # from active_learning.util.rename import get_site_code
 #

@@ -397,7 +397,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
 
             annotation = PredictedImageLabel(
                 score=float(row["scores"]),
-                class_name=row["species"],  # use spiecies as the label/class_name
+                class_name=row["species"],  # use species as the label/class_name
                 bbox=None,   # if not available, keep as None
                 polygon=None,
                 mask=[],     # or adjust if you have mask data
@@ -445,7 +445,12 @@ def ifa_point_shapefile_to_hasty(gdf: gpd.GeoDataFrame, images_path: Path,
 
     return ilc
 
-def prediction_list_to_gdf(predictions):
+def prediction_list_to_gdf(predictions: typing.List[PredictedImageLabel], crs="EPSG:32715"):
+    """
+    Convert a list of predictions to a GeoDataFrame.
+    :param predictions:
+    :return:
+    """
     data = []
     for prediction in predictions:
         # Append to the data list
@@ -456,7 +461,7 @@ def prediction_list_to_gdf(predictions):
         })
 
     # Convert to GeoDataFrame
-    gdf = gpd.GeoDataFrame(data, geometry="geometry", crs="EPSG:32715")  # Assuming EPSG:32715 projection
+    gdf = gpd.GeoDataFrame(data, geometry="geometry", crs=crs )
     return gdf
 
 def _create_keypoints_s(hA_image: typing.Union[AnnotatedImage, ImageLabelCollection]) -> typing.List[fo.Keypoint]:

@@ -33,10 +33,10 @@ def main():
     type = "points"
 
     # test dataset
-    base_path = Path(f'/Users/christian/data/training_data/{analysis_date}_debug/test/')
-    df_detections = pd.read_csv(
-        '/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
-    images_path = base_path  / "Default"
+    # base_path = Path(f'/Users/christian/data/training_data/{analysis_date}_debug/test/')
+    # df_detections = pd.read_csv(
+    #     '/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
+    # images_path = base_path  / "Default"
 
     base_path = Path(f'/Users/christian/data/training_data/2025_02_22_HIT/FMO02_full_orthophoto_tiles')
     df_detections = pd.read_csv(

@@ -3,7 +3,7 @@ from typing import List, Union
 from pydantic import BaseModel, Field
 
 from com.biospheredata.converter.HastyConverter import AnnotationType
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, Attribute
 
 
 class DatasetFilterConfig(BaseModel):
@@ -33,6 +33,10 @@ class DatasetFilterConfig(BaseModel):
     class_filter: List[str] = Field(
         default=None,
         description="List of class labels to include in the filter."
+    )
+    attribute_filter: List[Attribute] =  Field(
+        default=None,
+        description="List of Attributes to include in the filter."
     )
     num: int = Field(
         default=None,

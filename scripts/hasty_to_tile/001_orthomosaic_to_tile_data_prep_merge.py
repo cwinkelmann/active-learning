@@ -59,7 +59,7 @@ if __name__ == "__main__":
         dp.annotation_types = dataset.annotation_types
         dp.empty_fraction = dataset.empty_fraction
         dp.tag_filter = dataset.image_tags
-        dp.rename_dictionary = {"iguana_point": "iguana"} # TODO add this to the config
+        dp.rename_dictionary = {"iguana_point": "iguana"} # TODO add this to the configs
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)

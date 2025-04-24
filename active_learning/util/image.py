@@ -1,3 +1,4 @@
+import PIL.Image
 import hashlib
 import typing
 
@@ -5,9 +6,10 @@ import numpy as np
 from pathlib import Path
 
 from PIL.Image import Image
+import io
 
 
-def get_image_id(filename: Path = None, image: np.ndarray = None):
+def get_image_id(filename: Path = None, image: typing.Union[np.ndarray, PIL.Image.Image] = None):
     """
     @param filename:
     @return:
@@ -20,9 +22,17 @@ def get_image_id(filename: Path = None, image: np.ndarray = None):
             readable_hash = hashlib.sha256(bytes).hexdigest()
 
         return readable_hash
-    if image is not None:
+
+    if image is not None and isinstance(image, np.ndarray):
         image_bytes = image.tobytes()
         readable_hash = hashlib.sha256(image_bytes).hexdigest()
+        return readable_hash
+
+    elif image is not None and isinstance(image, PIL.Image.Image):
+        with io.BytesIO() as byte_arr:
+            image.save(byte_arr, format='PNG')  # Consistent format
+            image_bytes = byte_arr.getvalue()
+            readable_hash = hashlib.sha256(image_bytes).hexdigest()
 
         return readable_hash
 
