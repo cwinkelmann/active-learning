@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader
 
 import animaloc
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid, GeoSlicer
+from active_learning.util.image_manipulation import remove_empty_tiles
 from active_learning.util.projection import get_geotransform, pixel_to_world_point, \
     get_orthomosaic_crs
 from animaloc.data.transforms import DownSample
@@ -31,8 +32,8 @@ from tools.inference_test import _set_species_labels, _get_collate_fn, _build_mo
 
 Image.MAX_IMAGE_PIXELS = None  # Disable the limit of image size in PIL
 
-def geospatial_detection(orthomosaic_path,
-                          output_dir, tile_size=2500):
+def get_tiles(orthomosaic_path,
+              output_dir, tile_size=1250):
     """
     Helper to to create a grid of tiles from an orthomosaic and slice it into smaller images.
     :param orthomosaic_path:
@@ -44,12 +45,19 @@ def geospatial_detection(orthomosaic_path,
 
     grid_gdf = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0)
 
+    filename = f'grid_{orthomosaic_path.with_suffix(".geojson").name}'
+    output_dir_metadata = output_dir / 'metadata'
+    output_dir_metadata.mkdir(parents=True, exist_ok=True)
+    grid_gdf.to_file(output_dir_metadata / filename, driver='GeoJSON')
+
     slicer = GeoSlicer(base_path=orthomosaic_path.parent,
                        image_name=orthomosaic_path.name,
-                       grid=grid_gdf, output_dir=output_dir)
+                       grid=grid_gdf,
+                       output_dir=output_dir)
+
     gdf_tiles = slicer.slice_very_big_raster()
 
-    # TODO remove the empty tiles
+
 
     return gdf_tiles
 
@@ -59,11 +67,12 @@ def run_with_config(cfg: DictConfig, plain_inference = True):
 
     cfg = cfg.test # TODO move this to the other configs
     root_dir = Path(cfg.dataset.root_dir)
-    main(cfg, root_dir)
+    herdnet_geospatial_inference(cfg, root_dir)
 
-def main(cfg: DictConfig,
-         plain_inference = True,
-         ts = 256) -> None:
+
+def herdnet_geospatial_inference(cfg: DictConfig,
+                                 plain_inference = True,
+                                 ts = 256) -> None:
     """
     Inference on a geospatial dataset
 
@@ -218,17 +227,26 @@ if __name__ == '__main__':
     # run_with_config()
 
     hydra_cfg = get_config()
-    images_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/FMO02_sample")
-    images_path = Path("Fer_FCD01-02-03_tiles")
 
-    orthomosaic_path = Path("/Users/christian/data/orthomosaics/FMO02_full_orthophoto.tif")
-    orthomosaic_path = Path("//Users/christian/data/orthomosaics/Fer_FCD01-02-03_20122021.tif")
+    # orthomosaic_path = Path("/Users/christian/data/orthomosaics/FMO02_full_orthophoto.tif")
+    # images_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/FMO02_sample")
+    #
+    #
+    # orthomosaic_path = Path("/Users/christian/data/orthomosaics/Fer_FCD01-02-03_20122021.tif")
+    # images_path = Path("Fer_FCD01-02-03_tiles")
 
-    # gdf_tiles = geospatial_detection(orthomosaic_path=orthomosaic_path,
-    #                      output_dir=images_path)
+    orthomosaic_path = Path(
+        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog/Flo/Flo_FLPO01_28012023.tif")
+    images_path = Path("Flo_FLPO01_28012023_tiles")
+    images_path.mkdir(exist_ok=True, parents=True)
+
+    gdf_tiles = get_tiles(
+        orthomosaic_path=orthomosaic_path,
+        output_dir=images_path
+    )
 
     hydra_cfg.dataset.root_dir = images_path
-    detections = main(cfg=hydra_cfg, plain_inference=True, ts=512)
+    detections = herdnet_geospatial_inference(cfg=hydra_cfg, plain_inference=True, ts=512)
 
     gdf_detections = gpd.GeoDataFrame(detections,
                                       geometry='geometry',

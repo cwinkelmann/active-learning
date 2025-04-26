@@ -63,18 +63,34 @@ def save_tiles_to_csv(tiles, output_csv: Path, species="iguana", label=1):
     return output_csv
 
 
-def main(annotations_file: Path,
-         orthomosaic_path: Path,
-         island_code: str,
-         tile_folder_name: str,
-         output_dir: Path,
-         output_empty_dir: Path,
-         tile_size: int,
-         vis_output_dir: Path,
-         visualise_crops: bool,
-         format: ImageFormat
+def geospation_data_to_classification_training_data(annotations_file: Path,
+                                                    orthomosaic_path: Path,
+                                                    island_code: str,
+                                                    tile_folder_name: str,
+                                                    output_dir: Path,
+                                                    output_empty_dir: Path,
+                                                    tile_size: int,
+                                                    vis_output_dir: Path,
+                                                    visualise_crops: bool,
+                                                    format: ImageFormat
 
-         ):
+                                                    ):
+    """
+    Convert geospatial annotations to create training data for herdnet out of geospatial dots
+    :param annotations_file:
+    :param orthomosaic_path:
+    :param island_code:
+    :param tile_folder_name:
+    :param output_dir:
+    :param output_empty_dir:
+    :param tile_size:
+    :param vis_output_dir:
+    :param visualise_crops:
+    :param format:
+    :return:
+    """
+
+
     gdf_points = gpd.read_file(annotations_file)
     gdf_points["image_name"] = orthomosaic_path.name
 
@@ -283,16 +299,16 @@ if __name__ == "__main__":
             visualise_crops = False
             format = ImageFormat.JPG
 
-            herdnet_annotation = main(annotations_file=annotations_file,
-                                      orthomosaic_path=orthomosaic_path,
-                                      island_code=island_code,
-                                      tile_folder_name=tile_folder_name,
-                                      output_dir=output_dir,
-                                      output_empty_dir=output_empty_dir,
-                                      vis_output_dir=vis_output_dir,
-                                      tile_size=tile_size,
-                                      visualise_crops=visualise_crops,
-                                      format=format)
+            herdnet_annotation = geospation_data_to_classification_training_data(annotations_file=annotations_file,
+                                                                                 orthomosaic_path=orthomosaic_path,
+                                                                                 island_code=island_code,
+                                                                                 tile_folder_name=tile_folder_name,
+                                                                                 output_dir=output_dir,
+                                                                                 output_empty_dir=output_empty_dir,
+                                                                                 vis_output_dir=vis_output_dir,
+                                                                                 tile_size=tile_size,
+                                                                                 visualise_crops=visualise_crops,
+                                                                                 format=format)
 
             logger.info(f"Done with {orthomosaic_path.name}")
 

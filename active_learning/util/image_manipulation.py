@@ -1254,25 +1254,28 @@ def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: 
     output_tiles: typing.List[Path] = []
 
     for tile in tiles:
-        if not tile.exists():
-            logger.warning("Tile does not exist: %s", tile)
-            continue
+        try:
+            if not tile.exists():
+                logger.warning("Tile does not exist: %s", tile)
+                continue
 
-        # Open the image tile
-        with Image.open(tile) as img:
-            # If a world_file is provided, you can apply geospatial transformations here
+            # Open the image tile
+            with Image.open(tile) as img:
+                # If a world_file is provided, you can apply geospatial transformations here
 
-            # Build the output filename (e.g., tile_name.png)
-            output_filename = f"{tile.stem}.{format.value.lower()}"
-            out_path = output_dir / output_filename
-            if format == ImageFormat.JPG:
-                img = img.convert("RGB")
-            # Save the image in the desired format
-            img.save(out_path, quality=95)
+                # Build the output filename (e.g., tile_name.png)
+                output_filename = f"{tile.stem}.{format.value.lower()}"
+                out_path = output_dir / output_filename
+                if format == ImageFormat.JPG:
+                    img = img.convert("RGB")
+                # Save the image in the desired format
+                img.save(out_path, quality=95)
 
-            output_tiles.append(out_path)
+                output_tiles.append(out_path)
 
-            yield out_path
+                yield out_path
+        except Exception as e:
+            logger.error(f"Failed to convert tile {tile}: {e}")
 
 
 def remove_empty_tiles(tiles: typing.List[Path], threshold=0.7, empty_value = (0,0,0)) -> typing.List[Path]:

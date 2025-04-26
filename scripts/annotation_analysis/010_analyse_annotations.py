@@ -1,5 +1,5 @@
 """
-A marked iguana is not consistent
+A marked iguana is not consistent in size an sharpness etc
 
 
 """

@@ -68,8 +68,9 @@ inference_test.py
 This can be used too for inferencing on the whole dataset up to an orthomosaic.
 An orthomosaic will be probably to big to be inferenced at once, therefore tiling it is necessary.
 ```shell
-044_prepare_orthomosaics.py 
+044_prepare_orthomosaics_classification.py 
 ```
+
 
 
 then evaluate the results
@@ -94,8 +95,12 @@ Asside from just trainig on existing data, how can new training data be created
 
 ### cut an orthomosaic into tiles
 ```shell
-044_prepare_orthomosaics.py
+044_prepare_orthomosaics_classification.py
 
+```
+
+```shell
+046_evaluate_orthomosaic_detection.py
 ```
 
 ### Simple Human In the Loop learning

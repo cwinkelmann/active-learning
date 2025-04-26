@@ -231,9 +231,9 @@ class GeoSpatialRasterGrid(ImageGrid):
                 x1, y1 = x, y
                 x2, y2 = x + x_size_world, y + y_size_world
 
-                # Ensure tiles stay within bounds
-                x2 = min(x2, max_x)
-                y2 = min(y2, max_y)
+                # Ensure tiles stay within bounds # TODO this probably a bad idea, because then the tiles are not the same size
+                #x2 = min(x2, max_x)
+                #y2 = min(y2, max_y)
 
                 # Create polygon
                 tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
@@ -243,11 +243,17 @@ class GeoSpatialRasterGrid(ImageGrid):
                 # Generate a unique tile name based on image name and coordinates
                 coord_tile_name = f"{image_name}_{int(x1)}_{int(y1)}_{int(x2)}_{int(y2)}"
 
+                if coord_tile_name == "Flo_FLPO01_28012023_781121_9863875_781132_9863878":
+                    """Sometimes the cell are not big enough"""
+                    pass
+
                 grid_cells.append({
                     "x1": x1,
                     "y1": y1,
                     "x2": x2,
                     "y2": y2,
+                    "width": x2 - x1,
+                    "height": y2 - y1,
                     "tile_name": coord_tile_name,
                     "image_name": image_name,
                 })
@@ -649,8 +655,9 @@ class GeoSpatialRasterGrid(ImageGrid):
 
         return empty_grid_cells
 
+
     def create_balanced_dataset_grids(self, points_gdf, box_size_x, box_size_y, num_empty_samples=None,
-                                      min_distance_pixels=400, random_seed=42):
+                                      min_distance_pixels=400, random_seed=42, object_centered=True, overlap_ratio=0.0):
         """
         Create both object-centered grids and guaranteed empty grids for a balanced dataset.
 
@@ -669,7 +676,10 @@ class GeoSpatialRasterGrid(ImageGrid):
 
 
         logger.info(f"object cutout")
-        object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
+        if object_centered:
+            object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
+        else:
+            object_grid = self.create_regular_grid(x_size=box_size_x, y_size=box_size_y, overlap_ratio=overlap_ratio)
 
         logger.info(f"start empty cutout")
         # Get the empty regions grid
@@ -905,8 +915,7 @@ class GeoSlicer():
         """
 
         assert len(points_gdf) > 0, "No points to slice"
-        assert len(points_gdf) == len(
-            grid_gdf), f"Points count ({len(points_gdf)}) must match grid count ({len(grid_gdf)})"
+
 
         grid_index_col = "grid_id"
         # assign each point to a grid cell
@@ -914,13 +923,11 @@ class GeoSlicer():
         # This will match each point to the grid cell that contains it
         points_in_grid = gpd.sjoin(points_gdf, grid_gdf, how="left", predicate="within")
 
-        assert len(points_in_grid) > 0, "No points to slice"
-        assert len(points_in_grid) == len(points_gdf)
 
         # TODO check if any row "image_name_right" is None
         if points_in_grid["image_name_right"].isnull().any():
             logger.error(f"some points could not be assigned to a grid cell: {points_in_grid['image_name_right'].isnull().sum()}, THIS IS DUE TO THE fact someone messed up the shapefile or orhtomosaic projections")
-            raise ProjectionError("THere is a problem with the projection")
+            raise ProjectionError("There is a problem with the projection")
 
         points_in_grid.rename(columns={"index_right": grid_index_col}, inplace=True)
 
@@ -989,7 +996,8 @@ class GeoSlicer():
         if len(self.grid) < num_chunks:
             num_chunks = len(self.grid)
         # Convert to list of DataFrames for easier splitting
-        grid_dfs = np.array_split(self.grid, num_chunks)
+        indices = np.array_split(range(len(self.grid)), num_chunks)
+        grid_dfs = [self.grid.iloc[idx_chunk] for idx_chunk in indices]
 
         # Prepare arguments for each worker
         args_list = [
@@ -997,7 +1005,7 @@ class GeoSlicer():
             for chunk in grid_dfs
         ]
 
-        logger.info(f"Processing raster in parallel using {num_workers} workers to process {len(self.grid)} grid cells")
+        logger.info(f"Processing raster {self.image_name} in parallel using {num_workers} workers to process {len(self.grid)} grid cells")
         all_slices: typing.List[Path] = []
 
         if num_workers == 1:
