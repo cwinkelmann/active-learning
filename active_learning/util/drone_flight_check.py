@@ -124,6 +124,12 @@ def calculate_forward_overlap(distance, ground_width, ground_height, direction):
 
 
 def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
+    """
+    Calculate flight metrics such as distance, time difference, speed, overlap, and risk score.
+    :param gdf_all:
+    :param gsd_col:
+    :return:
+    """
     gdf_all = gdf_all.sort_values(by=['datetime_digitized'])
     # Reset index to ensure operations work on sorted data
     gdf_all = gdf_all.reset_index(drop=True)
@@ -203,7 +209,7 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
         lambda bearing: classify_bearing(bearing) if pd.notna(bearing) else None
     )
 
-    # Calculate overlap percentages
+    # Calculate overlap of each image in percentages
     # For simplicity, we'll use a direct approach based on distance and image footprint
     gdf_all['forward_overlap_pct'] = gdf_all.apply(
         lambda row: calculate_forward_overlap(

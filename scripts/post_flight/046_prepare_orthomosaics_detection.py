@@ -129,9 +129,11 @@ def geospatial_data_to_detection_training_data(annotations_file: Path,
 
     logger.info(f"Partitioning annotations into a balanced dataset")
     grid_gdf, gdf_empty_cells = grid_manager.create_balanced_dataset_grids(points_gdf=gdf_points,
-                                               box_size_x=tile_size,
-                                               box_size_y=tile_size,
-                                                                           num_empty_samples=len(gdf_points), object_centered=False, overlap_ratio=0.1)
+                                                                           box_size_x=tile_size,
+                                                                           box_size_y=tile_size,
+                                                                           num_empty_samples=len(gdf_points),
+                                                                           object_centered=False,
+                                                                           overlap_ratio=0.0)
 
     grid_gdf.to_file(vis_output_dir / f"grid_all_{orthomosaic_path.stem}.geojson", driver='GeoJSON', index=False)
 
@@ -286,7 +288,7 @@ if __name__ == "__main__":
             # island_code = orthomosaic_path.parts[-2]
             tile_folder_name = orthomosaic_path.stem
 
-            visualise_crops = False
+            visualise_crops = True
             format = ImageFormat.JPG
 
             herdnet_annotation = geospatial_data_to_detection_training_data(annotations_file=annotations_file,

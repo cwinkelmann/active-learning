@@ -2,6 +2,7 @@ import PIL.Image as PIL_Image
 import geopandas as gpd
 import hashlib
 import pandas as pd
+import pydantic_core
 import time
 import tqdm
 import typing
@@ -577,14 +578,17 @@ def image_metadata_yaw_tilt(img_path: Path) -> CompositeMetaData:
             for key in supposedly_available_keys:
                 exif_metadata[key] = img.get(key)
             img.get("datetime_digitized")
+
             obj_exif_metadata = ExifData(**exif_metadata)
 
 
 
         except AttributeError as e:
-            logger.error(f"No Coordinates, {e}")
+            logger.error(f"No Coordinates, {e} with image {img_path}")
             image_metadata = {}
             return {}
+        except pydantic_core._pydantic_core.ValidationError:
+            logger.error("Image has no complete Exif data, with image {img_path}")
 
     else:
         logger.warning(f"The Image {src} has no EXIF information")

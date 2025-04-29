@@ -4,6 +4,7 @@ Create a database of images
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from loguru import logger
 from pathlib import Path
 
 from active_learning.types.image_metadata import list_images, get_image_metadata, get_image_gdf, \
@@ -43,9 +44,11 @@ def images_data_extraction(images_path: Path):
 
     gdf_image_metadata_ser.to_file(images_path / Path(db_name).with_suffix(".geojson"),
                                  driver="GeoJSON")
+    logger.info(f"Image metadata saved to {images_path / Path(db_name).with_suffix('.geojson')}")
 
     gdf_image_metadata_ser.to_parquet(images_path / Path(db_name).with_suffix(".parquet"),
                        compression="snappy")
+    logger.info(f"Image metadata saved to {images_path / Path(db_name).with_suffix('.parquet')}")
 
     return gdf_image_metadata
 

@@ -36,7 +36,8 @@ def split_and_copy_data(csv_path, empty_images_dir, output_base_dir,
     empty_images_dir = Path(empty_images_dir)
     empty_images = []
     for ext in ['*.jpg', '*.jpeg', '*.png', '*.tif', '*.tiff']:
-        empty_images.extend(list(empty_images_dir.glob(ext)))
+        visible_files = [f for f in empty_images_dir.glob(ext) if not f.name.startswith('.')]
+        empty_images.extend(visible_files)
 
     # Convert to string paths for consistency
     empty_images = [str(img) for img in empty_images]
