@@ -19,3 +19,7 @@ sahi==0.11.20
 osgeo
 piq==0.8.0
 umap-learn
+contextily
+matplotlib_scalebar==0.9.0
+adjustText==1.3.0
+matplotlib-map-utils==3.0.0

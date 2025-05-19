@@ -15,6 +15,9 @@ from active_learning.types.image_metadata import ExposureMode, ExposureProgram, 
 
 import geopandas as gpd
 
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
+
+
 def main(image_base_path: Path, geospatial_output_name: str):
 
 
@@ -37,4 +40,9 @@ def main(image_base_path: Path, geospatial_output_name: str):
 
 if __name__ == "__main__":
     image_base_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_images")
-    main(image_base_path=image_base_path, geospatial_output_name="hasty_annotated_images")
+    df_annoated_images = main(image_base_path=image_base_path, geospatial_output_name="hasty_annotated_images")
+
+    annotation_file = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_hasty_annotation/labels.json")
+    annotations = HastyAnnotationV2.from_file(annotation_file)
+
+    df_annotations_flat = annotations.get_flat_df()
