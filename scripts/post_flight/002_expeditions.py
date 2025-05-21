@@ -1,7 +1,16 @@
+"""
+Plots the Expedition Data for multiple years
+
+TODO next map: where are the data points for volunteers
+
+TODO: One map per island
+"""
+
 import geopandas as gpd
 # Packages used by this tutorial
 import matplotlib.pyplot as plt  # visualization
 import matplotlib.ticker as mticker
+import pandas as pd
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.patches import FancyArrowPatch
 from matplotlib_map_utils.core.inset_map import inset_map, indicate_extent
@@ -10,6 +19,8 @@ from matplotlib_map_utils.core.north_arrow import NorthArrow
 from shapely.geometry import Polygon, MultiPolygon, box
 import pyproj
 import numpy as np
+import numpy as np
+from loguru import logger
 
 web_mercator_projection_epsg = 3857
 
@@ -143,6 +154,12 @@ def add_text_box(ax, text, location='lower left', fontsize=8, alpha=0.8, pad=0.5
     ax.add_artist(text_box)
     return text_box
 
+# Function to find the closest island
+def find_closest_island(point_geometry, islands_gdf, name_col):
+    distances = islands_gdf.distance(point_geometry)
+    min_distance_idx = distances.idxmin()
+    closest_island = islands_gdf.iloc[min_distance_idx]
+    return closest_island[name_col]
 
 
 def get_largest_polygon(geometry):
@@ -155,30 +172,120 @@ def get_largest_polygon(geometry):
 
 def create_galapagos_map(
         gpkg_path="/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
+        fligth_database_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet",
         output_path="galapagos_map.png",
         dpi=300):
     """
     Creates a map of the Galápagos Islands showing data locations and annotations.
     """
+
+    name_col = "gr_isla"
+    name_col = "nombre"
+
     # Load GeoPackage layers
     islands = gpd.read_file(gpkg_path, layer='islands_galapagos')
+    # TODO use the geoparquet instead
+    flight_database = gpd.read_parquet(fligth_database_path).to_crs(epsg=web_mercator_projection_epsg)
+
+    # add year to dataframe to simplify grouping later
+    flight_database['year'] = flight_database['datetime_digitized'].dt.year
 
     # Prepare base plot
-    fig, ax = plt.subplots(figsize=(12, 10))
     islands_wm = islands.to_crs(epsg=web_mercator_projection_epsg)
-    islands_wm = islands_wm[islands_wm['tipo'] == 'Isla']
 
-    # Filter for these islands to plot nicely
-    important_islands = ["Santiago", "Wolf", "Santa Fé", "Española", "Isabela",
-                         "Fernandina", "Floreana", "Santa Cruz", "San Cristóbal",
-                          "Genovesa", "San Cristobal", "Marchena", "Pinta"]
-
-    islands_wm_f = islands_wm[islands_wm['nombre'].isin(important_islands)]
+    islands_isla = islands_wm[islands_wm['tipo'] == 'Isla']
+    #
+    # Dictionary to store folder -> island mapping
+    folder_island_map = {}
     # Determine name column
-    name_col = next((col for col in ['nombre', 'NAME', 'Island'] if col in islands.columns), None)
     if not name_col:
         raise ValueError("No valid name column found for labeling.")
-    islands_wm_f = islands_wm_f.sort_values("porc_area", ascending=False).drop_duplicates(subset=[name_col])
+    islands_wm_f = islands_isla.sort_values("porc_area", ascending=False).drop_duplicates(subset=[name_col])
+
+    # group by island
+    islands_wm_f = islands_wm_f.dissolve(by=name_col, as_index=False)
+
+    for folder_name, group in flight_database.groupby("folder_name"):
+        # Calculate the centroid of all points in this folder
+        # This is more representative than a single point
+        points_unary = group.geometry.union_all()
+
+        # If we got a single point, use it directly; otherwise get the centroid
+        if hasattr(points_unary, 'centroid'):
+            representative_point = points_unary.centroid
+        else:
+            representative_point = points_unary  # It's already a point
+
+        # Find the closest island to this representative point
+        closest_island = find_closest_island(representative_point, islands_wm_f, name_col)
+
+        # Store in our mapping dictionary
+        folder_island_map[folder_name] = closest_island
+
+        logger.info(f"Folder {folder_name}: Closest island is {closest_island}")
+
+    # assign the folder name to the islands dataframe
+    flight_database['main_island'] = flight_database['folder_name'].map(folder_island_map)
+
+    for idx, isla in islands_wm_f.iterrows():
+        island_name = isla[name_col]  # Get the island name from the row
+
+        # Filter flight database for this island
+        flight_database_island = flight_database[flight_database['main_island'] == island_name]
+
+        # If no data for this island, skip it
+        if flight_database_island.empty:
+            print(f"No data for island: {island_name}")
+            continue
+
+        # Get distinct years for this island
+        distinct_years = sorted(flight_database_island['year'].unique())
+        if not distinct_years:
+            logger.error(f"No year data for island: {island_name}")
+            continue
+
+        # Create a figure with subplots - one for each year
+        fig, axes = plt.subplots(1, len(distinct_years), figsize=(6 * len(distinct_years), 8),
+                                 squeeze=False)
+        # Loop through each year for this island
+        for i, year in enumerate(distinct_years):
+            ax = axes[0, i]  # Get the appropriate subplot
+
+            # Filter data for this year
+            year_data = flight_database_island[flight_database_island['year'] == year]
+
+            # Create a GeoDataFrame for just this island
+            gdf_island = gpd.GeoDataFrame(pd.DataFrame([isla]), geometry="geometry", crs=islands_wm_f.crs)
+
+            # Plot the island
+            gdf_island.plot(ax=ax, alpha=0.7, edgecolor='black', color='lightgrey')
+
+            # Plot the points for this year
+            if not year_data.empty:
+                year_data.plot(ax=ax, marker='o', color='red', markersize=5,
+                               label=f"{len(year_data)} photos")
+
+            # Set title and labels
+            ax.set_title(f'{year} ({len(year_data)} photos)', fontsize=12)
+            ax.set_xlabel('Longitude')
+            ax.set_ylabel('Latitude')
+            ax.legend()
+
+            # Add grid lines
+            ax.grid(alpha=0.3)
+
+        # fig.suptitle(f'Photo Locations on {island_name} by Year', fontsize=16)
+
+        plt.tight_layout()
+        # plt.subplots_adjust(top=0.9)  # Make room for suptitle
+        plt.subplots_adjust(top=0.6)  # Uncomment this line and put it AFTER tight_layout
+
+        # Save the figure
+        output_file = f"island_{island_name.replace(' ', '_')}_by_year.png"
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        logger.info(f"Saved plot for {island_name} to {output_file}")
+        plt.show()
+        plt.close(fig)  # Close the figure to free up memory
 
     # Plot all islands
     islands_wm.plot(ax=ax, alpha=0.7, edgecolor='black', color='lightgrey')
@@ -231,7 +338,7 @@ def create_galapagos_map(
 
 
     # Title
-    ax.set_title('Galápagos Islands - Marine Iguana Survey Data', fontsize=14)
+
 
     # Add overview map - Fixed approach
     # Create a new axes for the inset map with absolute positioning
@@ -261,7 +368,8 @@ def create_galapagos_map(
     #     ecuador.plot(ax=axins, color='lightgrey', edgecolor='black', linewidth=0.8)
 
     info_text = """Data source: (Sanchez, 2024), )
-Inset map: Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
+Base map: Islands data from Ecuadorian National Geographic Institute
+Survey period: 2020-2024
 Map projection: Web Mercator (EPSG:3857)
 Marine Iguana population assessment in the Galápagos Archipelago
 HNEE/Winkelmann, 2025"""
@@ -282,7 +390,7 @@ HNEE/Winkelmann, 2025"""
 
 
     # And then in your main function, replace the tick formatter code with:
-    import numpy as np
+
     x_ticks_proj, x_ticks_geo, y_ticks_proj, y_ticks_geo = get_geographic_ticks(ax,
                                                                                 epsg_from=web_mercator_projection_epsg,
                                                                                 epsg_to=4326)
@@ -296,10 +404,31 @@ HNEE/Winkelmann, 2025"""
     ax.set_yticklabels([format_lat_lon(y, 0, is_latitude=True) for y in y_ticks_geo])
 
     # Get the union of all Galápagos islands
-    galapagos_union = islands_wm.geometry.unary_union
+    galapagos_union = islands_wm.geometry.union_all()
+
+    # Get the bounds of the unified geometry
+    galapagos_bounds = galapagos_union.bounds  # This gives (minx, miny, maxx, maxy)
+
+    # # Set appropriate tick intervals based on map extent
+    # x_span = galapagos_bounds[2] - galapagos_bounds[0]
+    # y_span = galapagos_bounds[3] - galapagos_bounds[1]
+    #
+    # # Calculate nice intervals (about 3-5 ticks in each direction)
+    # x_interval = round(x_span / 4, 1)  # Round to nearest 0.1 degree
+    # y_interval = round(y_span / 4, 1)
+    #
+    # # Make sure intervals are at least 0.5 degrees
+    # x_interval = max(0.5, x_interval)
+    # y_interval = max(0.5, y_interval)
+    #
+    # # Set tick positions
+    # x_ticks = mticker.MultipleLocator(x_interval)
+    # y_ticks = mticker.MultipleLocator(y_interval)
+    # ax.xaxis.set_major_locator(x_ticks)
+    # ax.yaxis.set_major_locator(y_ticks)
 
     # Add a light grid
-    ax.grid(linestyle='--', alpha=0.5, zorder=0)
+    ax.grid(linestyle='--', alpha=0.4, zorder=0)
 
     # Style the tick labels
     for tick in ax.get_xticklabels():
@@ -335,8 +464,8 @@ HNEE/Winkelmann, 2025"""
     draw_accurate_scalebar(ax, islands_wm,
                            location=(islands_wm.total_bounds[0] + 100,
                                      islands_wm.total_bounds[1] + 100),
-                           length_km=90,  # Total length in km
-                           segments=3,
+                           length_km=100,  # Total length in km
+                           segments=4,
                            height=6500)
 
     # draw_segmented_scalebar(ax, start=(islands_wm.total_bounds[0], islands_wm.total_bounds[1]),
@@ -350,8 +479,8 @@ HNEE/Winkelmann, 2025"""
     plt.tight_layout()
     plt.savefig(output_path, dpi=dpi, bbox_inches='tight')
     plt.show()
-    print(f"Map saved to {output_path}")
+    logger.info(f"Map saved to {output_path}")
 
 
 if __name__ == "__main__":
-    create_galapagos_map()
+    create_galapagos_map(gpkg_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/sampling_issues.gpkg")
