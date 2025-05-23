@@ -65,7 +65,7 @@ def create_galapagos_map(
         "Santa Cruz": (35000, 10000),
         "San Cristóbal": (70000, -10000),
         "Genovesa": (10000, 10000),
-        "San Cristobal": (10000, 20000),
+        "San Cristobal": (10000, 23000),
         "Marchena": (10000, 10000),
         "Pinta": (10000, 10000),
 

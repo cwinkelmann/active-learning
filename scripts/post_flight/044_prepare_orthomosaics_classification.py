@@ -241,6 +241,7 @@ if __name__ == "__main__":
     # orthomosaic_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/DD_MS_COG_ALL/Fer/Fer_FNE02_19122021.tif")
     resolution = 224 
     scale_factor = 2
+    visualise_crops = False
 
     # See 043_reorganise_shapefiles for the creation of this file
     orthomosaic_shapefile_mapping_path = Path(
@@ -296,7 +297,7 @@ if __name__ == "__main__":
             # island_code = orthomosaic_path.parts[-2]
             tile_folder_name = orthomosaic_path.stem
 
-            visualise_crops = False
+
             format = ImageFormat.JPG
 
             herdnet_annotation = geospation_data_to_classification_training_data(annotations_file=annotations_file,

@@ -199,6 +199,23 @@ def create_galapagos_map(
 
     # Add year to dataframe to simplify grouping later
     flight_database['year'] = flight_database['datetime_digitized'].dt.year
+    flight_database['month'] = flight_database['datetime_digitized'].dt.month
+    flight_database['year_month'] = flight_database['datetime_digitized'].dt.strftime('%Y_%m')
+
+    expedition_mapping = {
+        "2020_01": 1,
+        "2021_01": 2,
+        "2021_02": 2,
+        "2021_12": 3,
+        "2023_01": 4,
+        "2023_02": 4,
+        "2024_01": 5, # from the El Niño folder
+        "2024_04": 6, # from the El Niño folder
+        "2024_05": 6, # from the El Niño folder
+
+    }
+    # Map the expedition phases
+    flight_database['expedition_phase'] = flight_database['year_month'].map(expedition_mapping)
 
     # Convert islands to WGS84 for easier reprojection later
     islands_wgs84 = islands.to_crs(epsg=4326)
@@ -263,13 +280,13 @@ def create_galapagos_map(
             continue
 
         # Get distinct years for this island
-        distinct_years = sorted(flight_database_island['year'].unique())
-        if not distinct_years:
+        distinct_expedition = sorted(flight_database_island['expedition_phase'].unique())
+        if not distinct_expedition:
             logger.error(f"No year data for island: {island_name}")
             continue
 
         # Create a figure with subplots - one for each year
-        fig, axes = plt.subplots(1, len(distinct_years), figsize=(6 * len(distinct_years), 8),
+        fig, axes = plt.subplots(1, len(distinct_expedition), figsize=(6 * len(distinct_expedition), 8),
                                  squeeze=False)
 
         # Project the island to its UTM zone
@@ -277,11 +294,11 @@ def create_galapagos_map(
         gdf_island_utm = gdf_island_utm.to_crs(epsg=utm_epsg)
 
         # Loop through each year for this island
-        for i, year in enumerate(distinct_years):
+        for i, expedition_phase in enumerate(distinct_expedition):
             ax = axes[0, i]  # Get the appropriate subplot
 
             # Filter data for this year
-            year_data = flight_database_island[flight_database_island['year'] == year]
+            year_data = flight_database_island[flight_database_island['expedition_phase'] == expedition_phase]
 
             # Project year data to the island's UTM zone
             year_data_utm = year_data.to_crs(epsg=utm_epsg)
@@ -348,7 +365,7 @@ def create_galapagos_map(
             ax.set_yticklabels([f"{y / 1000:.0f}" for y in y_ticks])
 
             # Set title and labels with UTM zone info
-            ax.set_title(f'{year}', fontsize=12)
+            ax.set_title(f'Expedition Phase {expedition_phase}', fontsize=12)
             ax.set_xlabel(f'Easting (km, UTM {utm_zone})')
             ax.set_ylabel(f'Northing (km, UTM {utm_zone})')
 

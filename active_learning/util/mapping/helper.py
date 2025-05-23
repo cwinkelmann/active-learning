@@ -137,18 +137,37 @@ def draw_segmented_scalebar(ax, start=(0.1, 0.05), segments=4, segment_length=10
             f"{final_length:.0f} {final_units}", ha='center', va='top', fontsize=8)
 
 
-def add_text_box(ax, text, location='lower left', fontsize=8, alpha=0.8, pad=0.5, frameon=True):
-    """Add a text box to the map"""
-    text_box = AnchoredText(
-        text,
-        loc=location,
-        frameon=frameon,
-        prop=dict(fontsize=fontsize, backgroundcolor='white', alpha=alpha),
-        pad=pad,
-        borderpad=pad
-    )
-    ax.add_artist(text_box)
-    return text_box
+def add_text_box(ax, text, location='lower left', fontsize=8, alpha=0.8, pad=0.5, frameon=True, xy=None):
+    """Add a text box to the map with flexible positioning"""
+
+    if xy is not None:
+        # Use custom coordinates (x, y) - can be in data coordinates or axes fraction
+        text_box = ax.text(
+            xy[0], xy[1], text,
+            fontsize=fontsize,
+            bbox=dict(
+                boxstyle=f"round,pad={pad}",
+                facecolor='white',
+                alpha=alpha,
+                edgecolor='black' if frameon else 'none'
+            ),
+            transform=ax.transAxes if isinstance(xy[0], float) and 0 <= xy[0] <= 1 else ax.transData,
+            verticalalignment='top',
+            horizontalalignment='left'
+        )
+        return text_box
+    else:
+        # Use original AnchoredText approach
+        text_box = AnchoredText(
+            text,
+            loc=location,
+            frameon=frameon,
+            prop=dict(fontsize=fontsize, backgroundcolor='white', alpha=alpha),
+            pad=pad,
+            borderpad=pad
+        )
+        ax.add_artist(text_box)
+        return text_box
 
 
 
@@ -168,3 +187,42 @@ def find_closest_island(point_geometry, islands_gdf, name_col):
     return closest_island[name_col]
 
 
+def mission_extend(gdf_mission) -> gpd.GeoDataFrame:
+    """
+    Extend the mission by 10% in each direction
+    :param gdf_mission: GeoDataFrame with the mission
+    :return: extended GeoDataFrame
+    """
+
+    # Get the bounding box of the mission
+    minx, miny, maxx, maxy = gdf_mission.total_bounds
+
+    # Calculate the width and height of the bounding box
+    width = maxx - minx
+    height = maxy - miny
+
+    # Calculate the extension in each direction (10% of width/height)
+    x_extension = 0.1 * width
+    y_extension = 0.1 * height
+
+    # Create a new bounding box with the extension
+    extended_bbox = box(minx - x_extension, miny - y_extension, maxx + x_extension, maxy + y_extension)
+
+    # Create a new GeoDataFrame with the extended bounding box
+    gdf_extended = gpd.GeoDataFrame(geometry=[extended_bbox], crs=gdf_mission.crs)
+
+    return gdf_extended
+
+def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
+    """
+    Calculate the flight length of the mission
+    :param gdf_mission: GeoDataFrame with the mission
+    :return: flight length in meters
+    """
+    # Get the geometry of the mission
+    mission_geometry = gdf_mission.geometry.values[0]
+
+    # Calculate the length of the mission in meters
+    flight_length = mission_geometry.length
+
+    return flight_length
