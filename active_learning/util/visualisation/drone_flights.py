@@ -397,7 +397,19 @@ def visualise_height_profile(date: str,
 
 
 def visualise_flights(date: str, site: str, site_code: str, group_data: gpd.GeoDataFrame, figure_path = None):
-    # Visualise the flight
+    """
+    Visualize flight paths and altitude profiles for a given date and site.
+    :param date:
+    :param site:
+    :param site_code:
+    :param group_data:
+    :param figure_path:
+    :return:
+    """
+    logger.info(f"Visualising flight paths for {site} at {date}")
+    logger.warning(f"Deprecated, use visualise_flights_speed_multiple")
+
+
     fig, ax = visualise_height_profile(date, site, site_code, group_data)
     if figure_path:
         fig.savefig(figure_path / f"{site_code}_{date}_altitude_profile.png")

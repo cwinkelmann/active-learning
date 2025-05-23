@@ -128,7 +128,8 @@ def geospation_data_to_classification_training_data(annotations_file: Path,
     logger.info(f"Partitioning annotations into a balanced dataset")
     grid_gdf, gdf_empty_cells = grid_manager.create_balanced_dataset_grids(points_gdf=gdf_points,
                                                box_size_x=tile_size,
-                                               box_size_y=tile_size, num_empty_samples=len(gdf_points))
+                                               box_size_y=tile_size,
+                                                                           num_empty_samples=len(gdf_points))
 
 
 
@@ -245,7 +246,7 @@ if __name__ == "__main__":
 
     # See 043_reorganise_shapefiles for the creation of this file
     orthomosaic_shapefile_mapping_path = Path(
-        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/enriched_GIS_progress_report_with_stats.csv")
+        "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats.csv")
     df_mapping = pd.read_csv(orthomosaic_shapefile_mapping_path)
 
     tile_size = resolution // scale_factor
@@ -270,7 +271,8 @@ if __name__ == "__main__":
         try:
             quality = row["Orthophoto/Panorama quality"]
             if quality == "Bad":
-                continue
+                logger.warning(f"This orthomosaic is of bad quality: {row}")
+
             HasAgisoftOrthomosaic = row["HasAgisoftOrthomosaic"]
             HasDroneDeployOrthomosaic = row["HasDroneDeployOrthomosaic"]
             HasShapefile = row["HasShapefile"]

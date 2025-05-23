@@ -35,5 +35,13 @@ class AnnotationFileNotSetError(InvalidLabelError):
     def __init__(self, message: str = "Annotation file not set") -> None:
         super().__init__(message)
 
+
+class OrthomosaicNotSetError(ValueError):
+    """Exception raised when the Orthomosaic file is not set."""
+
+    def __init__(self, message: str = "Annotation file not set") -> None:
+        super().__init__(message)
+
+
 class ProjectionError(ValueError):
     pass

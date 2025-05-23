@@ -4,19 +4,15 @@
 
 import geopandas as gpd
 # Packages used by this tutorial
-import matplotlib.pyplot as plt  # visualization
-import matplotlib.ticker as mticker
 import pandas as pd
-from matplotlib.offsetbox import AnchoredText
-from matplotlib.patches import FancyArrowPatch
-from matplotlib_map_utils.core.inset_map import inset_map, indicate_extent
-# Importing the main package
-from matplotlib_map_utils.core.north_arrow import NorthArrow
-from shapely.geometry import Polygon, MultiPolygon, box
 import pyproj
+from matplotlib.offsetbox import AnchoredText
+# Importing the main package
+from shapely.geometry import Polygon, MultiPolygon, box
+import matplotlib.pyplot as plt
 import numpy as np
-import numpy as np
-from loguru import logger
+import geopandas as gpd
+from matplotlib import cm
 
 
 def format_lat_lon(value, pos, is_latitude=True, rounding=1):
@@ -179,6 +175,139 @@ def get_largest_polygon(geometry):
     return None
 
 
+def get_islands(
+    gpkg_path = "/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
+    fligth_database_path = "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet",
+    output_path = "galapagos_map.png",
+    dpi = 300,
+    web_mercator_projection_epsg= 3857):
+    """
+    Creates a map of the Galápagos Islands showing data locations and annotations.
+    """
+
+    name_col = "gr_isla"
+    name_col = "nombre"
+
+    island_plot_config = {
+
+
+    "Bartolome": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (1200, 30), "length_km": 1, "segments": 4, "height": 50},
+    },
+    "Caamaño": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (0, 20), "length_km": 0.1, "segments": 4, "height": 50},
+    },
+    "Santiago": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+    },
+    "Wolf": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "San Cristobal": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+    },
+    "Lobos": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Santa Fé": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+    },
+    "Santa Cruz": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
+    },
+    "Rabida": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Pinzón": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Pinta": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Marchena": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Isabela": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+    },
+    "Tortuga": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Genovesa": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Fernandina": {
+        "utm_zone": "15M",
+        "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+    },
+    "Floreana": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
+    },
+    "Gardner por Floreana": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Caldwell": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Albany": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    "Española": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
+    },
+    "Daphne Major": {
+        "utm_zone": "16M",
+        "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+    },
+    }
+
+
+    # Load GeoPackage layers
+    islands = gpd.read_file(gpkg_path, layer='islands_galapagos')
+    # TODO use the geoparquet instead
+    flight_database = gpd.read_parquet(fligth_database_path).to_crs(epsg=web_mercator_projection_epsg)
+
+    # add year to dataframe to simplify grouping later
+    flight_database['year'] = flight_database['datetime_digitized'].dt.year
+
+    # Prepare base plot
+    islands_wm = islands.to_crs(epsg=web_mercator_projection_epsg)
+
+    islands_isla = islands_wm[islands_wm['tipo'] == 'Isla']
+    #
+    # Dictionary to store folder -> island mapping
+    folder_island_map = {}
+    # Determine name column
+    if not name_col:
+        raise ValueError("No valid name column found for labeling.")
+    islands_wm_f = islands_isla.sort_values("porc_area", ascending=False).drop_duplicates(subset=[name_col])
+
+    # group by island
+    islands_wm_f = islands_wm_f.dissolve(by=name_col, as_index=False)
+
+    return islands_wm_f
+
+
 # Function to find the closest island
 def find_closest_island(point_geometry, islands_gdf, name_col):
     distances = islands_gdf.distance(point_geometry)
@@ -226,3 +355,5 @@ def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
     flight_length = mission_geometry.length
 
     return flight_length
+
+
