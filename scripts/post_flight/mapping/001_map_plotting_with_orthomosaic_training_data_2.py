@@ -1,5 +1,7 @@
 """
-Creates an overall Galápagos Islands map, then add the training data of orhomosaic origin
+Creates an overall Galápagos Islands map, then add the training data of orhomosaics origin
+
+001_map_plotting_with_orthomosaic_training_data_2
 
 See 044_prepare_orthomosaic_classifiation for the complete pipeline
 """
@@ -21,60 +23,12 @@ from active_learning.types.Exceptions import NoLabelsError, AnnotationFileNotSet
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
     draw_accurate_scalebar, get_geographic_ticks
+from active_learning.util.mapping.plots import plot_orthomomsaic_training_data
 from active_learning.util.projection import project_gdfcrs
 from com.biospheredata.converter.HastyConverter import ImageFormat
 from geospatial_transformations import get_geotiff_compression, get_gsd
+import networkx as nx
 
-
-def geospatial_training_data(annotations_file: Path,
-                             orthomosaic_path: Path,
-                             vis_output_dir: Path,
-                             ) -> typing.Tuple[Path, gpd.GeoDataFrame, gpd.GeoDataFrame, float]:
-    """
-    Convert geospatial annotations to create training data for herdnet out of geospatial dots
-    :param annotations_file:
-    :param orthomosaic_path:
-    :param island_code:
-    :param tile_folder_name:
-    :param output_dir:
-    :param output_empty_dir:
-    :param tile_size:
-    :param vis_output_dir:
-    :param visualise_crops:
-    :param format:
-    :return:
-    """
-
-
-    gdf_points = gpd.read_file(annotations_file)
-    gdf_points["image_name"] = orthomosaic_path.name
-
-
-
-    # incase the orthomosaic has a different CRS than the annotations # TODO check if I really want to do this here
-    gdf_points = project_gdfcrs(gdf_points, orthomosaic_path)
-    # project the global coordinates to the local coordinates of the orthomosaic
-
-
-    # Then I could use the standard way of slicing the orthomosaic into tiles and save the tiles to a CSV file
-    cog_compression = get_geotiff_compression(orthomosaic_path)
-    logger.info(f"COG compression: {cog_compression}")
-    gsd_x, gsd_y = get_gsd(orthomosaic_path)
-    if round(gsd_x, 4) == 0.0093:
-        logger.warning(
-            "You are either a precise pilot or you wasted quality by using 'DroneDeploy', which caps Orthophoto GSD at about 0.93cm/px, compresses images a lot and throws away details")
-
-    # TODO make sure the CRS is the for both
-
-    logger.info(f"Ground Sampling Distance (GSD): {100 * gsd_x:.3f} x {100 * gsd_y:.3f} cm/px")
-    # Run the function
-
-    grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
-    raster_mask_path = vis_output_dir / f"raster_mask_{orthomosaic_path.stem}.geojson"
-    grid_manager.gdf_raster_mask.to_file(filename=raster_mask_path , driver='GeoJSON')
-
-
-    return raster_mask_path, grid_manager.gdf_raster_mask, gdf_points, gsd_x
 
 
 
@@ -307,7 +261,7 @@ def create_galapagos_expedition_map(
             print(f"{expedition_labels[phase]}: {len(phase_data)} photos")
 
 
-import networkx as nx
+
 
 
 def group_nearby_polygons_simple(gdf, buffer_distance=250):
@@ -381,151 +335,8 @@ if __name__ == "__main__":
         "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet")
     gdf_flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=EPSG_WGS84)
 
-    # How many unique flights (mission_folder) are in the flight database?
-    amount_missions = gdf_flight_database["mission_folder"].nunique()
-    logger.info(f"Amount of missions: {amount_missions}")
-    stats_collection["amount_missions"] = amount_missions
-
-    # full_hasty_annotation_file_path = Path(
-    #     "/Users/christian/data/training_data/2025_04_18_all/unzipped_hasty_annotation/labels.json")
-    # hasty_images_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_images")
-
-    # See 043_reorganise_shapefiles for the creation of this file
-    orthomosaic_shapefile_mapping_path = Path(
-        "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats.csv")
-    df_mapping = pd.read_csv(orthomosaic_shapefile_mapping_path)
-
-    df_mapping = df_mapping[df_mapping["terrain"] == "flat"]
-    df_mapping["parsed_date"] = pd.to_datetime(df_mapping["Date"], format='%d.%m.%Y', errors='coerce')
-
-    stats_collection["supposedly_labeled_orthomsaics"] = len(df_mapping)
-    # which user counted on how many orthomosaics?
-    stats_collection["count_by_user"] = df_mapping["Expert"].value_counts().to_dict()
-    stats_collection["count_by_stitching_software"] = df_mapping["Orthophoto/Panorama"].value_counts().to_dict()
-
-
-
-
-
-    for index, row in df_mapping.iterrows():
-        try:
-            quality = row["Orthophoto/Panorama quality"]
-            if quality == "Bad":
-                logger.warning(f"This orthomosaic is of bad quality: {row['Orthophoto/Panorama name']}")
-
-            HasAgisoftOrthomosaic = row["HasAgisoftOrthomosaic"]
-            HasDroneDeployOrthomosaic = row["HasDroneDeployOrthomosaic"]
-            HasShapefile = row["HasShapefile"]
-            annotations_file = row["shp_file_path"]
-
-
-            if HasShapefile:
-                try:
-                    # replace base path with the new path
-                    annotations_file = annotations_file.replace(
-                        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations",
-                        "/Volumes/2TB/Manual_Counting/Geospatial_Annotations")
-                    annotations_file = Path(annotations_file)
-
-                    row["shp_file_path"] = annotations_file
-
-
-                except Exception as e:
-                    raise AnnotationFileNotSetError(f"Could not set annotations file: {annotations_file}")
-            else:
-                raise AnnotationFileNotSetError(f"Could not set annotations file, because it is None")
-
-            if HasAgisoftOrthomosaic or HasDroneDeployOrthomosaic:
-                orthomosaic_path = row["images_path"]
-                # raplace base path with the new path
-                orthomosaic_path = orthomosaic_path.replace(
-                    "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/",
-                    "/Volumes/2TB/Manual_Counting/")
-                orthomosaic_path = Path(orthomosaic_path)
-
-                row["images_path"] = orthomosaic_path
-            else:
-                raise OrthomosaicNotSetError(f"No Orthomosaic found for {row['Orthophoto/Panorama name']}")
-
-            island_code = row["island_code"]
-            logger.info(f"Processing {orthomosaic_path.name}")
-
-            # if not orthomosaic_path.name == "Esp_EGB02_12012021.tif":
-            #     continue
-
-            # island_code = orthomosaic_path.parts[-2]
-            tile_folder_name = orthomosaic_path.stem
-
-
-            raster_mask_path, gdfraster_mask, gdf_annotations, gsd = geospatial_training_data(annotations_file=annotations_file,
-                                                                                              orthomosaic_path=orthomosaic_path,
-                                                                                              vis_output_dir=vis_output_dir,
-                                                                                              )
-
-            gdfraster_mask = gdfraster_mask.to_crs(epsg=EPSG_WGS84)
-            gdf_annotations = gdf_annotations.to_crs(epsg=EPSG_WGS84)
-
-            usable_training_data_row = row.copy()
-            usable_training_data_row["orthomosaic_path"] = orthomosaic_path
-
-
-            usable_training_data_row["annotations_file"] = annotations_file
-
-
-            usable_training_data_row["raster_mask"] = unary_union(gdfraster_mask.geometry).iloc[0]
-            usable_training_data_row["area"] = gdfraster_mask.area.sum()
-            usable_training_data_row["gsd"] = gsd
-            usable_training_data_row["source_crs"] = gdfraster_mask.crs.to_epsg()
-
-            if not gdf_annotations.empty:
-                gdf_annotations = gdf_annotations.assign(**usable_training_data_row[["Orthophoto/Panorama name","gsd"]].to_dict())
-                usable_training_annotations.append(gdf_annotations)
-
-            if int(row["Number of iguanas"]) != int(row["number_of_iguanas_shp"]):
-                raise NotEnoughLabelsError(f"Not enough labels found in {annotations_file}")
-
-            usable_training_data.append(usable_training_data_row)
-
-        except ProjectionError:
-            row["reason"] = "ProjectionError"
-            logger.error(f"ProjectionError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-        except KeyError:
-            row["reason"] = "KeyError"
-            logger.error(f"KeyError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-        except NoLabelsError:
-            row["reason"] = "NoLabelsError"
-            logger.error(f"NoLabelsError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-        except NotEnoughLabelsError:
-            row["reason"] = "NotEnoughLabelsError"
-            logger.error(f"NotEnoughLabelsError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-        except AnnotationFileNotSetError:
-            row["reason"] = "AnnotationFileNotSetError"
-            logger.error(f"AnnotationFileNotSetError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-        except OrthomosaicNotSetError:
-            row["reason"] = "OrthomosaicNotSetError"
-            logger.error(f"OrthomosaicNotSetError: {row['Orthophoto/Panorama name']}")
-            problematic_data_pairs.append(row)
-
-
-    pd.DataFrame([dict(record) for record in problematic_data_pairs]).to_csv("problematic_data_pairs.csv", index=False)
-    df_usable_training_data = pd.DataFrame(usable_training_data)
-    df_usable_training_data.rename(columns={"raster_mask": "geometry"}, inplace=True)
-    df_usable_training_annotations = pd.concat(usable_training_annotations, axis=0, ignore_index=True)
-
-    df_usable_training_data.to_csv("usable_training_data.csv", index=False)
-
-    stats_collection["usable_training_data"] = len(df_usable_training_data)
-
-    gdf_usable_training_data_raster_mask = gpd.GeoDataFrame(df_usable_training_data, geometry="geometry", crs=EPSG_WGS84)
-    gdf_usable_training_annotations = gpd.GeoDataFrame(df_usable_training_annotations, geometry="geometry", crs=EPSG_WGS84)
-
-    gdf_usable_training_data_raster_mask.to_file(filename="usable_training_data_raster_mask.geojson", driver="GeoJSON")
-    gdf_usable_training_annotations.to_file(filename="usable_training_data_annotations.geojson", driver="GeoJSON")
+    gdf_usable_training_data_raster_mask = gpd.read_file(filename="usable_training_data_raster_mask.geojson")
+    gdf_usable_training_annotations = gpd.read_file(filename="usable_training_data_annotations.geojson")
 
     # TODO seperate the generation of these files and this clustering step
 
@@ -540,10 +351,20 @@ if __name__ == "__main__":
         if group_id == -1:  # Skip ungrouped/noise points
             continue
 
-        # TODO get the extent of the group
+        # get the extent of the group
         group_extent = group_gdf.total_bounds
 
+        gdf_group_usable_training_annotations = gdf_usable_training_annotations.clip(group_extent)
 
+        # TODO plot the group extent containing the polygons, island, and annotations
+        # Plot the group
+        plot_orthomomsaic_training_data(
+            group_extent=group_extent,
+            group_gdf=group_gdf,
+            gdf_group_annotations=gdf_group_usable_training_annotations,
+            group_id=group_id,
+            output_dir=vis_output_dir
+        )
 
         # Save as GeoJSON
         filename = f"group_{group_id}.geojson"
