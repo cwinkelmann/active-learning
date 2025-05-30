@@ -1,12 +1,5 @@
-import typing
-from loguru import logger
-from matplotlib_map_utils import inset_map, indicate_extent
-
-from active_learning.util.mapping.helper import get_islands
-from active_learning.util.visualisation.drone_flights import visualise_flights
-
 """
-plot the training data to illustrate what is annotated and what is not
+plot the individual training data on each island to illustrate what is annotated and what is not
 
 1. get the database from all images every taken and the hasty annotateed images. The latter are still in the old name schema
 
@@ -15,6 +8,15 @@ There are two types: the orthomosaics and the direct drone shots
 
 
 """
+
+import typing
+from loguru import logger
+from matplotlib_map_utils import inset_map, indicate_extent
+
+from active_learning.util.mapping.helper import get_islands
+from active_learning.util.visualisation.drone_flights import visualise_flights
+
+
 
 
 

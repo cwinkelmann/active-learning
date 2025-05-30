@@ -114,7 +114,7 @@ def geospation_data_to_classification_training_data(annotations_file: Path,
     gsd_x, gsd_y = get_gsd(orthomosaic_path)
     if round(gsd_x, 4) == 0.0093:
         logger.warning(
-            "You are either a precise pilot or you wasted quality by using drone deploy, which caps images at about 0.93cm/px, compresses images a lot throws away details")
+            "You are either a precise pilot or you wasted quality by using 'DroneDeploy', which caps Orthophoto GSD at about 0.93cm/px, compresses images a lot and throws away details")
 
     # TODO make sure the CRS is the for both
 

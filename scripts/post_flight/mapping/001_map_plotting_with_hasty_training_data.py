@@ -1,82 +1,27 @@
 """
-Creates an overall Galápagos Islands map add the training data of orhomosaic origin
-
-See 044_prepare_orthomosaic_classifiation for the complete pipeline
+Creates an overall Galápagos Islands map add the hasty  training data of hasty origin
 """
+from pathlib import Path
+
 import geopandas
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+from matplotlib.offsetbox import AnchoredText
+from matplotlib.patches import FancyArrowPatch
+from matplotlib_map_utils.core.inset_map import inset_map, indicate_extent
+from matplotlib_map_utils.core.north_arrow import NorthArrow
+from shapely.geometry import Polygon, MultiPolygon, box
+import pyproj
+import numpy as np
 import pandas as pd
 from loguru import logger
-from matplotlib_map_utils.core.north_arrow import NorthArrow
-from pathlib import Path
-from shapely.geometry import box
 
 from active_learning.database import images_data_extraction, derive_image_metadata
-from active_learning.types.Exceptions import NoLabelsError, AnnotationFileNotSetError, ProjectionError, \
-    OrthomosaicNotSetError
-from active_learning.util.geospatial_slice import GeoSpatialRasterGrid
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks
-from active_learning.util.projection import project_gdfcrs
-from com.biospheredata.converter.HastyConverter import ImageFormat
-from geospatial_transformations import get_geotiff_compression, get_gsd
+    draw_accurate_scalebar, get_geographic_ticks, find_closest_island
 
 web_mercator_projection_epsg = 3857
-
-def geospation_training_data(annotations_file: Path,
-                                                    orthomosaic_path: Path,
-                                                    vis_output_dir: Path,
-                                                    ):
-    """
-    Convert geospatial annotations to create training data for herdnet out of geospatial dots
-    :param annotations_file:
-    :param orthomosaic_path:
-    :param island_code:
-    :param tile_folder_name:
-    :param output_dir:
-    :param output_empty_dir:
-    :param tile_size:
-    :param vis_output_dir:
-    :param visualise_crops:
-    :param format:
-    :return:
-    """
-
-
-    gdf_points = gpd.read_file(annotations_file)
-    gdf_points["image_name"] = orthomosaic_path.name
-
-    if len(gdf_points) == 0:
-        raise NoLabelsError(f"No labels found in {annotations_file}")
-
-
-    # incase the orthomosaic has a different CRS than the annotations # TODO check if I really want to do this here
-    gdf_points = project_gdfcrs(gdf_points, orthomosaic_path)
-    # project the global coordinates to the local coordinates of the orthomosaic
-
-
-    # Then I could use the standard way of slicing the orthomosaic into tiles and save the tiles to a CSV file
-    cog_compression = get_geotiff_compression(orthomosaic_path)
-    logger.info(f"COG compression: {cog_compression}")
-    gsd_x, gsd_y = get_gsd(orthomosaic_path)
-    if round(gsd_x, 4) == 0.0093:
-        logger.warning(
-            "You are either a precise pilot or you wasted quality by using drone deploy, which caps images at about 0.93cm/px, compresses images a lot throws away details")
-
-    # TODO make sure the CRS is the for both
-
-    logger.info(f"Ground Sampling Distance (GSD): {100 * gsd_x:.3f} x {100 * gsd_y:.3f} cm/px")
-    # Run the function
-
-    grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
-    raster_mask_path = vis_output_dir / f"raster_mask_{orthomosaic_path.stem}.geojson"
-    grid_manager.gdf_raster_mask.to_file(filename=raster_mask_path , driver='GeoJSON')
-
-
-    return grid_manager.gdf_raster_mask, gdf_points, gsd_x
-
-
 
 def create_galapagos_expedition_map(
         gdf_flight_database: geopandas.GeoDataFrame,
@@ -318,96 +263,6 @@ if __name__ == "__main__":
     full_hasty_annotation_file_path = Path(
         "/Users/christian/data/training_data/2025_04_18_all/unzipped_hasty_annotation/labels.json")
     hasty_images_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_images")
-
-    # See 043_reorganise_shapefiles for the creation of this file
-    orthomosaic_shapefile_mapping_path = Path(
-        "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats.csv")
-    df_mapping = pd.read_csv(orthomosaic_shapefile_mapping_path)
-
-
-    analysis_output_dir = Path("/Volumes/2TB/DD_MS_COG_ALL_TILES/herdnet_analysis/")
-    vis_output_dir = Path("/Volumes/2TB/DD_MS_COG_ALL_TILES/visualisation")
-
-    analysis_output_dir.mkdir(parents=True, exist_ok=True)
-    vis_output_dir.mkdir(parents=True, exist_ok=True)
-
-    herdnet_annotations = []
-    problematic_data_pairs = []
-
-    for index, row in df_mapping.iterrows():
-        print(f"Processing {index}")
-        try:
-            quality = row["Orthophoto/Panorama quality"]
-            if quality == "Bad":
-                logger.warning(f"This orthomosaic is of bad quality: {row}")
-
-            HasAgisoftOrthomosaic = row["HasAgisoftOrthomosaic"]
-            HasDroneDeployOrthomosaic = row["HasDroneDeployOrthomosaic"]
-            HasShapefile = row["HasShapefile"]
-            annotations_file = row["shp_file_path"]
-
-
-
-            if HasShapefile:
-                try:
-                    # replace base path with the new path
-                    annotations_file = annotations_file.replace(
-                        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations",
-                        "/Volumes/2TB/Manual_Counting/Geospatial_Annotations")
-                    annotations_file = Path(annotations_file)
-                except Exception as e:
-                    raise AnnotationFileNotSetError(f"Could not set annotations file: {annotations_file}")
-            else:
-                raise AnnotationFileNotSetError(f"Could not set annotations file, because it is None")
-
-            if HasAgisoftOrthomosaic or HasDroneDeployOrthomosaic:
-                orthomosaic_path = row["images_path"]
-                # raplace base path with the new path
-                orthomosaic_path = orthomosaic_path.replace(
-                    "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/",
-                    "/Volumes/2TB/Manual_Counting/")
-                orthomosaic_path = Path(orthomosaic_path)
-            else:
-                raise OrthomosaicNotSetError(f"No Orthomosaic found for {row['Orthophoto/Panorama name']}")
-
-            island_code = row["island_code"]
-            logger.info(f"Processing {orthomosaic_path.name}")
-
-            # if not orthomosaic_path.name == "Esp_EGB02_12012021.tif":
-            #     continue
-
-            # island_code = orthomosaic_path.parts[-2]
-            tile_folder_name = orthomosaic_path.stem
-
-
-            raster_mask, annotations, gsd = geospation_training_data(annotations_file=annotations_file,
-                                                                                 orthomosaic_path=orthomosaic_path,
-                                                                                 vis_output_dir=vis_output_dir,
-                                                                                 )
-        except ProjectionError:
-            row["reason"] = "ProjectionError"
-            problematic_data_pairs.append(row)
-            logger.error(f"ProjectionError: {row}")
-        except KeyError:
-            row["reason"] = "KeyError"
-            logger.error(f"KeyError: {row}")
-            problematic_data_pairs.append(row)
-        except NoLabelsError:
-            row["reason"] = "NoLabelsError"
-            logger.error(f"KeyError: {row}")
-            problematic_data_pairs.append(row)
-        except AnnotationFileNotSetError:
-            row["reason"] = "AnnotationFileNotSetError"
-            logger.error(f"AnnotationFileNotSetError: {row}")
-            problematic_data_pairs.append(row)
-        except OrthomosaicNotSetError:
-            row["reason"] = "OrthomosaicNotSetError"
-            logger.error(f"OrthomosaicNotSetError: {row}")
-            problematic_data_pairs.append(row)
-
-    # TODO check how many of the rasters contain points
-
-
 
     gdf_hasty_image_metadata = images_data_extraction(hasty_images_path)
 

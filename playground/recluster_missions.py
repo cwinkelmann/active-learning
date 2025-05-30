@@ -60,7 +60,7 @@ gdf_Oblique = gdf_all[gdf_all["GimbalPitc"] >= -80.0]
 eps_distance = 300  # Distance threshold (in meters) for clustering
 min_samples = 30  # Minimum points to form a cluster
 
-def cluster_missions(gdf: geopandas.GeoDataFrame , eps_distance=300, min_samples=30):
+def cluster_missions(gdf: geopandas.GeoDataFrame , eps_distance=300, min_samples=30) -> gpd.GeoDataFrame:
 
     # Extract coordinates
     # coords = np.array(list(zip(gdf.geometry.x, gdf.geometry.y)))
