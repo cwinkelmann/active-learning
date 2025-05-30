@@ -10,38 +10,11 @@ import pyproj
 import numpy as np
 
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks
+    draw_accurate_scalebar, get_geographic_ticks, island_utm_zones
 
 web_mercator_projection_epsg = 3857
 
-# Dictionary mapping islands to their correct UTM zones
-# Corrected to use proper N/S hemisphere designations
-island_utm_zones = {
-    "Bartolome": "15S",    # ~-90.56°, south of equator
-    "Caamaño": "15S",      # ~-90.3°, south of equator near Santa Cruz
-    "Santiago": "15S",     # ~-90.8°, straddles equator but mostly south
-    "Wolf": "15N",         # ~-91.8°, north of equator
-    "Darwin": "15N",         # ~-91.8°, north of equator
-    "San Cristobal": "16S", # ~-89.6°, south of equator
-    "Lobos": "16S",        # ~-89.6°, south of equator, near San Cristobal
-    "Santa Fé": "15S",     # ~-90.4°, south of equator
-    "Santa Cruz": "15S",   # ~-90.3°, south of equator
-    "Baltra": "15S",   # ~-90.3°, south of equator
-    "Rabida": "15S",       # ~-90.7°, south of equator
-    "Pinzón": "15S",       # ~-90.6°, south of equator
-    "Pinta": "15N",        # ~-90.75°, north of equator
-    "Marchena": "15N",     # ~-90.5°, north of equator
-    "Isabela": "15S",      # ~-91.1°, straddles equator but mostly south
-    "Tortuga": "15S",      # ~-91.4°, south of equator
-    "Genovesa": "16N",     # ~-89.95°, north of equator
-    "Fernandina": "15S",   # ~-91.6°, south of equator
-    "Floreana": "15S",     # ~-90.3°, south of equator
-    "Gardner por Floreana": "15S", # ~-90.3°, south of equator near Floreana
-    "Caldwell": "16S",     # ~-89.6°, south of equator near Española
-    "Albany": "16S",       # ~-89.6°, south of equator near Española
-    "Española": "16S",     # ~-89.5°, south of equator
-    "Daphne Major": "15S", # ~-90.3°, south of equator near Santa Cruz
-}
+
 
 
 

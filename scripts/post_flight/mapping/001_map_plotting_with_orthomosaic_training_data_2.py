@@ -22,7 +22,7 @@ from active_learning.types.Exceptions import NoLabelsError, AnnotationFileNotSet
     OrthomosaicNotSetError, NotEnoughLabelsError
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks
+    draw_accurate_scalebar, get_geographic_ticks, get_utm_epsg, island_utm_zones
 from active_learning.util.mapping.plots import plot_orthomomsaic_training_data
 from active_learning.util.projection import project_gdfcrs
 from com.biospheredata.converter.HastyConverter import ImageFormat
@@ -313,7 +313,6 @@ def group_nearby_polygons_simple(gdf, buffer_distance=250):
 
 
 
-
 if __name__ == "__main__":
     CRS_utm_zone_15 = 32715
     EPSG_WGS84 = 4326
@@ -333,19 +332,77 @@ if __name__ == "__main__":
 
     flight_database_path = Path(
         "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet")
-    gdf_flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=EPSG_WGS84)
+    gdf_flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=CRS_utm_zone_15)
 
     gdf_usable_training_data_raster_mask = gpd.read_file(filename="usable_training_data_raster_mask.geojson")
-    gdf_usable_training_annotations = gpd.read_file(filename="usable_training_data_annotations.geojson")
+    gdf_usable_training_annotations = gpd.read_file(filename="usable_training_data_annotations.geojson").to_crs(CRS_utm_zone_15)
 
     # TODO seperate the generation of these files and this clustering step
 
-    # Apply DBSCAN clustering
-    eps_distance = 300  # Distance threshold (in meters) for clustering
-    min_samples = 30  # Minimum points to form a cluster
-
 
     gdf_usable_training_data_raster_mask = group_nearby_polygons_simple(gdf=gdf_usable_training_data_raster_mask.to_crs(CRS_utm_zone_15), buffer_distance=250)
+    # islands_wm['utm_zone'] = islands_wm['nombre'].map(lambda x: island_utm_zones.get(x, "Unknown"))
+
+    group_config = {
+        # inset_map_location: 'upper right', 'upper left', 'lower left', 'lower right', 'center left', 'center right', 'lower center', 'upper center', 'center'
+        "San Cristobal_10.01.2020_SRL": {"inset_map_location": "lower right", "legend_location": "lower left",
+                                         "scalebar_location": "upper left", "color": "#FF5733",
+                                         "island": "San Cristobal",
+                                         "textbox_location": (0.05, 0.98),
+                                         "epsg": get_utm_epsg(island_utm_zones["San Cristobal"]), },
+        "Espanola_12.01.2021_EGB": {"inset_map_location": "center left", "legend_location": "lower right",
+                                    "scalebar_location": "upper left", "color": "#FF5733", "island": "Española",
+                                    "textbox_location": (0.05, 0.98),
+                                    "epsg": get_utm_epsg(island_utm_zones["Española"])},
+        "Espanola_26.01.2021_13.01.2021_12.01.2021_EM": {"inset_map_location": "lower left",
+                                                         "legend_location": "lower right",
+                                                         "scalebar_location": "upper left", "color": "#FF5733",
+                                                         "textbox_location": (0.05, 0.98),
+                                                         "island": "Española",
+                                                         "epsg": get_utm_epsg(island_utm_zones["Española"])},
+        'Floreana_22.01.2021_FLPC': {"inset_map_location": "lower left", "legend_location": "lower right",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Floreana",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Floreana"])},
+        'Espanola_26.01.2021_EPCN': {"inset_map_location": "center right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Española",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Española"])},
+        'Floreana_04.02.2021_FLPO': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Floreana",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Floreana"])},
+        'Genovesa_04.12.2021_05.12.2021_GES': {"inset_map_location": "upper left", "legend_location": "lower left",
+                                               "scalebar_location": "upper left", "color": "#FF5733",
+                                               "textbox_location": (0.55, 0.05),
+                                               "island": "Genovesa",
+                                               "epsg": get_utm_epsg(island_utm_zones["Genovesa"])},
+        'Marchena_07.12.2021_09.12.2021_MNW_MBBE': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                                    "scalebar_location": "upper left", "color": "#FF5733",
+                                                    "textbox_location": (0.05, 0.98),
+                                                    "island": "Marchena",
+                                                    "epsg": get_utm_epsg(island_utm_zones["Marchena"])},
+        'Isabela_16.12.2021_ISPF': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                    "scalebar_location": "upper left", "color": "#FF5733", "island": "Isabela",
+                                    "textbox_location": (0.05, 0.98),
+                                    "epsg": get_utm_epsg(island_utm_zones["Isabela"])},
+        'Fernandina_19.12.2021_FNE_FNF': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                          "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                          "textbox_location": (0.05, 0.95),
+                                          "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        'Isabela_17.01.2023_ISPDA': {"inset_map_location": "upper left", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Isabela",
+                                     "textbox_location": (0.35, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Isabela"])},
+        'Isabela_27.01.2023_ISVI_ISVP': {"inset_map_location": "lower left", "legend_location": "lower right",
+                                         "scalebar_location": "upper left", "color": "#FF5733", "island": "Isabela",
+                                         "textbox_location": (0.25, 0.98),
+                                         "epsg": get_utm_epsg(island_utm_zones["Isabela"])},
+        'Fernandina_19.12.2021_FNI_FNJ': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                         "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                          "textbox_location": (0.05, 0.98),
+                                         "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+    }
 
     for group_id, group_gdf in gdf_usable_training_data_raster_mask.groupby("group_id"):
         if group_id == -1:  # Skip ungrouped/noise points
@@ -358,19 +415,25 @@ if __name__ == "__main__":
 
         # TODO plot the group extent containing the polygons, island, and annotations
         # Plot the group
+        if len(group_gdf['Date'].unique()) > 5:
+            raise ValueError("Group contains data from multiple dates, which is not supported in this version.")
+        config_key = f"{'_'.join(group_gdf['island'].unique())}_{'_'.join(group_gdf['Date'].unique())}_{'_'.join(group_gdf['Site code'].unique())}"
+
+
         plot_orthomomsaic_training_data(
             group_extent=group_extent,
             group_gdf=group_gdf,
             gdf_group_annotations=gdf_group_usable_training_annotations,
-            group_id=group_id,
+            group_id=config_key,
+            vis_config = group_config.get(config_key, {"inset_map_location": "lower right", "legend_location": "upper left", "scalebar_location": "upper left", "color": "#FF5733", "island": "Unknown"}),
             output_dir=vis_output_dir
         )
 
         # Save as GeoJSON
-        filename = f"group_{group_id}.geojson"
+        filename = f"group_{config_key}.geojson"
         group_gdf.to_file(filename, driver='GeoJSON')
 
-        print(f"Saved group {group_id} with {len(group_gdf)} polygons to {filename}")
+        print(f"Saved group {config_key} with {len(group_gdf)} polygons to {filename}")
 
     print(f"stats_collection: {stats_collection}")
     with open("stats_collection.json", "w") as f:

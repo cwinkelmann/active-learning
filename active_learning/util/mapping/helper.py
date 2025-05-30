@@ -165,30 +165,81 @@ def add_text_box(ax, text, location='lower left', fontsize=8, alpha=0.8, pad=0.5
         ax.add_artist(text_box)
         return text_box
 
+# Corrected Galápagos Island UTM Zone Assignments
+# Using proper hemisphere-based UTM zones
+island_utm_zones = {
+    "Bartolome": "15S",    # ~-90.56°, south of equator
+    "Caamaño": "15S",      # ~-90.3°, south of equator near Santa Cruz
+    "Santiago": "15S",     # ~-90.8°, straddles equator but mostly south
+    "Wolf": "15N",         # ~-91.8°, north of equator
+    "San Cristobal": "16S", # ~-89.6°, south of equator
+    "Lobos": "16S",        # ~-89.6°, south of equator, near San Cristobal
+    "Santa Fé": "15S",     # ~-90.4°, south of equator
+    "Santa Cruz": "15S",   # ~-90.3°, south of equator
+    "Rabida": "15S",       # ~-90.7°, south of equator
+    "Pinzón": "15S",       # ~-90.6°, south of equator
+    "Pinta": "15N",        # ~-90.75°, north of equator
+    "Marchena": "15N",     # ~-90.5°, north of equator
+    "Isabela": "15S",      # ~-91.1°, straddles equator but mostly south
+    "Tortuga": "15S",      # ~-91.4°, south of equator
+    "Genovesa": "16N",     # ~-89.95°, north of equator
+    "Fernandina": "15S",   # ~-91.6°, south of equator
+    "Floreana": "15S",     # ~-90.3°, south of equator
+    "Gardner por Floreana": "15S", # ~-90.3°, south of equator near Floreana
+    "Caldwell": "16S",     # ~-89.6°, south of equator near Española
+    "Albany": "16S",       # ~-89.6°, south of equator near Española
+    "Española": "16S",     # ~-89.5°, south of equator
+    "Daphne Major": "15S", # ~-90.3°, south of equator near Santa Cruz
+}
 
-
-def get_largest_polygon(geometry):
-    if isinstance(geometry, Polygon):
-        return geometry
-    elif isinstance(geometry, MultiPolygon):
-        return max(geometry.geoms, key=lambda g: g.area)
-    return None
-
-
-def get_islands(
-    gpkg_path = "/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
-    fligth_database_path = "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet",
-    output_path = "galapagos_map.png",
-    dpi = 300,
-    web_mercator_projection_epsg= 3857):
+def get_utm_epsg(utm_zone):
     """
-    Creates a map of the Galápagos Islands showing data locations and annotations.
+    Get the EPSG code for a given UTM zone
+    UTM zones are in the format '15N', '15S', etc.
+
+    For UTM north zones: EPSG = 32600 + zone_number
+    For UTM south zones: EPSG = 32700 + zone_number
     """
+    zone_number = int(utm_zone[:-1])
+    hemisphere = utm_zone[-1]
 
-    name_col = "gr_isla"
-    name_col = "nombre"
+    if hemisphere == 'N':
+        return 32600 + zone_number
+    elif hemisphere == 'S':
+        return 32700 + zone_number
+    else:
+        raise ValueError(f"Invalid UTM zone format: {utm_zone}")
 
-    island_plot_config = {
+# Dictionary mapping islands to their correct UTM zones
+# Corrected to use proper N/S hemisphere designations
+island_utm_zones = {
+    "Bartolome": "15S",    # ~-90.56°, south of equator
+    "Caamaño": "15S",      # ~-90.3°, south of equator near Santa Cruz
+    "Santiago": "15S",     # ~-90.8°, straddles equator but mostly south
+    "Wolf": "15N",         # ~-91.8°, north of equator
+    "Darwin": "15N",         # ~-91.8°, north of equator
+    "San Cristobal": "16S", # ~-89.6°, south of equator
+    "Lobos": "16S",        # ~-89.6°, south of equator, near San Cristobal
+    "Santa Fé": "15S",     # ~-90.4°, south of equator
+    "Santa Cruz": "15S",   # ~-90.3°, south of equator
+    "Baltra": "15S",   # ~-90.3°, south of equator
+    "Rabida": "15S",       # ~-90.7°, south of equator
+    "Pinzón": "15S",       # ~-90.6°, south of equator
+    "Pinta": "15N",        # ~-90.75°, north of equator
+    "Marchena": "15N",     # ~-90.5°, north of equator
+    "Isabela": "15S",      # ~-91.1°, straddles equator but mostly south
+    "Tortuga": "15S",      # ~-91.4°, south of equator
+    "Genovesa": "16N",     # ~-89.95°, north of equator
+    "Fernandina": "15S",   # ~-91.6°, south of equator
+    "Floreana": "15S",     # ~-90.3°, south of equator
+    "Gardner por Floreana": "15S", # ~-90.3°, south of equator near Floreana
+    "Caldwell": "16S",     # ~-89.6°, south of equator near Española
+    "Albany": "16S",       # ~-89.6°, south of equator near Española
+    "Española": "16S",     # ~-89.5°, south of equator
+    "Daphne Major": "15S", # ~-90.3°, south of equator near Santa Cruz
+}
+
+island_plot_config = {
 
 
     "Bartolome": {
@@ -280,6 +331,29 @@ def get_islands(
         "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
     },
     }
+
+
+def get_largest_polygon(geometry):
+    if isinstance(geometry, Polygon):
+        return geometry
+    elif isinstance(geometry, MultiPolygon):
+        return max(geometry.geoms, key=lambda g: g.area)
+    return None
+
+
+def get_islands(
+    gpkg_path = "/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
+    fligth_database_path = "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet",
+    output_path = "galapagos_map.png",
+    dpi = 300,
+    web_mercator_projection_epsg= 3857):
+    """
+    Creates a map of the Galápagos Islands showing data locations and annotations.
+    """
+
+    name_col = "nombre"
+
+
 
 
     # Load GeoPackage layers
