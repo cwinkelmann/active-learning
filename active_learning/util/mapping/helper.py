@@ -52,15 +52,27 @@ def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
 
     return x_ticks_proj, x_ticks_geo, y_ticks_proj, y_ticks_geo
 
+
 def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
-                           length_km=100, segments=4, height=200,
+                           length_km=100, segments=4, height_fraction=0.015,
                            web_mercator_projection_epsg=3857, WSG84_projection_epsg=4326):
     """
     Draw a scalebar that accounts for the scale variation in Web Mercator projection
     by using the center latitude of the map.
+
+    Parameters:
+    - height_fraction: float, height as fraction of map extent (default 0.015 = 1.5%)
     """
     # Get map bounds in Web Mercator
     x_min, y_min, x_max, y_max = islands_wm.total_bounds
+
+    # Get current axis limits (actual displayed extent)
+    ax_xlim = ax.get_xlim()
+    ax_ylim = ax.get_ylim()
+
+    # Calculate height based on current map display extent
+    map_height = ax_ylim[1] - ax_ylim[0]
+    height = map_height * height_fraction
 
     # Get the center latitude in geographic coordinates
     center_y = (y_min + y_max) / 2
@@ -79,8 +91,17 @@ def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
     # Apply the scale factor correction
     length_proj_corrected = length_proj / scale_factor
 
+    # Convert location from relative to absolute coordinates
+    if isinstance(location[0], float) and location[0] <= 1.0:
+        # Location given as fractions - convert to map coordinates
+        map_width = ax_xlim[1] - ax_xlim[0]
+        x0 = ax_xlim[0] + location[0] * map_width
+        y0 = ax_ylim[0] + location[1] * map_height
+    else:
+        # Location given as absolute coordinates
+        x0, y0 = location
+
     # Now draw the segmented scalebar
-    x0, y0 = location
     segment_length = length_proj_corrected / segments
 
     for i in range(segments):
@@ -90,14 +111,19 @@ def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
         ax.add_patch(rect)
 
         # Labels at every other segment
-        if i % 2 == 0:
+        if i % 2 == 0 and i > 0:
             display_length = i * length_km / segments
             ax.text(x, y0 - height * 0.6, f"{display_length:.0f} km",
-                    ha='center', va='top', fontsize=8)
+                    ha='center', va='top', fontsize=8,
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor='white',
+                              edgecolor='gray', alpha=0.9))
 
     # Final label
     ax.text(x0 + segments * segment_length, y0 - height * 0.6,
-            f"{length_km:.0f} km", ha='center', va='top', fontsize=8)
+            f"{length_km:.0f} km", ha='center', va='top', fontsize=8,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor='white',
+                      edgecolor='gray', alpha=0.9))
+
 
 def draw_segmented_scalebar(ax, start=(0.1, 0.05), segments=4, segment_length=1000, height=200,
                             crs_transform=None, units="m", label_step=2):

@@ -6,6 +6,10 @@
 
 conda create -n active_learning python=3.11
 
+conda install gdal
+
+pip install -r requirements.txt
+
 ```
 
 ## Workflow of loading data, preparing the annotations and correct them the first time

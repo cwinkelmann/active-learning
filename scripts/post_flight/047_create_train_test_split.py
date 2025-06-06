@@ -1,3 +1,7 @@
+"""
+Naive script splits a dataset of images into random training, validation, and test sets.
+"""
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -222,10 +226,10 @@ def split_and_copy_data(csv_path, empty_images_dir, output_base_dir,
 
 
 if __name__ == "__main__":
-    csv_path = "/Volumes/2TB/DD_MS_COG_ALL_TILES/herdnet_analysis/herdnet_annotations.csv"
-    output_dir = "dataset"
+    csv_path = "/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_04_512_obcj_False/herdnet/train/herdnet_annotations_train.csv"
+    output_dir = "/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_04_512_obcj_False/herdnet/train_split"
 
-    empty_images_dir = "/Volumes/2TB/DD_MS_COG_ALL_TILES/herdnet_512/empty"
+    empty_images_dir = "/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_04_512_obcj_False/herdnet/train/empty"
 
     # Perform the split and copy files
     print(f"Processing data from {csv_path} and empty images from {empty_images_dir}...")

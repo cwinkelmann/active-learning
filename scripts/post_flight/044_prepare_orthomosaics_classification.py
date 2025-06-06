@@ -1,5 +1,5 @@
 """
-Prepare an orthomosaic for use with the Herdnet model. For now this includes slicing the orthomosaic into tiles
+Prepare an orthomosaics for use with the Herdnet model. For now this includes slicing the orthomosaic into tiles
 This has some reasons: 1. empty tiles can be excluded easier 2. the model inferencing has difficulties with gigantic images
 
 """
@@ -185,7 +185,7 @@ def geospation_data_to_classification_training_data(annotations_file: Path,
     # for tile in tiles:
     #    save_world_file_json(tile, output_dir)
     # remove tiles which contain no pixels
-    occupied_tiles = remove_empty_tiles(occupied_tiles)
+    # occupied_tiles = remove_empty_tiles(occupied_tiles)
 
     converted_tiles = convert_tiles_to(tiles=occupied_tiles, format=format,
                                        output_dir=output_dir)
@@ -201,7 +201,7 @@ def geospation_data_to_classification_training_data(annotations_file: Path,
     gdf_sliced_points["local_pixel_x"] = gdf_sliced_points["local_pixel_x"] * scale_factor
     gdf_sliced_points["local_pixel_y"] = gdf_sliced_points["local_pixel_y"] * scale_factor
 
-    ### TODO create herdnet annotations for each tile
+
     if visualise_crops:
         vis_path = vis_output_dir / f"visualisations"
         vis_path.mkdir(exist_ok=True, parents=True)

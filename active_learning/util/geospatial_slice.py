@@ -657,7 +657,9 @@ class GeoSpatialRasterGrid(ImageGrid):
 
 
     def create_balanced_dataset_grids(self, points_gdf, box_size_x, box_size_y, num_empty_samples=None,
-                                      min_distance_pixels=400, random_seed=42, object_centered=True, overlap_ratio=0.0):
+                                      min_distance_pixels=400, random_seed=42,
+                                      object_centered=True,
+                                      overlap_ratio=0.0):
         """
         Create both object-centered grids and guaranteed empty grids for a balanced dataset.
 
@@ -675,10 +677,12 @@ class GeoSpatialRasterGrid(ImageGrid):
         # Get the object-centered grid
 
 
-        logger.info(f"object cutout")
+
         if object_centered:
+            logger.info(f"cutting objects centered grid with box size {box_size_x}x{box_size_y}")
             object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
         else:
+            logger.info(f"cutting objects with a regular grid {box_size_x}x{box_size_y}")
             object_grid = self.create_regular_grid(x_size=box_size_x, y_size=box_size_y, overlap_ratio=overlap_ratio)
 
         logger.info(f"start empty cutout")

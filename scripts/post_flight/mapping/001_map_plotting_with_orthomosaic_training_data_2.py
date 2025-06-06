@@ -5,31 +5,18 @@ Creates an overall Galápagos Islands map, then add the training data of orhomos
 
 See 044_prepare_orthomosaic_classifiation for the complete pipeline
 """
-import typing
 
 import geopandas
 import geopandas as gpd
-import matplotlib.pyplot as plt
-import pandas as pd
-from loguru import logger
+import networkx as nx
 from matplotlib_map_utils.core.north_arrow import NorthArrow
 from pathlib import Path
 from shapely.geometry import box
-from shapely.lib import unary_union
-
-from active_learning.database import images_data_extraction, derive_image_metadata
-from active_learning.types.Exceptions import NoLabelsError, AnnotationFileNotSetError, ProjectionError, \
-    OrthomosaicNotSetError, NotEnoughLabelsError
-from active_learning.util.geospatial_slice import GeoSpatialRasterGrid
+# Visualize the groups
+import matplotlib.pyplot as plt
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
     draw_accurate_scalebar, get_geographic_ticks, get_utm_epsg, island_utm_zones
-from active_learning.util.mapping.plots import plot_orthomomsaic_training_data
-from active_learning.util.projection import project_gdfcrs
-from com.biospheredata.converter.HastyConverter import ImageFormat
-from geospatial_transformations import get_geotiff_compression, get_gsd
-import networkx as nx
-
-
+from active_learning.util.mapping.plots import plot_orthomomsaic_training_data, plot_orthomomsaic_training_data_zoom
 
 
 def create_galapagos_expedition_map(
@@ -261,9 +248,6 @@ def create_galapagos_expedition_map(
             print(f"{expedition_labels[phase]}: {len(phase_data)} photos")
 
 
-
-
-
 def group_nearby_polygons_simple(gdf, buffer_distance=250):
     """
     Simple and fast: buffer each polygon, find intersections, group connected ones
@@ -289,27 +273,18 @@ def group_nearby_polygons_simple(gdf, buffer_distance=250):
     # Step 4: Find connected components (groups)
     groups = list(nx.connected_components(G))
 
-    # Step 5: Keep only groups with more than 1 polygon
-    multi_groups = [group for group in groups if len(group) > 1]
+    # Step 5: Assign group IDs to ALL polygons
+    result_gdf = gdf.copy()
+    group_labels = {}
 
-    # Create result
-    if multi_groups:
-        result_indices = []
-        group_labels = {}
+    group_id = 0
+    for group in groups:
+        for idx in group:
+            group_labels[idx] = group_id
+        group_id += 1
 
-        for group_id, group in enumerate(multi_groups):
-            for idx in group:
-                result_indices.append(idx)
-                group_labels[idx] = group_id
-
-        result_gdf = gdf.loc[result_indices].copy()
-        result_gdf['group_id'] = result_gdf.index.map(group_labels)
-        return result_gdf
-    else:
-        # Return empty GeoDataFrame
-        empty_gdf = gdf.iloc[0:0].copy()
-        empty_gdf['group_id'] = []
-        return empty_gdf
+    result_gdf['group_id'] = result_gdf.index.map(group_labels)
+    return result_gdf
 
 
 
@@ -340,7 +315,8 @@ if __name__ == "__main__":
     # TODO seperate the generation of these files and this clustering step
 
 
-    gdf_usable_training_data_raster_mask = group_nearby_polygons_simple(gdf=gdf_usable_training_data_raster_mask.to_crs(CRS_utm_zone_15), buffer_distance=250)
+    gdf_usable_training_data_raster_mask = group_nearby_polygons_simple(gdf=gdf_usable_training_data_raster_mask.to_crs(CRS_utm_zone_15),
+                                                                        buffer_distance=250)
     # islands_wm['utm_zone'] = islands_wm['nombre'].map(lambda x: island_utm_zones.get(x, "Unknown"))
 
     group_config = {
@@ -374,7 +350,7 @@ if __name__ == "__main__":
                                      "epsg": get_utm_epsg(island_utm_zones["Floreana"])},
         'Genovesa_04.12.2021_05.12.2021_GES': {"inset_map_location": "upper left", "legend_location": "lower left",
                                                "scalebar_location": "upper left", "color": "#FF5733",
-                                               "textbox_location": (0.55, 0.05),
+                                               "textbox_location": (0.55, 0.15),
                                                "island": "Genovesa",
                                                "epsg": get_utm_epsg(island_utm_zones["Genovesa"])},
         'Marchena_07.12.2021_09.12.2021_MNW_MBBE': {"inset_map_location": "lower right", "legend_location": "lower left",
@@ -402,7 +378,88 @@ if __name__ == "__main__":
                                          "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
                                           "textbox_location": (0.05, 0.98),
                                          "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        ### new
+        'San Cristobal_10.01.2021_SRL': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                         "scalebar_location": "upper left", "color": "#FF5733",
+                                         "island": "San Cristobal",
+                                         "textbox_location": (0.05, 0.98),
+                                         "epsg": get_utm_epsg(island_utm_zones["San Cristobal"])},
+        'Espanola_12.01.2021_13.01.2021_26.01.2021_EM': {"inset_map_location": "upper center",
+                                                         "legend_location": "lower left",
+                                                         "scalebar_location": "upper left", "color": "#FF5733",
+                                                         "island": "Española",
+                                                         "textbox_location": (0.05, 0.98),
+                                                         "epsg": get_utm_epsg(island_utm_zones["Española"])},
+        'Espanola_13.01.2021_EGB': {"inset_map_location": "lower center", "legend_location": "lower left",
+                                    "scalebar_location": "upper left", "color": "#FF5733", "island": "Española",
+                                    "textbox_location": (0.05, 0.98),
+                                    "epsg": get_utm_epsg(island_utm_zones["Española"])},
+        'Marchena_07.12.2021_MBBD': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Marchena",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Marchena"])},
+        'Pinta_10.12.2021_PCIE': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                  "scalebar_location": "upper left", "color": "#FF5733", "island": "Pinta",
+                                  "textbox_location": (0.05, 0.98),
+                                 "epsg": get_utm_epsg(island_utm_zones["Pinta"])},
+        'Pinta_11.12.2021_PWC': {"inset_map_location": "center right", "legend_location": "lower left",
+                                 "scalebar_location": "upper left", "color": "#FF5733", "island": "Pinta",
+                                 "textbox_location": (0.05, 0.98), "inset_size": 2,
+                                 "epsg": get_utm_epsg(island_utm_zones["Pinta"])},
+        'Fernandina_18.12.2021_FPE': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        'Fernandina_19.12.2021_FND': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+
+        'Fernandina_20.12.2021_FNA': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        'Fernandina_20.12.2021_FNB': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        'Fernandina_24.01.2023_FPM': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Fernandina",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Fernandina"])},
+        'Santa Cruz_06.01.2023_SCM': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                      "scalebar_location": "upper left", "color": "#FF5733", "island": "Santa Cruz",
+                                      "textbox_location": (0.05, 0.98),
+                                      "epsg": get_utm_epsg(island_utm_zones["Santa Cruz"])},
+        'Pinzon_08.01.2023_PZE10': {"inset_map_location": "lower left", "legend_location": "lower right",
+                                    "scalebar_location": "upper left", "color": "#FF5733", "island": "Pinzón",
+                                    "textbox_location": (0.55, 0.98),
+                                    "epsg": get_utm_epsg(island_utm_zones["Pinzón"])},
+        'Santiago_10.01.2023_STJB': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Santiago",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Santiago"])},
+        'Santa Cruz_15.01.2023_SCPLF': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                        "scalebar_location": "upper left", "color": "#FF5733", "island": "Santa Cruz",
+                                        "textbox_location": (0.05, 0.98),
+                                        "epsg": get_utm_epsg(island_utm_zones["Santa Cruz"])},
+        'Isabela_27.01.2023_ISBBA': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Isabela",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Isabela"])},
+
+        'Isabela_27.01.2023_ISVB': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                    "scalebar_location": "upper left", "color": "#FF5733", "island": "Isabela",
+                                    "textbox_location": (0.05, 0.98),
+                                    "epsg": get_utm_epsg(island_utm_zones["Isabela"])},
+        'Floreana_28.01.2023_FLBB': {"inset_map_location": "lower right", "legend_location": "lower left",
+                                     "scalebar_location": "upper left", "color": "#FF5733", "island": "Floreana",
+                                     "textbox_location": (0.05, 0.98),
+                                     "epsg": get_utm_epsg(island_utm_zones["Floreana"])},
+
     }
+
+    gdf_usable_training_data_raster_mask["group_key"] = None
 
     for group_id, group_gdf in gdf_usable_training_data_raster_mask.groupby("group_id"):
         if group_id == -1:  # Skip ungrouped/noise points
@@ -419,8 +476,17 @@ if __name__ == "__main__":
             raise ValueError("Group contains data from multiple dates, which is not supported in this version.")
         config_key = f"{'_'.join(group_gdf['island'].unique())}_{'_'.join(group_gdf['Date'].unique())}_{'_'.join(group_gdf['Site code'].unique())}"
 
+        if config_key not in group_config:
+            print(f"Skipping group {config_key} as it is not defined in the group_config.")
+            continue
 
-        plot_orthomomsaic_training_data(
+        group_gdf["group_key"] = config_key
+        gdf_usable_training_data_raster_mask.loc[
+            gdf_usable_training_data_raster_mask["group_id"] == group_id,
+            "group_key"
+        ] = config_key
+
+        plot_orthomomsaic_training_data_zoom(
             group_extent=group_extent,
             group_gdf=group_gdf,
             gdf_group_annotations=gdf_group_usable_training_annotations,
@@ -428,6 +494,10 @@ if __name__ == "__main__":
             vis_config = group_config.get(config_key, {"inset_map_location": "lower right", "legend_location": "upper left", "scalebar_location": "upper left", "color": "#FF5733", "island": "Unknown"}),
             output_dir=vis_output_dir
         )
+
+        # TODO add a variante with the orthomosaic and the annotations
+
+        # TODO add a variant which cuts examples
 
         # Save as GeoJSON
         filename = f"group_{config_key}.geojson"
@@ -440,7 +510,8 @@ if __name__ == "__main__":
         import json
         json.dump(stats_collection, f, indent=4)
 
-    # Visualize the groups
-    import matplotlib.pyplot as plt
+    gdf_usable_training_data_raster_mask.to_file("usable_training_data_raster_mask_with_group.geojson", driver='GeoJSON')
+
+
 
 

@@ -10,6 +10,11 @@ class InvalidLabelCountError(InvalidLabelError):
     def __init__(self, message: str = "The label number is invalid") -> None:
         super().__init__(message)
 
+class LabelsOverlapError(InvalidLabelError):
+    """Exception raised for invalid label numbers."""
+
+    def __init__(self, message: str = "The labels are potentially overlapping, creating a data leak") -> None:
+        super().__init__(message)
 
 class TooManyLabelsError(InvalidLabelCountError):
     """Exception raised when too many labels are provided."""
