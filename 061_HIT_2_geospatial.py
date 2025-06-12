@@ -110,7 +110,7 @@ def main(dataset_name, base_path: Path, hA_reference: HastyAnnotationV2):
 
 if __name__ == "__main__":
     df_detections = pd.read_csv(
-        '/Users/christian/PycharmProjects/hnee/active_learning/scripts/inferencing/detections.csv')
+        '/scripts/inferencing/detections_jpg.csv')
 
     # TODO get this template too to persist the converted images later
     base_path = Path(f'/Users/christian/PycharmProjects/hnee/active_learning/scripts/inferencing/Fer_FCD01-02-03_tiles')

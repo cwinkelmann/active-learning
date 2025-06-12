@@ -145,7 +145,10 @@ class AnnotationsIntermediary(object):
         yolo_segments_path.mkdir(exist_ok=True, parents=True)
 
         class_mapping, df_all_boxes = HastyConverter.convert_to_yolo_boxes(hA=self.hA, yolo_base_path=yolo_boxes_path)
-        class_mapping = HastyConverter.convert_to_yolo_segments(hA=self.hA, yolo_base_path=yolo_segments_path)
+
+        # TODO only convert to segments if there are segments in the dataset
+        # class_mapping = HastyConverter.convert_to_yolo_segments(hA=self.hA, yolo_base_path=yolo_segments_path)
+
         class_names = [key for key, value in sorted(class_mapping.items(), key=lambda item: item[1])]
         return class_names
 
@@ -213,7 +216,19 @@ class DataprepPipeline(object):
                  images_fitler=None,
                  class_filter=None,
                  status_filter=None,
-                 annotation_types=None):
+                 annotation_types=None, empty_fraction= False):
+        """
+
+        :param annotations_labels:
+        :param images_path:
+        :param output_path:
+        :param crop_size:
+        :param overlap: between 0 and size of the crop, 0 means no overlap
+        :param images_fitler:
+        :param class_filter:
+        :param status_filter:
+        :param annotation_types:
+        """
 
         self.num = None
         self.sample_strategy = None
@@ -238,7 +253,7 @@ class DataprepPipeline(object):
         self.tag_filter = None
 
         self.images_path = images_path
-        self.empty_fraction = False
+        self.empty_fraction = empty_fraction
 
     def run(self, flatten=True):
         """

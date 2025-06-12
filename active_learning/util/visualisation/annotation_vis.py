@@ -1,3 +1,6 @@
+import shapely
+from typing import List, Optional
+
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -7,6 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import random
 import os
+from shapely import Point
+from matplotlib import axes
 
 
 def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde=True):
@@ -236,3 +241,54 @@ def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name
 # Example usage:
 # fig = plot_image_grid_by_visibility(df, image_dir='path/to/images', width_scale=0.8)
 # plt.show()
+
+def visualise_points_only(points: List[shapely.Point],
+                          labels: Optional[List[str]] = None,
+                          colors: Optional[List[str]] = None,
+                          markersize: float = 5.0,
+                          title: str = "Points Visualization",
+                          filename: Optional[str] = None,
+                          show: bool = True,
+                          ax = None) -> axes:
+    """
+    Simplified function to visualize just points.
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, figsize=(10, 8))
+
+    if not points:
+        print("No points to visualize")
+        return ax
+
+    # Extract coordinates
+    x_coords = [p.x for p in points if isinstance(p, Point)]
+    y_coords = [p.y for p in points if isinstance(p, Point)]
+
+    if not x_coords:
+        print("No valid points found")
+        return ax
+
+    # Plot points
+    if colors and len(colors) == len(x_coords):
+        ax.scatter(x_coords, y_coords, c=colors, s=markersize ** 2, alpha=0.8, edgecolors='black')
+    else:
+        ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black')
+
+    # Add labels
+    if labels:
+        for i, (x, y) in enumerate(zip(x_coords, y_coords)):
+            if i < len(labels):
+                ax.annotate(labels[i], (x, y), xytext=(5, 5),
+                            textcoords='offset points', fontsize=10)
+
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal')
+
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+    if show:
+        plt.show()
+        plt.close()
+
+    return ax

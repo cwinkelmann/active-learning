@@ -105,42 +105,34 @@ train_floreana_small = DatasetFilterConfig(**{
     "empty_fraction": 0.0
 })
 
-train_floreana_big = DatasetFilterConfig(**{
-    "dset": "train",
-    "dataset_name": "train_floreana_big",
-    "dataset_filter": ["FMO03", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # big Floreana subset
-    # "num": 1,
-            "empty_fraction": 1.0,
-        "crop_size": 224,
-"class_filter": ["iguana_point"],
-"tag_filter": ["points"],
-})
 
 
-train_floreana_big = DatasetFilterConfig(**{
+train_big = DatasetFilterConfig(**{
     "dset": "train",
-    "dataset_name": "train_floreana_big",
-    "dataset_filter": ["FMO03", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # big Floreana subset
+    "dataset_name": "train_big_700",
+    "dataset_filter": ["Floreana_02.02.21_FMO01", "FLMO02_28012023", "Fer_FCD01-02-03_20122021_single_images",
+                       "FMO03", "Floreana_03.02.21_FMO06", "Fer_FPM01-02_20122023", "FLBB01_28012023"],
+    # big Floreana subset
     # "num": 1,
-            "empty_fraction": 1.0,
-        "crop_size": 640,
-"class_filter": ["iguana_point"],
-"tag_filter": ["points"],
+    "empty_fraction": 1.0,
+    "crop_size": 700,
+    "class_filter": ["iguana_point"],
+    "tag_filter": ["points"],
 })
 
 val_fmo05 = DatasetFilterConfig(**{
-        "dset": "val",
-    "dataset_name": "val_FMO05",
+    "dset": "val",
+    "dataset_name": "val_floreana",
 
     # "images_filter": ["DJI_0465.JPG"],
-        "dataset_filter": ["FMO05"],
-        # "dataset_filter": None,
-                "empty_fraction": 1.0,
-        "crop_size": 224,
-        "class_filter": ["iguana_point"],
-"tag_filter": ["points"],
+    "dataset_filter": ["FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"],
+    # "dataset_filter": None,
+    "empty_fraction": 1.0,
+    "crop_size": 700,
+    "class_filter": ["iguana_point"],
+    "tag_filter": ["points"],
 
-    })
+})
 
 test_fernandina_m = DatasetFilterConfig(**{
         "dset": "test",

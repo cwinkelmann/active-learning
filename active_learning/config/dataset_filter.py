@@ -46,8 +46,8 @@ class DatasetFilterConfig(BaseModel):
     empty_fraction: float = Field(
         ...,
         ge=0.0,
-        le=1.0,
-        description="Fraction representing the allowable empty space, between 0.0 and 1.0."
+        le=10.0,
+        description="Fraction representing the allowable empty space, between 0.0 and 10.0. Whereas 10 means 10 times more empty images than non-empty images."
     )
     image_tags: List[str] = Field(
         default=None,

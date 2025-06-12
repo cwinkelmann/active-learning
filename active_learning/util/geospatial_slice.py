@@ -656,7 +656,7 @@ class GeoSpatialRasterGrid(ImageGrid):
         return empty_grid_cells
 
 
-    def create_balanced_dataset_grids(self, points_gdf, box_size_x, box_size_y, num_empty_samples=None,
+    def create_balanced_dataset_grids(self, points_gdf: gpd.GeoDataFrame, box_size_x: int, box_size_y: int, num_empty_samples=None,
                                       min_distance_pixels=400, random_seed=42,
                                       object_centered=True,
                                       overlap_ratio=0.0):
@@ -929,7 +929,7 @@ class GeoSlicer():
 
 
         # TODO check if any row "image_name_right" is None
-        if points_in_grid["image_name_right"].isnull().any():
+        if "image_name_right" in points_in_grid.columns and points_in_grid["image_name_right"].isnull().any():
             logger.error(f"some points could not be assigned to a grid cell: {points_in_grid['image_name_right'].isnull().sum()}, THIS IS DUE TO THE fact someone messed up the shapefile or orhtomosaic projections")
             raise ProjectionError("There is a problem with the projection")
 

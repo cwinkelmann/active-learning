@@ -1256,16 +1256,22 @@ def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: 
     for tile in tiles:
         try:
             if not tile.exists():
-                logger.warning("Tile does not exist: %s", tile)
+                logger.error("Tile does not exist: %s", tile)
+                continue
+
+            # Build the output filename (e.g., tile_name.png)
+            output_filename = f"{tile.stem}.{format.value.lower()}"
+            out_path = output_dir / output_filename
+
+            if out_path.exists():
+                logger.warning("Output file already exists, skipping: %s", out_path)
                 continue
 
             # Open the image tile
             with Image.open(tile) as img:
                 # If a world_file is provided, you can apply geospatial transformations here
 
-                # Build the output filename (e.g., tile_name.png)
-                output_filename = f"{tile.stem}.{format.value.lower()}"
-                out_path = output_dir / output_filename
+
                 if format == ImageFormat.JPG:
                     img = img.convert("RGB")
                 # Save the image in the desired format

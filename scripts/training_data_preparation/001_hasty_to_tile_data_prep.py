@@ -9,8 +9,9 @@ from pathlib import Path
 
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from data_configs import val_segments_fernandina_1, \
-    test_segments_fernandina_1, train_segments_fernanandina_12, datasets_floreana, train_floreana_big, val_fmo05
+from active_learning.util.visualisation.annotation_vis import visualise_points_only
+from data_configs import val_fmo05, \
+    train_big
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from util.util import visualise_image, visualise_polygons
@@ -19,19 +20,21 @@ if __name__ == "__main__":
     visualise_crops = False
 
     # ## fixed test data
-    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other")
+    labels_path = Path("/Users/christian/data/training_data/2025_06_08/all_completed")
     hasty_annotations_labels_zipped = "labels_all_completed.zip"
-    hasty_annotations_images_zipped = "image_all_completed.zip"
+    hasty_annotations_images_zipped = "all_images.zip"
+
+    datasets = [train_big, val_fmo05]
+
     annotation_types = [AnnotationType.KEYPOINT]
     class_filter = ["iguana_point"]
-    datasets = [train_floreana_big, val_fmo05]
 
-    labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/03_all_other")
-    hasty_annotations_labels_zipped = "labels_all_completed.zip"
-    hasty_annotations_images_zipped = "image_all_completed.zip"
-    annotation_types = [AnnotationType.BOUNDING_BOX]
-    class_filter = ["iguana"]
-    datasets = [train_floreana_big, val_fmo05]
+    # labels_path = Path("/Users/christian/data/training_data/2025_06_08/all_completed")
+    # hasty_annotations_labels_zipped = "labels_all_completed.zip"
+    # hasty_annotations_images_zipped = "image_all_completed.zip"
+    # annotation_types = [AnnotationType.BOUNDING_BOX]
+    # class_filter = ["iguana"]
+    # datasets = [train_floreana_big, val_fmo05]
 
     # ## Segmentation masks
     # labels_path = Path("/Users/christian/data/training_data/2025_02_22_HIT/01_segment_pretraining")
@@ -41,7 +44,7 @@ if __name__ == "__main__":
     # class_filter = ["iguana"]
     # datasets = [train_segments_fernanandina_12, val_segments_fernandina_1, test_segments_fernandina_1]
     # datasets = [val_segments_fernandina_1]
-    overlap = 0
+    overlap = 320
     # amount of empty images in the dataset
 
 
@@ -54,7 +57,7 @@ if __name__ == "__main__":
         crop_size = dataset.crop_size
         num = dataset.num
 
-        ifcn = ImageFilterConstantNum(num=num, dataset_config= dataset)
+        ifcn = ImageFilterConstantNum(num=num, dataset_config=dataset)
 
         uA = UnpackAnnotations()
         hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped=labels_path / hasty_annotations_labels_zipped,
@@ -73,8 +76,8 @@ if __name__ == "__main__":
         dp.dataset_filter = dataset.dataset_filter
         dp.images_filter = dataset.images_filter
 
-        # TODO fix this
-        dp.images_filter_func = ifcn
+
+        dp.images_filter_func.append(ifcn) # TODO fix this
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
         dp.empty_fraction = dataset.empty_fraction
@@ -152,30 +155,42 @@ if __name__ == "__main__":
                 ax_s = visualise_image(image_path = destination_path / image.image_name, show=False, title=f"Visualisation of {len([p.polygon_s for p in image.labels])} labels in {image.image_name}")
 
                 filename = vis_path / f"{image.image_name}.png"
-                visualise_polygons(polygons=[p.polygon_s for p in image.labels],
-                                   labels=[p.class_name for p in image.labels],  ax=ax_s, show=False, linewidth=2,
-                                   filename=filename)
+                # TODO check which type of visualisation is needed
+                # visualise_polygons(polygons=[p.polygon_s for p in image.labels],
+                #                    labels=[p.class_name for p in image.labels],  ax=ax_s, show=False, linewidth=2,
+                #                    filename=filename)
+
+                # # Or use the simplified points-only function:
+                ax = visualise_points_only(
+                    points=[p.incenter_centroid for p in image.labels],
+                    labels=[p.class_name for p in image.labels],
+                    markersize=15,
+                    ax=ax_s,
+                    show=False,
+                    filename=filename, title=f"Visualisation of {len([p.polygon_s for p in image.labels])} labels in {image.image_name}"
+                )
+
 
                 plt.close()
+    logger.warning(f"If points are used then the label has to chagen from 8 to 1")
 
-    # This YOLO data.yaml sucks
-    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-                                                   images_train_path=report["destination_path_train"],
-                                                  images_val_path=report["destination_path_val"],
-                                                  labels_train_path=report["yolo_box_path_train"],
-                                                    labels_val_path=report["yolo_box_path_val"],
-                                                  images_test_path=report["destination_path_test"],
-                                                  labels_test_path=report["yolo_box_path_test"],
-                                                  class_names=report["class_names"],
-                                                  data_yaml_path=labels_path / "data_boxes.yaml")
-
-    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-                                                  images_train_path=report["destination_path_train"],
-                                                  images_val_path=report["destination_path_val"],
-                                                  images_test_path=report["destination_path_test"],
-                                                  labels_train_path=report["yolo_segments_path_train"],
-                                                    labels_val_path=report["yolo_segments_path_val"],
-                                                    labels_test_path=report["yolo_segments_path_test"],
-                                                  class_names=report["class_names"],
-                                                  data_yaml_path=labels_path / "data_segments.yaml")
-
+    # # This YOLO data.yaml sucks
+    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+    #                                               images_train_path=report["destination_path_train"],
+    #                                               images_val_path=report["destination_path_val"],
+    #                                               labels_train_path=report["yolo_box_path_train"],
+    #                                               labels_val_path=report["yolo_box_path_val"],
+    #                                               # images_test_path=report["destination_path_test"],
+    #                                               # labels_test_path=report["yolo_box_path_test"],
+    #                                               class_names=report["class_names"],
+    #                                               data_yaml_path=labels_path / "data_boxes.yaml")
+    #
+    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+    #                                               images_train_path=report["destination_path_train"],
+    #                                               images_val_path=report["destination_path_val"],
+    #                                               # images_test_path=report["destination_path_test"],
+    #                                               labels_train_path=report["yolo_segments_path_train"],
+    #                                               labels_val_path=report["yolo_segments_path_val"],
+    #                                               # labels_test_path=report["yolo_segments_path_test"],
+    #                                               class_names=report["class_names"],
+    #                                               data_yaml_path=labels_path / "data_segments.yaml")

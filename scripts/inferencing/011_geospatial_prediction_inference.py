@@ -1,4 +1,6 @@
 """
+Classification Inference on geospatial data
+
 TODO split an orthomosaic into rastertiles
 
 TODO apply the prediction model to each tile

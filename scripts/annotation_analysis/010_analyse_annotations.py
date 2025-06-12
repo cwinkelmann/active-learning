@@ -12,8 +12,6 @@ from active_learning.util.visualisation.annotation_vis import plot_frequency_dis
     plot_image_grid_by_visibility
 from com.biospheredata.types.HastyAnnotationV2 import convert_HastyAnnotationV2_to_HastyAnnotationV2flat, Attribute
 
-# TODO
-
 
 """
 Create patches from images and labels from hasty to be used in CVAT
