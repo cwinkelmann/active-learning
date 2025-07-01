@@ -7,7 +7,7 @@ import PIL.Image
 from typing import List
 
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
-from active_learning.util.image_manipulation import crop_out_individual_object, crop_out_images, crop_out_images_v2, \
+from active_learning.util.image_manipulation import crop_out_individual_object, crop_out_images, \
     create_regular_raster_grid, sliced_predict_geotiff
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, AnnotatedImage, HastyAnnotationV2, hA_from_file, \
     Keypoint

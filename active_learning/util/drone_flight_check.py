@@ -104,7 +104,9 @@ def classify_bearing(bearing):
 
 
 def calculate_forward_overlap(distance, ground_width, ground_height, direction):
-    """Calculate forward overlap percentage based on distance and image footprint"""
+    """
+    Calculate forward overlap percentage based on distance and image footprint
+    """
     if distance is None or ground_width is None or ground_height is None or direction is None:
         return None
 

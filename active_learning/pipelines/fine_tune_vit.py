@@ -1,3 +1,4 @@
+# TODO validate I want to keep this code
 import os
 import time
 import argparse

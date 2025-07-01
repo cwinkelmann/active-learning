@@ -7,26 +7,14 @@ Then prepare the output for another training round
 
 """
 import shapely
-from typing import List, Optional
-
-import json
-
-import PIL.Image
-import pandas as pd
+from loguru import logger
 from pathlib import Path
+from typing import Optional
 
-from active_learning.analyse_detections import analyse_point_detection_correction, analyse_point_detections_greedy
 from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty
 from active_learning.types.Exceptions import TooManyLabelsError
-from active_learning.types.ImageCropMetadata import ImageCropMetadata
-from active_learning.util.converter import herdnet_prediction_to_hasty
-from active_learning.util.evaluation.evaluation import submit_for_cvat_evaluation
-from active_learning.util.image_manipulation import crop_out_individual_object
-from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, hA_from_file, Keypoint, HastyAnnotationV2, \
-    ImageLabelCollection, ImageLabel
-from examples.review_annotations import debug_hasty_fiftyone_v2
-import fiftyone as fo
-from loguru import logger
+from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, Keypoint, HastyAnnotationV2, \
+    ImageLabel
 
 
 def get_point_offset(corrected_label: ImageLabel,

@@ -30,6 +30,7 @@ pycocotools~=2.0.9
 opencv-contrib-python~=4.11
 rtree~=1.4.0
 kornia~=0.8.1
-albumentations==1.0.3
-wandb~=0.20.1
+albumentations==1.0.3 # TODO update this
+wandb~=0.20.1 # TODO update this
 ultralytics
+timm

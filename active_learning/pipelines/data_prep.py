@@ -1,24 +1,16 @@
-import pandas as pd
-import re
-
 import multiprocessing
-import shutil
 
 import copy
-
+import multiprocessing
 import typing
-from PIL import Image
 from loguru import logger
 from pathlib import Path
 
 from active_learning.filter import ImageFilter
-from active_learning.util.image_manipulation import pad_to_multiple, crop_out_images_v2, crop_by_regular_grid
-from active_learning.util.rename import rename_single_image
+from active_learning.util.converter import coco2hasty, hasty2coco
+from active_learning.util.image_manipulation import crop_by_regular_grid
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
-from active_learning.util.converter import coco2hasty, hasty2coco, coco2yolo
-from com.biospheredata.helper.image_annotation.annotation import create_regular_raster_grid
-
-from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2, AnnotatedImage
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage
 from com.biospheredata.types.serialisation import save_model_to_file
 
 
@@ -26,7 +18,7 @@ def process_image(args):
     """
     Create a regular grid and crop the images
     """
-    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap = args
+    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path = args
 
     images, cropped_images_path = crop_by_regular_grid(
         crop_size,
@@ -36,7 +28,8 @@ def process_image(args):
         overlap=overlap,
         train_images_output_path=train_images_output_path,
         empty_fraction=empty_fraction,
-        edge_black_out=True
+        edge_black_out=True,
+        visualisation_path=visualise_path
     )
     return images, cropped_images_path
 
@@ -204,7 +197,7 @@ class DataprepPipeline(object):
     augmented_images_path = typing.Optional[typing.List[Path]]
     empty_fraction = False
     images_filter_func: typing.List[typing.Callable]  = []
-
+    grid_manager: typing.Callable
     _image_type = "jpg"
 
     def __init__(self,
@@ -216,7 +209,8 @@ class DataprepPipeline(object):
                  images_fitler=None,
                  class_filter=None,
                  status_filter=None,
-                 annotation_types=None, empty_fraction= False):
+                 annotation_types=None,
+                 empty_fraction= False):
         """
 
         :param annotations_labels:
@@ -244,7 +238,7 @@ class DataprepPipeline(object):
         self.output_path.mkdir(exist_ok=True, parents=True)
         self.train_images_output_path = output_path / f"crops_{self.crop_size}"
         self.train_images_output_path.mkdir(exist_ok=True, parents=True)
-
+        self.visualise_path = None
         self.images_filter = images_fitler
         self.images_exclude = None
         self.class_filter = class_filter
@@ -274,7 +268,9 @@ class DataprepPipeline(object):
             annotation_types=self.annotation_types,
             num_images=self.num,
             sample_strategy=self.sample_strategy
-        )
+        ) # TODO implement this with the images_filter_func
+
+
         if len(self.images_filter_func) != 0:
             for i in self.images_filter_func:
                 hA = i(hA)
@@ -311,6 +307,7 @@ class DataprepPipeline(object):
                                           overlap=self.overlap,
                                           hA=copy.deepcopy(self.hA_filtered),
                                           images_path=flat_images_path,
+                                          edge_black_out=False,
                                           use_multiprocessing=False)
 
         self.hA_crops = hA_crop
@@ -322,10 +319,13 @@ class DataprepPipeline(object):
                            hA: HastyAnnotationV2,
                            images_path: Path,
                            use_multiprocessing: bool = True,
-                            edge_black_out=True,
+                           edge_black_out=True,
                            ):
         """
         crop the images by a regular grid
+        :param edge_black_out:
+        :param use_multiprocessing:
+        :param images_path:
         :param stage:
         :param overlap:
         :param crop_size:
@@ -363,7 +363,12 @@ class DataprepPipeline(object):
 
         else:
             for i in hA.images:
+
                 # TODO split these steps: create a grid first, then crop
+                # df_grid = self.grid_manager(i)
+                # TODO implement this
+                # annotated_images, cropped_images_path = self.cropper(df_grid, i, images_path, full_images_path_padded)
+
                 annotated_images, cropped_images_path = crop_by_regular_grid(
                     crop_size=crop_size,
                     full_images_path_padded=full_images_path_padded,
@@ -372,7 +377,11 @@ class DataprepPipeline(object):
                     overlap=overlap,
                     train_images_output_path=self.train_images_output_path,
                     empty_fraction=self.empty_fraction,
-                    edge_black_out=edge_black_out)
+                    edge_black_out=edge_black_out,
+                    visualisation_path=self.visualise_path,
+                    # TODO pass the grid manager here
+                    # grid_manager=self.grid_manager
+                )
 
                 all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
@@ -383,7 +392,6 @@ class DataprepPipeline(object):
             images=all_images,
             export_format_version="1.1",
             label_classes=hA.label_classes,
-
         )
 
         self.augmented_images = all_images

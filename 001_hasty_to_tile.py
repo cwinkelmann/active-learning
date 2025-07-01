@@ -1,5 +1,5 @@
 """
-Create patches from images and labels from hasty to be used in CVAT
+Create patches from images and labels from hasty to be used in CVAT/training
 """
 import shutil
 from loguru import logger
@@ -10,10 +10,6 @@ from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
-
-## TODO Download annotations from hasty
-
-
 
 if __name__ == "__main__":
     """ This only works if the input is a hasty zip file which is very constraining. """
@@ -29,8 +25,6 @@ if __name__ == "__main__":
     # annotation_types = [AnnotationType.BOUNDING_BOX]
 
     # class_filter = ["iguana"]
-
-
 
 
     ## Meeting presentation
@@ -49,108 +43,130 @@ if __name__ == "__main__":
     class_filter = ["iguana"]
 
     crop_size = 224
-    overlap = 0
+    # overlap = 0
     # amount of empty images in the dataset
 
 
-    train_fmo05 = DatasetFilterConfig(**{
-        "dset": "train",
-        # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
-        # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        "dataset_filter": ["FMO05"],
-        # "dataset_filter": None,
-        # "num": 1,
-        "output_path": labels_path,
+    # train_fmo05 = DatasetFilterConfig(**{
+    #     "dset": "train",
+    #     # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
+    #     # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+    #     "dataset_filter": ["FMO05"],
+    #     # "dataset_filter": None,
+    #     # "num": 1,
+    #     "output_path": labels_path,
+    #
+    #     "empty_fraction": 0.0,
+    #
+    # })
 
-        "empty_fraction": 0.0,
-
-    })
-
-    train_floreana = DatasetFilterConfig(**{
-        "dset": "train",
-        "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-        # "num": 1,
-        "output_path": labels_path,
-        "empty_fraction": 0.0
-    })
-
-    val_fmo03 = DatasetFilterConfig(**{
-            "dset": "val",
-            # "images_filter": ["DJI_0465.JPG"],
-            "dataset_filter": ["FMO03"],
-            # "dataset_filter": None,
-            "output_path": labels_path,
-            "empty_fraction": 0.0
-
-        })
-
-    fernandina_ds = DatasetFilterConfig(**{
-            "dset": "test",
-            # "images_filter": ["DJI_0465.JPG"],
-            "dataset_filter": ["Fer_FCD01-02-03_20122021", "Fer_FCD01-02-03_20122021_single_images"],
-            # "dataset_filter": None,
-            "output_path": labels_path,
-            "empty_fraction": 0.0
-
-        })
-
-    test_fmo02 = DatasetFilterConfig(**{
-            "dset": "test",
-            # "images_filter": ["DJI_0554.JPG"],
-            "dataset_filter": ["FMO02"],
-            "output_path": labels_path,
-            "empty_fraction": 0.0
-
-        })
+    # train_floreana = DatasetFilterConfig(**{
+    #     "dset": "train",
+    #     "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+    #     # "num": 1,
+    #     "output_path": labels_path,
+    #     "empty_fraction": 0.0
+    # })
+    #
+    # val_fmo03 = DatasetFilterConfig(**{
+    #         "dset": "val",
+    #         # "images_filter": ["DJI_0465.JPG"],
+    #         "dataset_filter": ["FMO03"],
+    #         # "dataset_filter": None,
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #
+    #     })
+    #
+    # fernandina_ds = DatasetFilterConfig(**{
+    #         "dset": "test",
+    #         # "images_filter": ["DJI_0465.JPG"],
+    #         "dataset_filter": ["Fer_FCD01-02-03_20122021", "Fer_FCD01-02-03_20122021_single_images"],
+    #         # "dataset_filter": None,
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #
+    #     })
+    #
+    # test_fmo02 = DatasetFilterConfig(**{
+    #         "dset": "test",
+    #         # "images_filter": ["DJI_0554.JPG"],
+    #         "dataset_filter": ["FMO02"],
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #
+    #     })
 
 
-    datasets = [
-        {
-            "dset": "train",
-            # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
-            # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
-            "dataset_filter": ["FMO05"],
-            # "dataset_filter": None,
-            "num": 1,
-            "output_path": labels_path,
-            "empty_fraction": 0.0
-        },
-        {
-            "dset": "val",
-            # "images_filter": ["DJI_0465.JPG"],
-            "dataset_filter": ["FMO03"],
-            # "dataset_filter": None,
-            "output_path": labels_path,
-            "empty_fraction": 0.0
+    # datasets = [
+    #     {
+    #         "dset": "train",
+    #         # "images_filter": ["DJI_0935.JPG", "DJI_0972.JPG", "DJI_0863.JPG"],
+    #         # "dataset_filter": ["FMO05", "FSCA02", "FMO04", "Floreana_03.02.21_FMO06", "Floreana_02.02.21_FMO01"], # Fer_FCD01-02-03_20122021_single_images
+    #         "dataset_filter": ["FMO05"],
+    #         # "dataset_filter": None,
+    #         "num": 1,
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #     },
+    #     {
+    #         "dset": "val",
+    #         # "images_filter": ["DJI_0465.JPG"],
+    #         "dataset_filter": ["FMO03"],
+    #         # "dataset_filter": None,
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #
+    #     },
+    #     {
+    #         "dset": "test",
+    #         # "images_filter": ["DJI_0554.JPG"],
+    #         "dataset_filter": ["FMO02"],
+    #         "output_path": labels_path,
+    #         "empty_fraction": 0.0
+    #
+    #     }
+    # ]
 
-        },
-        {
-            "dset": "test",
-            # "images_filter": ["DJI_0554.JPG"],
-            "dataset_filter": ["FMO02"],
-            "output_path": labels_path,
-            "empty_fraction": 0.0
-
-        }
-    ]
+    # ## Data preparation based on segmentation masks
+    # train_segments = DatasetFilterConfig(**{
+    #     "dset": "train",
+    #     "images_filter": ["STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0079_FCD01.JPG", "DJI_0924.JPG", "DJI_0942.JPG",
+    #                       "DJI_0097.JPG", "SRPB06 1053 - 1112 falcon_dem_translate_0_0.jpg", "DJI_0097.JPG", "DJI_0185.JPG",
+    #                       "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG",
+    #                       ],
+    #     "output_path": labels_path,
+    #     "empty_fraction": 1.0,
+    #     "image_tags": ["segment"]
+    # })
+    #
+    # val_segments = DatasetFilterConfig(**{
+    #     "dset": "val",
+    #     "images_filter": ["DJI_0395.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0417.JPG"],
+    #     "output_path": labels_path,
+    #     "empty_fraction": 1.0,
+    #     "image_tags": ["segment"]
+    # })
 
     ## Data preparation based on segmentation masks
     train_segments = DatasetFilterConfig(**{
         "dset": "train",
         "images_filter": ["STJB06_12012023_Santiago_m_2_7_DJI_0128.JPG", "DJI_0079_FCD01.JPG", "DJI_0924.JPG", "DJI_0942.JPG",
                           "DJI_0097.JPG", "SRPB06 1053 - 1112 falcon_dem_translate_0_0.jpg", "DJI_0097.JPG", "DJI_0185.JPG",
-                          "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG", 
+                          "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG",
                           ],
         "output_path": labels_path,
-        "empty_fraction": 0.0,
-        "image_tags": ["segment"]
+        "empty_fraction": 1.0,
+        "image_tags": ["segment"],
+        "num": 2,
+        "overlap": 0.5
     })
 
     val_segments = DatasetFilterConfig(**{
         "dset": "val",
         "images_filter": ["DJI_0395.JPG", "DJI_0009.JPG", "DJI_0893.JPG", "DJI_0417.JPG"],
         "output_path": labels_path,
-        "empty_fraction": 0.0,
+        "empty_fraction": 1.0,
         "image_tags": ["segment"]
     })
 
@@ -192,6 +208,8 @@ if __name__ == "__main__":
         output_path_dset.mkdir(exist_ok=True)
 
         # TODO flatten the images here
+        hA_flat = hA.get_flat_df()
+        logger.info(f"Flattened annotations {hA_flat} annotations.")
 
         dp = DataprepPipeline(annotations_labels=hA,
                               images_path=images_path,
@@ -199,10 +217,11 @@ if __name__ == "__main__":
                               overlap=overlap,
                               output_path=output_path_dset,
                               )
+
         dp.dataset_filter = dataset.dataset_filter
 
         dp.images_filter = dataset.images_filter
-        dp.images_filter_func = ifcn
+        dp.images_filter_func = [ifcn]
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
         dp.empty_fraction = dataset.empty_fraction
@@ -211,6 +230,7 @@ if __name__ == "__main__":
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
+        # full size annotations
         HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / "herdnet_format.csv")
 
         hA_crops = dp.get_hA_crops()
@@ -243,6 +263,8 @@ if __name__ == "__main__":
             report[f"yolo_segments_path_{dset}"] = output_path_dset / "yolo" / "yolo_segments"
             report[f"class_names"] = class_names
 
+        # TODO move the crops to a new folder for YOLO
+        # TODO move the crops to a new folder for classification
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")

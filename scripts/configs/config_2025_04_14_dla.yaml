@@ -55,7 +55,7 @@ evaluator:
   threshold: 25
   kwargs:
     lmds_kwargs:
-      kernel_size: [25, 25]
+      kernel_size: [9, 9]
       adapt_ts: 0.5
       # neg_ts: 0.1
 

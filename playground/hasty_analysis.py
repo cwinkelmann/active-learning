@@ -1,1102 +1,19 @@
+import numpy as np
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
+from playground.correction.basic_agreement import analyze_counts, count_user_annotations, compare_on_image_level, \
+    visualize_multi_user_disagreement, plot_all_users_vs_consensus, analyse_normal_distribution_expert, \
+    filter_by_agreement
+from playground.correction.correction_factor_analysis import calculate_correction_factors, \
+    get_best_correction_for_expert, apply_ensemble_method
+from playground.correction.error_type_analysis import analyze_error_compensation, identify_problematic_images, \
+    get_consensus_values
 
 
 
-
-def analyze_counts(df):
-    """
-    Simple count analysis for bounding box dataset
-    """
-
-    print("=== DATASET COUNTS ANALYSIS ===\n")
-
-    # 1. Basic counts
-    print("1. BASIC COUNTS")
-    print(f"Total annotations: {len(df)}")
-    print(f"Unique images: {df['image_name'].nunique()}")
-    print(f"Unique classes: {df['class_name'].nunique()}")
-    print(f"Unique datasets: {df['dataset_name'].nunique()}")
-
-    # 2. Class distribution
-    print("\n2. CLASS DISTRIBUTION")
-    class_counts = df['class_name'].value_counts()
-    print(class_counts)
-    print(f"\nClass percentages:")
-    class_percentages = (class_counts / len(df) * 100).round(1)
-    for class_name, percentage in class_percentages.items():
-        print(f"{class_name}: {percentage}%")
-
-    # 3. Dataset distribution
-    print("\n3. DATASET DISTRIBUTION")
-    dataset_counts = df['dataset_name'].value_counts()
-    print(dataset_counts)
-
-    # 4. Images with annotation counts
-    print("\n4. ANNOTATIONS PER IMAGE")
-    annotations_per_image = df.groupby('image_name').size()
-    print(f"Mean annotations per image: {annotations_per_image.mean():.2f}")
-    print(f"Median annotations per image: {annotations_per_image.median():.2f}")
-    print(f"Max annotations in single image: {annotations_per_image.max()}")
-    print(f"Min annotations in single image: {annotations_per_image.min()}")
-
-    # Images with most annotations
-    top_images = annotations_per_image.nlargest(5)
-    print(f"\nTop 5 images with most annotations:")
-    for image, count in top_images.items():
-        print(f"{image}: {count} annotations")
-
-    # 5. Class distribution per image
-    print("\n5. CLASSES PER IMAGE")
-    classes_per_image = df.groupby('image_name')['class_name'].nunique()
-    print(f"Mean classes per image: {classes_per_image.mean():.2f}")
-    print(f"Max classes in single image: {classes_per_image.max()}")
-
-    # 6. Cross-tabulation
-    print("\n6. CLASS vs DATASET CROSSTAB")
-    crosstab = pd.crosstab(df['class_name'], df['dataset_name'], margins=True)
-    print(crosstab)
-
-    # 7. Visualizations
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-    # Class distribution bar plot
-    class_counts.plot(kind='bar', ax=axes[0, 0], color='skyblue')
-    axes[0, 0].set_title('Class Distribution')
-    axes[0, 0].set_xlabel('Class')
-    axes[0, 0].set_ylabel('Count')
-    axes[0, 0].tick_params(axis='x', rotation=45)
-
-    # Annotations per image histogram
-    axes[0, 1].hist(annotations_per_image, bins=20, color='lightgreen', alpha=0.7)
-    axes[0, 1].set_title('Annotations per Image Distribution')
-    axes[0, 1].set_xlabel('Number of Annotations')
-    axes[0, 1].set_ylabel('Number of Images')
-
-    # Classes per image histogram
-    axes[1, 0].hist(classes_per_image, bins=10, color='salmon', alpha=0.7)
-    axes[1, 0].set_title('Classes per Image Distribution')
-    axes[1, 0].set_xlabel('Number of Classes')
-    axes[1, 0].set_ylabel('Number of Images')
-
-    # Class distribution pie chart
-    axes[1, 1].pie(class_counts.values, labels=class_counts.index, autopct='%1.1f%%')
-    axes[1, 1].set_title('Class Distribution (Pie Chart)')
-
-    plt.tight_layout()
-    plt.show()
-
-    # Return summary
-    summary = {
-        'total_annotations': len(df),
-        'unique_images': df['image_name'].nunique(),
-        'unique_classes': df['class_name'].nunique(),
-        'class_counts': class_counts.to_dict(),
-        'mean_annotations_per_image': annotations_per_image.mean(),
-        'mean_classes_per_image': classes_per_image.mean()
-    }
-
-    return summary
-
-
-def count_user_annotations(hA_flat, username_1="Iguana_Andrea", username_2="concenso"):
-    """
-    Compare annotation counts between two specific users
-
-    Parameters:
-    - hA_flat: DataFrame with columns including 'class_name' (user names)
-    - username_1: First user to compare (default: "Iguana_Andrea")
-    - username_2: Second user to compare, typically consensus (default: "concenso")
-
-    Returns:
-    - Dictionary with comparison results
-    """
-
-    print(f"=== USER COMPARISON: {username_1} vs {username_2} ===\n")
-
-    # Count annotations for both users
-    user1_count = len(hA_flat[hA_flat['class_name'] == username_1])
-    user2_count = len(hA_flat[hA_flat['class_name'] == username_2])
-    total_annotations = len(hA_flat)
-
-    # Check if users exist
-    if user1_count == 0:
-        print(f"Warning: No annotations found for '{username_1}'")
-    if user2_count == 0:
-        print(f"Warning: No annotations found for '{username_2}'")
-
-    # Calculate percentages and differences
-    user1_percentage = (user1_count / total_annotations * 100) if total_annotations > 0 else 0
-    user2_percentage = (user2_count / total_annotations * 100) if total_annotations > 0 else 0
-
-    difference = user1_count - user2_count
-    ratio = user1_count / user2_count if user2_count > 0 else float('inf')
-
-    # Print comparison results
-    print(f"Total annotations in dataset: {total_annotations}")
-    print(f"\n{username_1}:")
-    print(f"  Count: {user1_count}")
-    print(f"  Percentage: {user1_percentage:.1f}%")
-
-    print(f"\n{username_2}:")
-    print(f"  Count: {user2_count}")
-    print(f"  Percentage: {user2_percentage:.1f}%")
-
-    print(f"\nComparison:")
-    print(f"  Difference ({username_1} - {username_2}): {difference:+d}")
-    print(f"  Ratio ({username_1} / {username_2}): {ratio:.2f}x")
-
-    if difference > 0:
-        print(f"  → {username_1} has {difference} more annotations than {username_2}")
-    elif difference < 0:
-        print(f"  → {username_2} has {abs(difference)} more annotations than {username_1}")
-    else:
-        print(f"  → Both users have the same number of annotations")
-
-    # Per-image comparison
-    print(f"\n=== PER-IMAGE COMPARISON ===")
-
-    # Count annotations per image for each user
-    user1_per_image = hA_flat[hA_flat['class_name'] == username_1].groupby('image_name').size()
-    user2_per_image = hA_flat[hA_flat['class_name'] == username_2].groupby('image_name').size()
-
-    # Get all images that have annotations from either user
-    all_images = set(user1_per_image.index) | set(user2_per_image.index)
-
-    print(f"Images with annotations from {username_1}: {len(user1_per_image)}")
-    print(f"Images with annotations from {username_2}: {len(user2_per_image)}")
-    print(f"Images with annotations from both users: {len(set(user1_per_image.index) & set(user2_per_image.index))}")
-    print(f"Total unique images: {len(all_images)}")
-
-    # Create comparison visualization
-    plt.figure(figsize=(12, 8))
-
-    # Bar comparison
-    plt.subplot(2, 2, 1)
-    users = [username_1, username_2]
-    counts = [user1_count, user2_count]
-    colors = ['lightcoral', 'lightblue']
-
-    bars = plt.bar(users, counts, color=colors)
-    plt.title('Annotation Count Comparison')
-    plt.ylabel('Number of Annotations')
-
-    # Add count labels on bars
-    for bar, count in zip(bars, counts):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(counts) * 0.01,
-                 str(count), ha='center', va='bottom')
-
-    # Pie chart comparison
-    plt.subplot(2, 2, 2)
-    if user1_count > 0 or user2_count > 0:
-        plt.pie([user1_count, user2_count], labels=users, autopct='%1.1f%%', colors=colors)
-        plt.title('Annotation Distribution')
-
-    # Per-image comparison (if data available)
-    plt.subplot(2, 2, 3)
-    if len(user1_per_image) > 0 and len(user2_per_image) > 0:
-        common_images = set(user1_per_image.index) & set(user2_per_image.index)
-        if common_images:
-            common_user1 = [user1_per_image.get(img, 0) for img in common_images]
-            common_user2 = [user2_per_image.get(img, 0) for img in common_images]
-
-            plt.scatter(common_user1, common_user2, alpha=0.6)
-            plt.plot([0, max(max(common_user1), max(common_user2))],
-                     [0, max(max(common_user1), max(common_user2))], 'r--', alpha=0.5)
-            plt.xlabel(f'{username_1} annotations per image')
-            plt.ylabel(f'{username_2} annotations per image')
-            plt.title('Per-Image Annotation Comparison')
-        else:
-            plt.text(0.5, 0.5, 'No common images', ha='center', va='center', transform=plt.gca().transAxes)
-            plt.title('Per-Image Annotation Comparison')
-
-    # Show available users in dataset
-    plt.subplot(2, 2, 4)
-    all_user_counts = hA_flat['class_name'].value_counts()
-    all_user_counts.plot(kind='bar', color='lightgreen')
-    plt.title('All Users in Dataset')
-    plt.ylabel('Annotation Count')
-    plt.xticks(rotation=45)
-
-    # Highlight the two users being compared
-    user_positions = []
-    for i, user in enumerate(all_user_counts.index):
-        if user in [username_1, username_2]:
-            user_positions.append(i)
-
-    if user_positions:
-        bars = plt.gca().patches
-        for pos in user_positions:
-            if pos < len(bars):
-                bars[pos].set_color('orange')
-
-    plt.tight_layout()
-    plt.show()
-
-    # Return summary
-    return {
-        'user1': username_1,
-        'user2': username_2,
-        'user1_count': user1_count,
-        'user2_count': user2_count,
-        'user1_percentage': user1_percentage,
-        'user2_percentage': user2_percentage,
-        'difference': difference,
-        'ratio': ratio,
-        'total_annotations': total_annotations,
-        'common_images': len(set(user1_per_image.index) & set(user2_per_image.index)) if len(
-            user1_per_image) > 0 and len(user2_per_image) > 0 else 0
-    }
-
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-
-
-def compare_on_image_level(hA_flat, username_1="Iguana_Andrea", username_2="concenso"):
-    """
-    Compare the error rates on the image level between two users.
-
-    Parameters:
-    - hA_flat: DataFrame with columns including 'class_name' (user names) and 'image_name'
-    - username_1: First user to compare
-    - username_2: Second user to compare (typically consensus/reference)
-
-    Returns:
-    - Dictionary with MAE, RMSE and detailed comparison results
-    """
-
-    print(f"=== IMAGE-LEVEL COMPARISON: {username_1} vs {username_2} ===\n")
-
-    # Get annotation counts per image for each user
-    user1_counts = hA_flat[hA_flat['class_name'] == username_1].groupby('image_name').size()
-    user2_counts = hA_flat[hA_flat['class_name'] == username_2].groupby('image_name').size()
-
-    # Get all unique images
-    all_images = set(hA_flat['image_name'].unique())
-
-    # Create aligned arrays for comparison
-    user1_values = []
-    user2_values = []
-    image_names = []
-
-    for image in all_images:
-        count1 = user1_counts.get(image, 0)
-        count2 = user2_counts.get(image, 0)
-
-        user1_values.append(count1)
-        user2_values.append(count2)
-        image_names.append(image)
-
-    user1_values = np.array(user1_values)
-    user2_values = np.array(user2_values)
-
-    # Calculate error metrics
-    mae = mean_absolute_error(user2_values, user1_values)  # user2 as reference
-    mse = mean_squared_error(user2_values, user1_values)
-    rmse = np.sqrt(mse)
-
-    # Additional metrics
-    differences = user1_values - user2_values
-    abs_differences = np.abs(differences)
-
-    # Statistics
-    mean_diff = np.mean(differences)
-    std_diff = np.std(differences)
-    median_abs_diff = np.median(abs_differences)
-    max_abs_diff = np.max(abs_differences)
-
-    # Count different error types
-    overcount_images = np.sum(differences > 0)  # user1 has more annotations
-    undercount_images = np.sum(differences < 0)  # user1 has fewer annotations
-    exact_match_images = np.sum(differences == 0)  # exact match
-
-    # Print results
-    print(f"Comparing annotation counts per image:")
-    print(f"Total images analyzed: {len(all_images)}")
-    print(f"\nError Metrics ({username_2} as reference):")
-    print(f"  Mean Absolute Error (MAE): {mae:.3f}")
-    print(f"  Root Mean Square Error (RMSE): {rmse:.3f}")
-    print(f"  Mean Squared Error (MSE): {mse:.3f}")
-
-    print(f"\nDifference Statistics ({username_1} - {username_2}):")
-    print(f"  Mean difference: {mean_diff:.3f}")
-    print(f"  Standard deviation: {std_diff:.3f}")
-    print(f"  Median absolute difference: {median_abs_diff:.3f}")
-    print(f"  Maximum absolute difference: {max_abs_diff}")
-
-    print(f"\nImage-level Analysis:")
-    print(
-        f"  Images where {username_1} has MORE annotations: {overcount_images} ({overcount_images / len(all_images) * 100:.1f}%)")
-    print(
-        f"  Images where {username_1} has FEWER annotations: {undercount_images} ({undercount_images / len(all_images) * 100:.1f}%)")
-    print(f"  Images with EXACT match: {exact_match_images} ({exact_match_images / len(all_images) * 100:.1f}%)")
-
-    # Detailed breakdown by difference magnitude
-    print(f"\nError Magnitude Breakdown:")
-    for threshold in [0, 1, 2, 5]:
-        count = np.sum(abs_differences <= threshold)
-        print(f"  Images with |difference| ≤ {threshold}: {count} ({count / len(all_images) * 100:.1f}%)")
-
-    # Find most problematic images
-    print(f"\nMost Problematic Images (highest absolute differences):")
-    problem_indices = np.argsort(abs_differences)[-5:][::-1]  # Top 5 worst
-    for i, idx in enumerate(problem_indices, 1):
-        if abs_differences[idx] > 0:
-            print(
-                f"  {i}. {image_names[idx]}: {username_1}={user1_values[idx]}, {username_2}={user2_values[idx]}, diff={differences[idx]:+d}")
-
-    # Create detailed comparison DataFrame
-    comparison_df = pd.DataFrame({
-        'image_name': image_names,
-        f'{username_1}_count': user1_values,
-        f'{username_2}_count': user2_values,
-        'difference': differences,
-        'abs_difference': abs_differences
-    })
-
-    # Visualizations
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-
-    # 1. Scatter plot: User1 vs User2 counts
-    axes[0, 0].scatter(user2_values, user1_values, alpha=0.6)
-    max_val = max(np.max(user1_values), np.max(user2_values))
-    axes[0, 0].plot([0, max_val], [0, max_val], 'r--', alpha=0.5, label='Perfect agreement')
-    axes[0, 0].set_xlabel(f'{username_2} annotations per image')
-    axes[0, 0].set_ylabel(f'{username_1} annotations per image')
-    axes[0, 0].set_title('Per-Image Annotation Counts')
-    axes[0, 0].legend()
-
-    # 2. Difference histogram
-    axes[0, 1].hist(differences, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-    axes[0, 1].axvline(x=0, color='red', linestyle='--', alpha=0.7, label='Perfect agreement')
-    axes[0, 1].set_xlabel(f'Difference ({username_1} - {username_2})')
-    axes[0, 1].set_ylabel('Number of Images')
-    axes[0, 1].set_title('Distribution of Differences')
-    axes[0, 1].legend()
-
-    # 3. Absolute difference histogram
-    axes[0, 2].hist(abs_differences, bins=20, alpha=0.7, color='lightcoral', edgecolor='black')
-    axes[0, 2].set_xlabel('Absolute Difference')
-    axes[0, 2].set_ylabel('Number of Images')
-    axes[0, 2].set_title('Distribution of Absolute Differences')
-
-    # 4. Box plot comparison
-    box_data = [user1_values, user2_values]
-    axes[1, 0].boxplot(box_data, labels=[username_1, username_2])
-    axes[1, 0].set_ylabel('Annotations per Image')
-    axes[1, 0].set_title('Annotation Count Distribution by User')
-
-    # 5. Error magnitude breakdown
-    error_ranges = ['0', '≤1', '≤2', '≤5', '>5']
-    error_counts = [
-        np.sum(abs_differences == 0),
-        np.sum(abs_differences <= 1) - np.sum(abs_differences == 0),
-        np.sum((abs_differences <= 2) & (abs_differences > 1)),
-        np.sum((abs_differences <= 5) & (abs_differences > 2)),
-        np.sum(abs_differences > 5)
-    ]
-
-    axes[1, 1].bar(error_ranges, error_counts, color='lightgreen', alpha=0.7)
-    axes[1, 1].set_xlabel('Absolute Difference Range')
-    axes[1, 1].set_ylabel('Number of Images')
-    axes[1, 1].set_title('Error Magnitude Distribution')
-
-    # Add count labels on bars
-    for i, count in enumerate(error_counts):
-        axes[1, 1].text(i, count + max(error_counts) * 0.01, str(count),
-                        ha='center', va='bottom')
-
-    # 6. Cumulative error plot
-    sorted_abs_diff = np.sort(abs_differences)
-    cumulative_pct = np.arange(1, len(sorted_abs_diff) + 1) / len(sorted_abs_diff) * 100
-
-    axes[1, 2].plot(sorted_abs_diff, cumulative_pct, linewidth=2)
-    axes[1, 2].set_xlabel('Absolute Difference')
-    axes[1, 2].set_ylabel('Cumulative Percentage of Images')
-    axes[1, 2].set_title('Cumulative Error Distribution')
-    axes[1, 2].grid(True, alpha=0.3)
-
-    # Add some reference lines
-    for pct in [50, 80, 95]:
-        idx = int(len(sorted_abs_diff) * pct / 100) - 1
-        if idx < len(sorted_abs_diff):
-            axes[1, 2].axhline(y=pct, color='red', linestyle='--', alpha=0.5)
-            axes[1, 2].axvline(x=sorted_abs_diff[idx], color='red', linestyle='--', alpha=0.5)
-
-    plt.tight_layout()
-    plt.show()
-
-    # Return comprehensive results
-    results = {
-        'mae': mae,
-        'rmse': rmse,
-        'mse': mse,
-        'mean_difference': mean_diff,
-        'std_difference': std_diff,
-        'median_abs_difference': median_abs_diff,
-        'max_abs_difference': max_abs_diff,
-        'total_images': len(all_images),
-        'overcount_images': overcount_images,
-        'undercount_images': undercount_images,
-        'exact_match_images': exact_match_images,
-        'comparison_dataframe': comparison_df,
-        'user1_values': user1_values,
-        'user2_values': user2_values,
-        'differences': differences,
-        'abs_differences': abs_differences
-    }
-
-    return results
-
-
-def visualize_multi_user_disagreement(hA_flat):
-    """
-    Visualize disagreement patterns among all users in the dataset
-
-    Parameters:
-    - hA_flat: DataFrame with annotation data
-
-    Returns:
-    - Dictionary with disagreement metrics and analysis
-    """
-
-    print("=== MULTI-USER DISAGREEMENT ANALYSIS ===\n")
-
-    # Get all users
-    all_users = sorted(hA_flat['class_name'].unique())
-    n_users = len(all_users)
-
-    print(f"Found {n_users} users: {all_users}")
-
-    # Get annotation counts per image for each user
-    user_counts_per_image = {}
-    all_images = sorted(hA_flat['image_name'].unique())
-
-    for user in all_users:
-        user_data = hA_flat[hA_flat['class_name'] == user]
-        counts = user_data.groupby('image_name').size()
-        user_counts_per_image[user] = [counts.get(img, 0) for img in all_images]
-
-    # Create matrix for easier analysis
-    count_matrix = np.array([user_counts_per_image[user] for user in all_users])
-
-    # Calculate disagreement metrics
-    disagreement_metrics = calculate_disagreement_metrics(count_matrix, all_users, all_images)
-
-    # Create comprehensive visualization
-    fig = plt.figure(figsize=(20, 16))
-
-
-    # 2. Pairwise MAE heatmap
-    plt.subplot(3, 4, 2)
-    mae_matrix = calculate_pairwise_mae(count_matrix, all_users)
-    sns.heatmap(mae_matrix, annot=True, fmt='.2f', cmap='Reds',
-                xticklabels=all_users, yticklabels=all_users)
-    plt.title('Pairwise Mean Absolute Error')
-    plt.xticks(rotation=45)
-    plt.yticks(rotation=45)
-
-    # 3. Agreement frequency matrix
-    plt.subplot(3, 4, 3)
-    agreement_matrix = calculate_agreement_matrix(count_matrix, all_users)
-    sns.heatmap(agreement_matrix, annot=True, fmt='.1f', cmap='Greens',
-                xticklabels=all_users, yticklabels=all_users)
-    plt.title('Agreement Frequency (%)')
-    plt.xticks(rotation=45)
-    plt.yticks(rotation=45)
-
-    # 4. Standard deviation per image (disagreement intensity)
-    std_per_image = np.std(count_matrix, axis=0)
-
-
-
-
-    # 9. Consensus vs Individual comparison
-    plt.subplot(3, 4, 9)
-    consensus_counts = np.round(np.mean(count_matrix, axis=0))
-    for i, user in enumerate(all_users):
-        deviations = np.abs(user_counts_per_image[user] - consensus_counts)
-        plt.scatter([i] * len(deviations), deviations, alpha=0.6, s=30)
-    plt.xticks(range(n_users), all_users, rotation=45)
-    plt.ylabel('Deviation from Consensus')
-    plt.title('Individual vs Consensus Deviation')
-
-    # 10. Agreement patterns (how often users agree exactly)
-    plt.subplot(3, 4, 10)
-    perfect_agreement = np.sum(std_per_image == 0)
-    partial_agreement = np.sum((std_per_image > 0) & (std_per_image <= 1))
-    high_disagreement = np.sum(std_per_image > 1)
-
-    categories = ['Perfect\nAgreement', 'Minor\nDisagreement', 'Major\nDisagreement']
-    counts = [perfect_agreement, partial_agreement, high_disagreement]
-    colors = ['green', 'orange', 'red']
-
-    bars = plt.bar(categories, counts, color=colors, alpha=0.7)
-    plt.ylabel('Number of Images')
-    plt.title('Agreement Pattern Distribution')
-
-    # Add count labels
-    for bar, count in zip(bars, counts):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.1,
-                 str(count), ha='center', va='bottom')
-
-    # 11. Pairwise scatter plots matrix (simplified)
-    plt.subplot(3, 4, 11)
-    # Show most disagreeing pair
-    max_mae_pair = find_most_disagreeing_pair(mae_matrix, all_users)
-    user1_idx = all_users.index(max_mae_pair[0])
-    user2_idx = all_users.index(max_mae_pair[1])
-
-    plt.scatter(count_matrix[user1_idx], count_matrix[user2_idx], alpha=0.6)
-    max_val = max(np.max(count_matrix[user1_idx]), np.max(count_matrix[user2_idx]))
-    plt.plot([0, max_val], [0, max_val], 'r--', alpha=0.5)
-    plt.xlabel(f'{max_mae_pair[0]} annotations')
-    plt.ylabel(f'{max_mae_pair[1]} annotations')
-    plt.title(f'Most Disagreeing Pair\n(MAE: {mae_matrix.loc[max_mae_pair[0], max_mae_pair[1]]:.2f})')
-
-    # 12. Summary statistics
-    plt.subplot(3, 4, 12)
-    plt.axis('off')
-
-
-    summary_text = f"""DISAGREEMENT SUMMARY
-
-Total Images: {len(all_images)}
-Total Users: {n_users}
-
-Agreement Patterns:
-• Perfect agreement: {perfect_agreement} images ({perfect_agreement / len(all_images) * 100:.1f}%)
-• Minor disagreement: {partial_agreement} images ({partial_agreement / len(all_images) * 100:.1f}%)
-• Major disagreement: {high_disagreement} images ({high_disagreement / len(all_images) * 100:.1f}%)
-
-Average disagreement: {overall_std:.2f}
-Max disagreement: {max_disagreement}
-Most disagreeing pair: {max_mae_pair[0]} vs {max_mae_pair[1]}
-
-Interpretation:
-Red = High disagreement
-Orange = Moderate disagreement  
-Green = Good agreement"""
-
-    plt.text(0.05, 0.95, summary_text, transform=plt.gca().transAxes,
-             verticalalignment='top', fontsize=9, fontfamily='monospace')
-
-    plt.tight_layout()
-    plt.show()
-
-    # Print detailed analysis
-    print_detailed_analysis(disagreement_metrics, all_users, all_images, std_per_image)
-
-    return {
-        'users': all_users,
-        'images': all_images,
-        'count_matrix': count_matrix,
-        'mae_matrix': mae_matrix,
-        'agreement_matrix': agreement_matrix,
-        'disagreement_metrics': disagreement_metrics,
-        'std_per_image': std_per_image,
-        'cv_per_image': cv_per_image,
-        'range_per_image': range_per_image
-    }
-
-
-def calculate_disagreement_metrics(count_matrix, users, images):
-    """Calculate various disagreement metrics"""
-    metrics = {}
-
-    # Overall disagreement (average standard deviation)
-    metrics['overall_disagreement'] = np.mean(np.std(count_matrix, axis=0))
-
-    # Image-wise metrics
-    metrics['std_per_image'] = np.std(count_matrix, axis=0)
-    metrics['range_per_image'] = np.max(count_matrix, axis=0) - np.min(count_matrix, axis=0)
-
-    # User-wise metrics
-    metrics['user_totals'] = np.sum(count_matrix, axis=1)
-    metrics['user_means'] = np.mean(count_matrix, axis=1)
-
-    return metrics
-
-
-def calculate_pairwise_mae(count_matrix, users):
-    """Calculate MAE between all pairs of users"""
-    n_users = len(users)
-    mae_matrix = pd.DataFrame(index=users, columns=users, dtype=float)
-
-    for i in range(n_users):
-        for j in range(n_users):
-            if i == j:
-                mae_matrix.iloc[i, j] = 0
-            else:
-                mae = mean_absolute_error(count_matrix[i], count_matrix[j])
-                mae_matrix.iloc[i, j] = mae
-
-    return mae_matrix
-
-
-def calculate_agreement_matrix(count_matrix, users):
-    """Calculate percentage of images where users agree exactly"""
-    n_users = len(users)
-    n_images = count_matrix.shape[1]
-    agreement_matrix = pd.DataFrame(index=users, columns=users, dtype=float)
-
-    for i in range(n_users):
-        for j in range(n_users):
-            if i == j:
-                agreement_matrix.iloc[i, j] = 100.0
-            else:
-                agreements = np.sum(count_matrix[i] == count_matrix[j])
-                agreement_matrix.iloc[i, j] = (agreements / n_images) * 100
-
-    return agreement_matrix
-
-
-def find_most_disagreeing_pair(mae_matrix, users):
-    """Find the pair of users with highest MAE"""
-    max_mae = 0
-    max_pair = None
-
-    for i, user1 in enumerate(users):
-        for j, user2 in enumerate(users):
-            if i < j:  # Only check upper triangle
-                mae = mae_matrix.loc[user1, user2]
-                if mae > max_mae:
-                    max_mae = mae
-                    max_pair = (user1, user2)
-
-    return max_pair
-
-
-def print_detailed_analysis(metrics, users, images, std_per_image):
-    """Print detailed disagreement analysis"""
-    print(f"\n=== DETAILED DISAGREEMENT ANALYSIS ===")
-    print(f"Overall disagreement score: {metrics['overall_disagreement']:.3f}")
-
-    # Most problematic images
-    worst_images = np.argsort(std_per_image)[-3:][::-1]
-    print(f"\nMost disagreed-upon images:")
-    for i, img_idx in enumerate(worst_images, 1):
-        if std_per_image[img_idx] > 0:
-            print(f"  {i}. {images[img_idx]}: std={std_per_image[img_idx]:.2f}")
-
-    # User annotation patterns
-    print(f"\nUser annotation patterns:")
-    for i, user in enumerate(users):
-        total = metrics['user_totals'][i]
-        mean_per_img = metrics['user_means'][i]
-        print(f"  {user}: {total} total annotations, {mean_per_img:.1f} avg per image")
-
-
-def plot_all_users_vs_consensus(hA_flat, consensus_name="consensu"):
-    """
-    Plot all users against the consensus user
-
-    Parameters:
-    - hA_flat: DataFrame with annotation data
-    - consensus_name: Name of the consensus user (default: "consensu")
-
-    Returns:
-    - Dictionary with comparison metrics for each user
-    """
-
-    print(f"=== ALL USERS vs {consensus_name.upper()} ===\n")
-
-    # Get all users except consensus
-    all_users = sorted(hA_flat['class_name'].unique())
-    other_users = [user for user in all_users if user != consensus_name]
-
-    if consensus_name not in all_users:
-        print(f"Warning: Consensus user '{consensus_name}' not found in dataset!")
-        print(f"Available users: {all_users}")
-        return None
-
-    print(f"Consensus user: {consensus_name}")
-    print(f"Other users: {other_users}")
-
-    # Get all unique images
-    all_images = sorted(hA_flat['image_name'].unique())
-
-    # Get consensus counts per image
-    consensus_data = hA_flat[hA_flat['class_name'] == consensus_name]
-    consensus_counts = consensus_data.groupby('image_name').size()
-    consensus_values = [consensus_counts.get(img, 0) for img in all_images]
-
-    # Get counts for all other users
-    user_data = {}
-    user_metrics = {}
-
-    for user in other_users:
-        user_df = hA_flat[hA_flat['class_name'] == user]
-        user_counts = user_df.groupby('image_name').size()
-        user_values = [user_counts.get(img, 0) for img in all_images]
-
-        # Calculate metrics
-        mae = mean_absolute_error(consensus_values, user_values)
-        rmse = np.sqrt(mean_squared_error(consensus_values, user_values))
-
-        differences = np.array(user_values) - np.array(consensus_values)
-        mean_diff = np.mean(differences)
-        std_diff = np.std(differences)
-
-        # Store data
-        user_data[user] = {
-            'values': user_values,
-            'differences': differences,
-            'abs_differences': np.abs(differences)
-        }
-
-        user_metrics[user] = {
-            'mae': mae,
-            'rmse': rmse,
-            'mean_diff': mean_diff,
-            'std_diff': std_diff,
-            'total_annotations': sum(user_values),
-            'perfect_matches': np.sum(differences == 0),
-            'overcount': np.sum(differences > 0),
-            'undercount': np.sum(differences < 0)
-        }
-
-    # Print summary metrics
-    print(f"\nMETRICS SUMMARY:")
-    print(f"{'User':<15} {'MAE':<8} {'RMSE':<8} {'Mean Diff':<10} {'Perfect Match':<12} {'Total Ann.':<10}")
-    print("-" * 70)
-
-    for user in other_users:
-        metrics = user_metrics[user]
-        perfect_pct = metrics['perfect_matches'] / len(all_images) * 100
-        print(f"{user:<15} {metrics['mae']:<8.2f} {metrics['rmse']:<8.2f} {metrics['mean_diff']:<10.2f} "
-              f"{metrics['perfect_matches']}/{len(all_images)} ({perfect_pct:.1f}%) {metrics['total_annotations']:<10}")
-
-    # Create comprehensive visualization
-    n_users = len(other_users)
-    fig = plt.figure(figsize=(20, 15))
-
-    # 1. Scatter plots: Each user vs consensus (2x2 grid)
-    for i, user in enumerate(other_users):
-        plt.subplot(3, 4, i + 1)
-
-        user_vals = user_data[user]['values']
-        plt.scatter(consensus_values, user_vals, alpha=0.6, s=50)
-
-        # Perfect agreement line
-        max_val = max(max(consensus_values), max(user_vals))
-        plt.plot([0, max_val], [0, max_val], 'r--', alpha=0.5, linewidth=2, label='Perfect agreement')
-
-        plt.xlabel(f'{consensus_name} annotations')
-        plt.ylabel(f'{user} annotations')
-        plt.title(
-            f'{user} vs {consensus_name}\nMAE: {user_metrics[user]["mae"]:.2f}, RMSE: {user_metrics[user]["rmse"]:.2f}')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-
-    # 5. Combined scatter plot (all users)
-    plt.subplot(3, 4, 5)
-    colors = ['blue', 'green', 'orange', 'purple']
-
-    for i, user in enumerate(other_users):
-        user_vals = user_data[user]['values']
-        plt.scatter(consensus_values, user_vals, alpha=0.6,
-                    label=f'{user} (MAE: {user_metrics[user]["mae"]:.2f})',
-                    color=colors[i % len(colors)], s=40)
-
-    max_val = max([max(consensus_values)] + [max(user_data[user]['values']) for user in other_users])
-    plt.plot([0, max_val], [0, max_val], 'r--', alpha=0.5, linewidth=2, label='Perfect agreement')
-
-    plt.xlabel(f'{consensus_name} annotations')
-    plt.ylabel('User annotations')
-    plt.title('All Users vs Consensus')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.grid(True, alpha=0.3)
-
-    # 6. MAE comparison bar chart
-    plt.subplot(3, 4, 6)
-    mae_values = [user_metrics[user]['mae'] for user in other_users]
-    bars = plt.bar(other_users, mae_values, color='lightcoral', alpha=0.7)
-    plt.ylabel('Mean Absolute Error')
-    plt.title('MAE vs Consensus')
-    plt.xticks(rotation=45)
-
-    # Add value labels on bars
-    for bar, mae in zip(bars, mae_values):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(mae_values) * 0.01,
-                 f'{mae:.2f}', ha='center', va='bottom')
-
-    # 7. RMSE comparison bar chart
-    plt.subplot(3, 4, 7)
-    rmse_values = [user_metrics[user]['rmse'] for user in other_users]
-    bars = plt.bar(other_users, rmse_values, color='lightblue', alpha=0.7)
-    plt.ylabel('Root Mean Square Error')
-    plt.title('RMSE vs Consensus')
-    plt.xticks(rotation=45)
-
-    # Add value labels on bars
-    for bar, rmse in zip(bars, rmse_values):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(rmse_values) * 0.01,
-                 f'{rmse:.2f}', ha='center', va='bottom')
-
-    # 8. Perfect match percentages
-    plt.subplot(3, 4, 8)
-    perfect_pcts = [user_metrics[user]['perfect_matches'] / len(all_images) * 100 for user in other_users]
-    bars = plt.bar(other_users, perfect_pcts, color='lightgreen', alpha=0.7)
-    plt.ylabel('Perfect Match Percentage')
-    plt.title('Perfect Agreement with Consensus')
-    plt.xticks(rotation=45)
-
-    # Add value labels on bars
-    for bar, pct in zip(bars, perfect_pcts):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(perfect_pcts) * 0.01,
-                 f'{pct:.1f}%', ha='center', va='bottom')
-
-    # 9. Difference distributions (box plot)
-    plt.subplot(3, 4, 9)
-    diff_data = [user_data[user]['differences'] for user in other_users]
-    box_plot = plt.boxplot(diff_data, labels=other_users, patch_artist=True)
-
-    # Color the boxes
-    for patch, color in zip(box_plot['boxes'], colors):
-        patch.set_facecolor(color)
-        patch.set_alpha(0.6)
-
-    plt.axhline(y=0, color='red', linestyle='--', alpha=0.7, label='Perfect agreement')
-    plt.ylabel(f'Difference (User - {consensus_name})')
-    plt.title('Difference Distributions')
-    plt.xticks(rotation=45)
-    plt.grid(True, alpha=0.3)
-
-    # 10. Total annotations comparison
-    plt.subplot(3, 4, 10)
-    consensus_total = sum(consensus_values)
-    user_totals = [user_metrics[user]['total_annotations'] for user in other_users]
-
-    # Add consensus as reference
-    all_totals = [consensus_total] + user_totals
-    all_labels = [consensus_name] + other_users
-    bar_colors = ['red'] + colors[:len(other_users)]
-
-    bars = plt.bar(all_labels, all_totals, color=bar_colors, alpha=0.7)
-    plt.ylabel('Total Annotations')
-    plt.title('Total Annotation Counts')
-    plt.xticks(rotation=45)
-
-    # Add value labels on bars
-    for bar, total in zip(bars, all_totals):
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(all_totals) * 0.01,
-                 str(total), ha='center', va='bottom')
-
-    # 11. Error patterns heatmap
-    plt.subplot(3, 4, 11)
-
-    # Create error pattern matrix
-    error_patterns = []
-    for user in other_users:
-        overcount = user_metrics[user]['overcount']
-        undercount = user_metrics[user]['undercount']
-        perfect = user_metrics[user]['perfect_matches']
-        error_patterns.append([overcount, perfect, undercount])
-
-    error_df = pd.DataFrame(error_patterns,
-                            columns=['Overcount', 'Perfect', 'Undercount'],
-                            index=other_users)
-
-    sns.heatmap(error_df, annot=True, fmt='d', cmap='RdYlGn', cbar_kws={'label': 'Number of Images'})
-    plt.title('Error Pattern Heatmap')
-    plt.xticks(rotation=45)
-    plt.ylabel('Users')
-
-    # 12. Summary statistics text
-    plt.subplot(3, 4, 12)
-    plt.axis('off')
-
-    # Find best and worst users
-    best_user = min(other_users, key=lambda u: user_metrics[u]['mae'])
-    worst_user = max(other_users, key=lambda u: user_metrics[u]['mae'])
-
-    summary_text = f"""SUMMARY vs {consensus_name}
-
-Total Images: {len(all_images)}
-Consensus Annotations: {consensus_total}
-
-BEST AGREEMENT:
-{best_user}
-• MAE: {user_metrics[best_user]['mae']:.2f}
-• Perfect matches: {user_metrics[best_user]['perfect_matches']}/{len(all_images)}
-
-WORST AGREEMENT:
-{worst_user}
-• MAE: {user_metrics[worst_user]['mae']:.2f}
-• Perfect matches: {user_metrics[worst_user]['perfect_matches']}/{len(all_images)}
-
-RANKING (by MAE):"""
-
-    # Add ranking
-    ranked_users = sorted(other_users, key=lambda u: user_metrics[u]['mae'])
-    for i, user in enumerate(ranked_users, 1):
-        summary_text += f"\n{i}. {user}: {user_metrics[user]['mae']:.2f}"
-
-    plt.text(0.05, 0.95, summary_text, transform=plt.gca().transAxes,
-             verticalalignment='top', fontsize=10, fontfamily='monospace')
-
-    plt.tight_layout()
-    plt.show()
-
-    return {
-        'consensus_user': consensus_name,
-        'other_users': other_users,
-        'consensus_values': consensus_values,
-        'user_data': user_data,
-        'user_metrics': user_metrics,
-        'images': all_images,
-        'best_user': best_user,
-        'worst_user': worst_user
-    }
-
-
-def analyse_normal_distribution_expert(hA_flat: pd.DataFrame,
-                                       username_1="Iguana_Andrea",
-                                       username_2="consensus"):
-    """
-    Analyze the normal distribution of annotations by an expert user compared to a consensus.
-    :param hA_flat: DataFrame with annotation data
-    :param username_1: Expert user to analyze
-    :param username_2: Consensus user to compare against
-    :return: Dictionary with analysis results
-    """
-
-    print(f"=== NORMAL DISTRIBUTION ANALYSIS: {username_1} vs {username_2} ===\n")
-
-    # Check if users exist in the dataset
-    if username_1 not in hA_flat['class_name'].unique():
-        print(f"Warning: User '{username_1}' not found in dataset!")
-        return None
-
-    if username_2 not in hA_flat['class_name'].unique():
-        print(f"Warning: User '{username_2}' not found in dataset!")
-        return None
-
-    # Get all unique images
-    all_images = sorted(hA_flat['image_name'].unique())
-
-    # Calculate the deviations from the consensus
-    user1_counts = hA_flat[hA_flat['class_name'] == username_1].groupby('image_name').size()
-    user2_counts = hA_flat[hA_flat['class_name'] == username_2].groupby('image_name').size()
-
-    # Create aligned arrays for comparison
-    user1_values = []
-    user2_values = []
-    image_names = []
-
-    for image in all_images:
-        count1 = user1_counts.get(image, 0)
-        count2 = user2_counts.get(image, 0)
-
-        user1_values.append(count1)
-        user2_values.append(count2)
-        image_names.append(image)
-
-    user1_values = np.array(user1_values)
-    user2_values = np.array(user2_values)
-
-    # Calculate deviations
-    deviations = user1_values - user2_values
-    abs_deviations = np.abs(deviations)
-
-    # Basic statistics
-    mean_deviation = np.mean(deviations)
-    std_deviation = np.std(deviations)
-    median_deviation = np.median(deviations)
-
-    print(f"Deviation Statistics ({username_1} - {username_2}):")
-    print(f"  Mean deviation: {mean_deviation:.3f}")
-    print(f"  Standard deviation: {std_deviation:.3f}")
-    print(f"  Median deviation: {median_deviation:.3f}")
-    print(f"  Min deviation: {np.min(deviations)}")
-    print(f"  Max deviation: {np.max(deviations)}")
-
-    # Plot the deviations
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-    # 1. Histogram of deviations
-    axes[0, 0].hist(deviations, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-    axes[0, 0].axvline(x=0, color='red', linestyle='--', alpha=0.7, label='No deviation')
-    axes[0, 0].axvline(x=mean_deviation, color='green', linestyle='-', alpha=0.7, label=f'Mean: {mean_deviation:.2f}')
-    axes[0, 0].set_xlabel(f'Deviation ({username_1} - {username_2})')
-    axes[0, 0].set_ylabel('Frequency')
-    axes[0, 0].set_title('Distribution of Deviations')
-    axes[0, 0].legend()
-
-    # 2. Q-Q plot for visual normality check
-    from scipy import stats
-
-    # Calculate z-scores for the deviations
-    z_scores = (deviations - mean_deviation) / std_deviation
-
-    # Create Q-Q plot
-    stats.probplot(deviations, dist="norm", plot=axes[0, 1])
-    axes[0, 1].set_title('Q-Q Plot (Normal Distribution Check)')
-
-    # 3. Scatter plot: Expert vs Consensus
-    axes[1, 0].scatter(user2_values, user1_values, alpha=0.6)
-    max_val = max(np.max(user1_values), np.max(user2_values))
-    axes[1, 0].plot([0, max_val], [0, max_val], 'r--', alpha=0.5, label='Perfect agreement')
-    axes[1, 0].set_xlabel(f'{username_2} annotations per image')
-    axes[1, 0].set_ylabel(f'{username_1} annotations per image')
-    axes[1, 0].set_title('Expert vs Consensus Annotations')
-    axes[1, 0].legend()
-
-    # 4. Deviation vs Consensus count
-    axes[1, 1].scatter(user2_values, deviations, alpha=0.6)
-    axes[1, 1].axhline(y=0, color='red', linestyle='--', alpha=0.7, label='No deviation')
-    axes[1, 1].set_xlabel(f'{username_2} annotations per image')
-    axes[1, 1].set_ylabel(f'Deviation ({username_1} - {username_2})')
-    axes[1, 1].set_title('Deviation vs Consensus Count')
-    axes[1, 1].legend()
-
-    plt.tight_layout()
-    plt.show()
-
-    # Test for normal distribution of the deviations
-    print("\nNormal Distribution Tests:")
-
-    # Shapiro-Wilk test
-    shapiro_test = stats.shapiro(deviations)
-    print(f"Shapiro-Wilk Test:")
-    print(f"  W-statistic: {shapiro_test.statistic:.4f}")
-    print(f"  p-value: {shapiro_test.pvalue:.4f}")
-    if shapiro_test.pvalue < 0.05:
-        print("  Result: Deviations are NOT normally distributed (p < 0.05)")
-    else:
-        print("  Result: Deviations appear to be normally distributed (p >= 0.05)")
-
-    # D'Agostino's K^2 test
-    k2_test = stats.normaltest(deviations)
-    print(f"\nD'Agostino's K^2 Test:")
-    print(f"  K^2-statistic: {k2_test.statistic:.4f}")
-    print(f"  p-value: {k2_test.pvalue:.4f}")
-    if k2_test.pvalue < 0.05:
-        print("  Result: Deviations are NOT normally distributed (p < 0.05)")
-    else:
-        print("  Result: Deviations appear to be normally distributed (p >= 0.05)")
-
-    # Return results
-    return {
-        'user1': username_1,
-        'user2': username_2,
-        'deviations': deviations,
-        'mean_deviation': mean_deviation,
-        'std_deviation': std_deviation,
-        'median_deviation': median_deviation,
-        'shapiro_test': shapiro_test,
-        'k2_test': k2_test,
-        'is_normal_shapiro': shapiro_test.pvalue >= 0.05,
-        'is_normal_k2': k2_test.pvalue >= 0.05
-    }
 
 
 if __name__ == '__main__':
@@ -1105,6 +22,13 @@ if __name__ == '__main__':
 
     coco_path = "coco_annotations.json"
     hasty_path = hasty_data_path / "annotations.json"
+
+    EXPERT_1 = "Iguana_Andrea"
+    EXPERT_2 = "Iguana_Andres"
+    EXPERT_3 = "Iguana_Amy"
+    EXPERT_4 = "Iguana_Robin"
+
+    CONSENSUS = "consensus"
 
     # read the coco annotations
     coco_annotations = hasty_data_path / coco_path
@@ -1120,27 +44,129 @@ if __name__ == '__main__':
         'conceso_parcial': 'consensus'
     })
 
-    # # Run count analysis
-    # summary = analyze_counts(hA_flat)
-    # summary
-    #
+    # Filter out images where 3+ experts agree exactly:
+
+    results = filter_by_agreement(
+        hA_flat,
+        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"],
+        agreement_threshold=3,
+        agreement_type="exact"
+    )
+
+    # Use the filtered data for further analysis:
+
+    hA_flat = results['filtered_data']
+
+    # Run your correction factor analysis on the filtered data:
+
+    filtered_correction_results = calculate_correction_factors(
+        hA_flat,
+        consensus_name="consensus",
+        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"]
+    )
+
+
+    # Run count analysis
+    summary = analyze_counts(hA_flat)
+    print(summary)
+
     count_user_annotations(hA_flat, username_1="Iguana_Andrea", username_2="Iguana_Andres")
     count_user_annotations(hA_flat, username_1="Iguana_Robin", username_2="consensus")
-    #
+
     results = compare_on_image_level(hA_flat, username_1="Iguana_Andrea", username_2="consensus")
-    #
-    # # Access key metrics
-    # print(f"MAE: {results['mae']:.3f}")
-    # print(f"RMSE: {results['rmse']:.3f}")
-    #
-    # results = visualize_multi_user_disagreement(hA_flat)
-    #
-    # # Access specific metrics
-    # print(f"Average disagreement: {np.mean(results['std_per_image']):.2f}")
-    # print(f"Most disagreeing users: {results['mae_matrix'].values.max():.2f} MAE")
+
+    # Access key metrics
+    print(f"MAE: {results['mae']:.3f}")
+    print(f"RMSE: {results['rmse']:.3f}")
+
+    results = visualize_multi_user_disagreement(hA_flat)
+
+    # Access specific metrics
+    print(f"Average disagreement: {np.mean(results['std_per_image']):.2f}")
+    print(f"Most disagreeing users: {results['mae_matrix'].values.max():.2f} MAE")
 
     # Run analysis
     results = plot_all_users_vs_consensus(hA_flat, consensus_name="consensus")
 
     # Test the normal distribution analysis
-    normal_dist_results = analyse_normal_distribution_expert(hA_flat, username_1="Iguana_Andrea", username_2="consensus")
+    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1=EXPERT_1,
+                                                             username_2="consensus")
+
+    # Test the normal distribution analysis
+    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1=EXPERT_2,
+                                                             username_2="consensus")
+
+
+    # Test the normal distribution analysis
+    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1=EXPERT_3,
+                                                             username_2="consensus")
+
+
+    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1=EXPERT_4,
+                                                             username_2="consensus")
+
+    expert_analysis = analyze_error_compensation(
+        hA_flat,
+        consensus_name="consensus",
+        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"]
+    )
+
+    # Find problematic images:
+
+    all_images = sorted(hA_flat['image_name'].unique())
+    consensus_values = get_consensus_values(hA_flat, all_images)  # You'll need to implement this
+
+    problematic = identify_problematic_images(expert_analysis, consensus_values, all_images)
+
+    print(f"Found {len(problematic)} problematic images:")
+    for img_info in problematic[:5]:  # Show first 5
+        print(f"  {img_info['image']}: consensus={img_info['consensus_count']}")
+        for expert, data in img_info['expert_errors'].items():
+            print(f"    {expert}: {data['count']} (error: {data['error']:+d})")
+
+
+
+    # Run analysis with your data
+    results = calculate_correction_factors(
+        hA_flat,
+        consensus_name="consensus",
+        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"]
+    )
+
+    # Get the best method
+    best_method = results['best_method']['best_method']
+    print(f"Best method: {best_method}")
+
+    # 3. Get the best overall method:
+
+    best_method_name = results['best_method']['best_method']
+    print(f"Best method: {best_method_name}")
+
+    # 4. Get best correction for a specific expert:
+
+    andrea_best = get_best_correction_for_expert(results, "Iguana_Andrea")
+    print(f"Best method for Andrea: {andrea_best['method']}")
+    print(f"Andrea's best MAE: {andrea_best['performance']['mae']:.3f}")
+
+    # 5. Apply correction to new data:
+
+    new_andrea_counts = [3, 7, 1, 12, 0, 5]
+    corrected_counts = andrea_best['apply_function'](new_andrea_counts)
+    print(f"Original: {new_andrea_counts}")
+    print(f"Corrected: {corrected_counts}")
+
+    # 6. Use ensemble method on new data:
+
+    new_expert_data = {
+        "Iguana_Andrea": [3, 7, 1, 12, 0, 5],
+        "Iguana_Andres": [2, 8, 1, 11, 1, 4],
+        "Iguana_Amy": [4, 6, 2, 13, 0, 6],
+        "Iguana_Robin": [3, 7, 1, 10, 0, 5]
+    }
+
+    ensemble_counts = apply_ensemble_method(new_expert_data, 'weighted', results)
+    print(f"Ensemble result: {ensemble_counts}")

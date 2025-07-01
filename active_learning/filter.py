@@ -19,6 +19,9 @@ class SampleStrategy(Enum):
     RANDOM = 2
     PERCENTAGE = 3
 
+class SpatialSampleStrategy(Enum):
+    NEAREST = 1
+    RANDOM = 2
 
 class ImageFilter():
     def __init__(self):

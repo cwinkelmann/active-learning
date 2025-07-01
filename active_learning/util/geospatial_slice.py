@@ -18,7 +18,7 @@ import multiprocessing
 import numpy as np
 from tqdm import tqdm
 
-from active_learning.types.Exceptions import ProjectionError
+from active_learning.types.Exceptions import ProjectionError, NoLabelsError
 from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal, \
     create_regular_geospatial_raster_grid
 from active_learning.util.projection import world_to_pixel
@@ -32,6 +32,12 @@ from shapely.geometry import Polygon
 
 class ImageGrid(object):
     """ base class for creating a grid on top of images """
+
+
+class OrdinaryImageGrid(ImageGrid):
+    """
+    Class for creating and managing ordinary image grids.
+    """
 
 
 
@@ -918,7 +924,8 @@ class GeoSlicer():
         :return:
         """
 
-        assert len(points_gdf) > 0, "No points to slice"
+        if len(points_gdf) == 0:
+            raise NoLabelsError("No points to slice")
 
 
         grid_index_col = "grid_id"

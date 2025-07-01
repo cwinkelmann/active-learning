@@ -50,3 +50,9 @@ class OrthomosaicNotSetError(ValueError):
 
 class ProjectionError(ValueError):
     pass
+
+
+class WrongSpatialSamplingStrategy(ValueError):
+    """
+
+    """

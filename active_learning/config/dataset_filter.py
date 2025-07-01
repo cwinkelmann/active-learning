@@ -42,12 +42,18 @@ class DatasetFilterConfig(BaseModel):
         default=None,
         description="An integer parameter, purpose depends on context."
     )
+    overlap: int = Field(
+        default=0,
+        ge=0,
+        description="Overlap size for cropping images, must be a non-negative integer.",
 
+    )
     empty_fraction: float = Field(
         ...,
         ge=0.0,
         le=10.0,
-        description="Fraction representing the allowable empty space, between 0.0 and 10.0. Whereas 10 means 10 times more empty images than non-empty images."
+        description="Fraction representing the allowable empty space, between 0.0 and 10.0. Whereas 10 means 10 times more empty images than non-empty images.",
+
     )
     image_tags: List[str] = Field(
         default=None,
