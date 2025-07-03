@@ -4,6 +4,7 @@ Collection of function to manipulate images
 import PIL.Image
 import copy
 import hashlib
+import matplotlib.pyplot as plt
 import numpy as np
 import typing
 import uuid
@@ -250,7 +251,6 @@ def crop_by_regular_grid(
 
     images, cropped_images_path = cropper.crop_out_images()
 
-    # TODO visualise the grid
     axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
 
     axi = visualise_polygons(cropper.empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
@@ -259,9 +259,10 @@ def crop_by_regular_grid(
                              max_y=new_height, ax=axi, color="green", linewidth=3)
     axi = visualise_polygons([c["closest_empty"] for c in cropper.closest_pairs], show=False, title=f"grid_{i.image_name}", max_x=new_width,
                              max_y=new_height, ax=axi, color="blue", linewidth=3)
-    visualise_polygons(cropper.partial_empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
+    axi = visualise_polygons(cropper.partial_empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
                        max_y=new_height, ax=axi, color="orange", linewidth=0.8,
                        filename=visualisation_path / f"selected_grid_{padded_image_path.name}")
+    plt.close()
 
     logger.info(f"Visualised grid for {i.image_name} with {len(cropper.empty_rasters)} empty tiles and {visualisation_path}")
     # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
@@ -748,7 +749,7 @@ class RasterCropperBoxes(RasterCropper):
 
                         xx, yy = pol.exterior.coords.xy
                         slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                        if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                        if slice_path_jpg.name == "FMO03___DJI_0514_x3200_y2560.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
                             pass  # TODO do not commit
 
                     elif is_bbox and annotation.bbox_polygon.intersects(pol):
@@ -766,13 +767,16 @@ class RasterCropperBoxes(RasterCropper):
                             continue
 
                         # Translate the intersection coordinates to local window coordinates
-                        int_minx, int_miny, int_maxx, int_maxy = intersection.bounds
+                        int_minx, int_miny, int_maxx, int_maxy = [int(x) for x in intersection.bounds]
                         translated_coords = [
                             (int_minx - minx, int_miny - miny),
                             (int_maxx - minx, int_miny - miny),
                             (int_maxx - minx, int_maxy - miny),
                             (int_minx - minx, int_maxy - miny)
                         ]
+
+                        if int_minx == 3200 and int_miny == 2560:
+                            logger.warning(f"Intersection coordinates: {translated_coords} for annotation {annotation.id}")
 
                         translated_inner_polygon = Polygon(translated_coords)
                         il = ImageLabel(
@@ -781,11 +785,11 @@ class RasterCropperBoxes(RasterCropper):
                             bbox=[int(x) for x in translated_inner_polygon.bounds],
                             attributes=annotation.attributes,
                         )
-                        il.attributes["partial"] = True
+                        il.attributes["edge_partial"] = True
                         partial_slice_labels.append(il)
 
-
-                    if il.attributes.get("partial", False):
+                    # If an iguana is in the middle of the image but under a rock it can be a partial iguana
+                    if il.attributes.get("edge_partial", False):
                         # logger.info(f"Box or polygon is not completly within the sliding window {annotation.id}")
                         # Translate the coordinates of the inner polygon
                         if self.edge_blackout:
@@ -1069,7 +1073,7 @@ class RasterCropperPoints(RasterCropper):
                             bbox=[int(x) for x in translated_inner_polygon.bounds],
                             attributes=annotation.attributes,
                         )
-                        il.attributes["partial"] = True
+                        il.attributes["edge_partial"] = True
                         partial_slice_labels.append(il)
 
                     elif is_polygon and annotation.polygon_s.within(pol):
@@ -1118,7 +1122,7 @@ class RasterCropperPoints(RasterCropper):
                         pass
 
 
-                    if il.attributes.get("partial", False):
+                    if il.attributes.get("edge_partial", False):
                         # logger.info(f"Box or polygon is not completly within the sliding window {annotation.id}")
                         # Translate the coordinates of the inner polygon
                         if self.edge_blackout:

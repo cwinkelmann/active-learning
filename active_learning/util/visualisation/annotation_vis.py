@@ -1,17 +1,11 @@
-import shapely
-from typing import List, Optional
-
-import pandas as pd
-import seaborn as sns
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-import random
 import os
-from shapely import Point
+import seaborn as sns
+import shapely
 from matplotlib import axes
+from shapely import Point
+from typing import List, Optional
 
 
 def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde=True):
@@ -68,22 +62,6 @@ def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde
     plt.tight_layout()
     return fig
 
-# Example usage:
-# fig = plot_frequency_distribution(df, columns=['height', 'width', 'visibility'])
-# plt.show()
-
-# Or just for one column:
-# fig = plot_frequency_distribution(df, columns=['height'])
-# plt.show()
-
-# Or automatic selection of numeric columns:
-# fig = plot_frequency_distribution(df)
-# plt.show()
-
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 
 def plot_visibility_scatter(df, figsize=(18, 6)):
     """
@@ -121,16 +99,14 @@ def plot_visibility_scatter(df, figsize=(18, 6)):
     axes[1].set_xlabel('Height')
     axes[1].set_ylabel('Visibility')
 
+    # Height vs Visibility
+    sns.scatterplot(data=df, x='area', y='visibility', ax=axes[2])
+    axes[2].set_title('Area vs Visibility')
+    axes[2].set_xlabel('Area')
+    axes[2].set_ylabel('Visibility')
 
     plt.tight_layout()
     return fig
-
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import os
 
 
 def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name",
@@ -163,19 +139,20 @@ def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name
     visibility_groups = df.groupby('visibility')
     unique_visibility_values = sorted(df['visibility'].unique())
 
-    # Automatically calculate figure size if not provided
+    # Calculate much tighter figure size
     if figsize is None:
-        # Width based on number of columns and spacing
-        width = max_images_per_visibility * 4 * width_scale  # Adjust this multiplier as needed
-        # Height based on number of rows
-        height = len(unique_visibility_values) * 3.5  # Adjust this multiplier as needed
+        # Much smaller multipliers for tight spacing
+        width = max_images_per_visibility * 2 + 1.5  # Just enough for images + title
+        height = len(unique_visibility_values) * 1.5  # Minimal height per row
         figsize = (width, height)
 
-    # Create figure
+    # Create figure with no margins
     fig = plt.figure(figsize=figsize)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0, hspace=0, wspace=0)
 
-    # Create a grid with title + images for each visibility value
-    gs = gridspec.GridSpec(len(unique_visibility_values), 1, figure=fig, hspace=0.1)
+    # Create a grid with minimal spacing
+    gs = gridspec.GridSpec(len(unique_visibility_values), 1, figure=fig,
+                          hspace=0.01, left=0, right=1, top=1, bottom=0)
 
     # For each visibility value
     for i, visibility in enumerate(unique_visibility_values):
@@ -187,25 +164,25 @@ def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name
         else:
             sample_df = group_df
 
-        # Create a nested gridspec for title and images
+        # Create a nested gridspec with title on the left and images on the right
         section_gs = gridspec.GridSpecFromSubplotSpec(
-            2, 1,
+            1, 2,
             subplot_spec=gs[i],
-            height_ratios=[0.15, 0.85],  # Small title, large image area
-            hspace=0.01  # Minimal spacing between title and images
+            width_ratios=[0.12, 0.88],  # Even smaller title area
+            wspace=0.01,  # Minimal spacing
         )
 
-        # Create a separate area just for the visibility title
+        # Create title area on the left
         title_ax = fig.add_subplot(section_gs[0])
-        title_ax.text(0.5, 0.5, f'Visibility: {visibility}',
-                      fontsize=12, weight='bold', ha='center', va='center')
+        title_ax.text(0.5, 0.5, f'Visibility:\n{visibility}',
+                      fontsize=10, weight='bold', ha='center', va='center')
         title_ax.axis('off')
 
-        # Create a nested gridspec for the images
+        # Create a nested gridspec for the images on the right
         image_gs = gridspec.GridSpecFromSubplotSpec(
             1, max_images_per_visibility,
             subplot_spec=section_gs[1],
-            wspace=0.01  # Minimal spacing between images
+            wspace=0.002,  # Almost no spacing between images
         )
 
         # Plot each image in the row
@@ -221,26 +198,24 @@ def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name
                     # Try to read and display the image
                     img = plt.imread(img_path)
                     ax.imshow(img)
-                    # Use a smaller, more compact font for the size info
-                    ax.set_xlabel(f"{row['width']}×{row['height']}", fontsize=8)
+                    # Smaller font for dimensions
+                    ax.set_xlabel(f"{row['width']}×{row['height']}", fontsize=7)
                 except FileNotFoundError:
                     # If image not found, display placeholder
                     ax.text(0.5, 0.5, f"Image not found",
-                            ha='center', va='center', fontsize=8)
+                            ha='center', va='center', fontsize=7)
 
-                # Remove axis ticks and spines to reduce space
+                # Remove all axis elements
                 ax.set_xticks([])
                 ax.set_yticks([])
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
                 for spine in ax.spines.values():
                     spine.set_visible(False)
 
-    # Add tight layout with minimal padding
-    plt.tight_layout(pad=0.5)
+    # No tight_layout - it adds unwanted padding
+    # Instead manually adjust if needed
     return fig
-
-# Example usage:
-# fig = plot_image_grid_by_visibility(df, image_dir='path/to/images', width_scale=0.8)
-# plt.show()
 
 def visualise_points_only(points: List[shapely.Point],
                           labels: Optional[List[str]] = None,
@@ -249,7 +224,7 @@ def visualise_points_only(points: List[shapely.Point],
                           title: str = "Points Visualization",
                           filename: Optional[str] = None,
                           show: bool = True,
-                          ax = None) -> axes:
+                          ax=None) -> axes:
     """
     Simplified function to visualize just points.
     """

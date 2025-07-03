@@ -18,7 +18,7 @@ def process_image(args):
     """
     Create a regular grid and crop the images
     """
-    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path = args
+    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out = args
 
     images, cropped_images_path = crop_by_regular_grid(
         crop_size,
@@ -28,7 +28,7 @@ def process_image(args):
         overlap=overlap,
         train_images_output_path=train_images_output_path,
         empty_fraction=empty_fraction,
-        edge_black_out=True,
+        edge_black_out=edge_black_out,
         visualisation_path=visualise_path
     )
     return images, cropped_images_path
@@ -249,6 +249,9 @@ class DataprepPipeline(object):
         self.images_path = images_path
         self.empty_fraction = empty_fraction
 
+        self.edge_black_out = False
+        self.use_multiprocessing = True
+
     def run(self, flatten=True):
         """
         Run the data pipeline
@@ -307,8 +310,8 @@ class DataprepPipeline(object):
                                           overlap=self.overlap,
                                           hA=copy.deepcopy(self.hA_filtered),
                                           images_path=flat_images_path,
-                                          edge_black_out=False,
-                                          use_multiprocessing=False)
+                                          edge_black_out=self.edge_black_out,
+                                          use_multiprocessing=self.use_multiprocessing)
 
         self.hA_crops = hA_crop
         return hA_crop
@@ -348,9 +351,9 @@ class DataprepPipeline(object):
         all_images_path = []
 
         if use_multiprocessing:
-
+            # train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out
             args_list = [(self.train_images_output_path, self.empty_fraction, crop_size,
-                          full_images_path_padded, i, images_path, overlap) for i in hA.images]
+                          full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out) for i in hA.images]
 
             # Use multiprocessing pool
             with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 5) as pool:

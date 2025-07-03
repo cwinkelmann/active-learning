@@ -26,7 +26,7 @@ if __name__ == "__main__":
     annotation_types = [AnnotationType.BOUNDING_BOX]
     class_filter = ["iguana"]
 
-    crop_size = 640
+    crop_size = 512
     # overlap = 0
     VISUALISE_FLAG = False
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # dataset_filter = datasets[island]
 
 
-    ## Data preparation based on Genovesa
+    ## Data preparation for a debugging sample
     train_floreana_sample = DatasetFilterConfig(**{
         "dset": "train",
         "dataset_name": "floreana_sample",
@@ -156,11 +156,11 @@ if __name__ == "__main__":
 
 
     datasets = [
-        # train_floreana_sample,
-        train_floreana, val_floreana,
-        train_fernandina_m, val_fernandina_m,
-        train_fernandina_s1, val_fernandina_s2,
-        train_genovesa, val_genovesa
+        train_floreana_sample,
+        # train_floreana, val_floreana,
+        # train_fernandina_m, val_fernandina_m,
+        # train_fernandina_s1, val_fernandina_s2,
+        # train_genovesa, val_genovesa
     ]
 
     report = {}
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                               )
 
         dp.dataset_filter = dataset.dataset_filter
-
+        dp.status_filter = dataset.status_filter
         dp.images_filter = dataset.images_filter
         dp.images_filter_func = [ifcn]
         dp.class_filter = class_filter

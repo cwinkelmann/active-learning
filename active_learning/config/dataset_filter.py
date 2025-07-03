@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List, Union
 from pydantic import BaseModel, Field
 
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, Attribute
 
 
@@ -66,6 +66,10 @@ class DatasetFilterConfig(BaseModel):
     crop_size: int = Field(
         default=512,
         description="Size of the crop."
+    )
+    status_filter: LabelingStatus = Field(
+        default=None,
+        description="Filter for labeling status of images."
     )
 
 

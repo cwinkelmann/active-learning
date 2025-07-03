@@ -29,7 +29,7 @@ def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde
     if columns is None:
         columns = df.select_dtypes(include=['number']).columns.tolist()
 
-    # Calculate number of rows and columns for subplot grid
+    # Calculate numbr of rows and columns for subplot grid
     n_cols = min(3, len(columns))
     n_rows = (len(columns) + n_cols - 1) // n_cols
 
@@ -56,15 +56,3 @@ def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde
 
     plt.tight_layout()
     return fig
-
-# Example usage:
-# fig = plot_frequency_distribution(df, columns=['height', 'width', 'visibility'])
-# plt.show()
-
-# Or just for one column:
-# fig = plot_frequency_distribution(df, columns=['height'])
-# plt.show()
-
-# Or automatic selection of numeric columns:
-# fig = plot_frequency_distribution(df)
-# plt.show()
