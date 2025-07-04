@@ -56,3 +56,9 @@ class WrongSpatialSamplingStrategy(ValueError):
     """
 
     """
+
+class LabelInconsistenyError(TooManyLabelsError):
+    """Exception raised when there is a label inconsistency."""
+
+    def __init__(self, message: str = "Label inconsistency detected") -> None:
+        super().__init__(message)

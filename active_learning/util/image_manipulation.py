@@ -15,7 +15,7 @@ from pathlib import Path
 from shapely import affinity
 
 from active_learning.filter import SpatialSampleStrategy
-from active_learning.types.Exceptions import WrongSpatialSamplingStrategy
+from active_learning.types.Exceptions import WrongSpatialSamplingStrategy, LabelInconsistenyError
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.Annotation import project_point_to_crop
 from active_learning.util.geospatial_slice import GeoSlicer
@@ -241,7 +241,10 @@ def crop_by_regular_grid(
 
     logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
 
-    cropper = RasterCropperBoxes(hi=i,
+    box_labels = [i for i in i.labels if i.bbox is not None]
+    ib = copy.deepcopy(i)
+    ib.labels = box_labels
+    cropper = RasterCropperBoxes(hi=ib,
                                  rasters=grid,
                                  full_image_path=padded_image_path,
                                  output_path=train_images_output_path,
@@ -249,7 +252,34 @@ def crop_by_regular_grid(
                                  dataset_name=i.dataset_name,
                                  edge_blackout=edge_black_out)
 
-    images, cropped_images_path = cropper.crop_out_images()
+    point_labels = [i for i in i.labels if i.bbox is None]
+    ip = copy.deepcopy(i)
+    ip.labels = point_labels
+    cropper_points = RasterCropperPoints(hi=ip,
+                                 rasters=grid,
+                                 full_image_path=padded_image_path,
+                                 output_path=train_images_output_path,
+                                 include_empty=empty_fraction,
+                                 dataset_name=i.dataset_name,
+                                 edge_blackout=edge_black_out)
+
+    images_boxes, cropped_images_boxes_path = cropper.crop_out_images()
+    images_points, cropped_images_points_path = cropper_points.crop_out_images(masks=cropper.masks)
+    boxes_count = len(images_boxes)
+    points_count = len(images_points)
+
+    # Simplest version:
+    if boxes_count > 0 and points_count > 0:
+        logger.error(f"Either boxes {boxes_count} or points {points_count} should be cropped, not both.")
+
+    if (boxes_count > 0 and points_count > 0):
+        error_msg = f"Both have items - only one should be non-empty" if boxes_count > 0 else "Both are empty - at least one should have items. image: {i.image_name}"
+        logger.error(f"Invalid state: boxes={boxes_count}, points={points_count}. {error_msg}, image: {i.image_name}")
+
+        raise LabelInconsistenyError(error_msg)
+
+    images = images_boxes + images_points
+    cropped_images_path = cropped_images_boxes_path + cropped_images_points_path
 
     axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
 
@@ -657,6 +687,7 @@ class RasterCropperBoxes(RasterCropper):
     def __init__(self, hi: AnnotatedImage, rasters: List[shapely.Polygon], full_image_path: Path, output_path: Path,
                  dataset_name: str = DATA_SET_NAME, include_empty: float = 0.0, edge_blackout=True,
                  sample_strategy=SpatialSampleStrategy.RANDOM):
+        self.masks = {}
 
         super().__init__(hi, rasters, full_image_path, output_path, dataset_name, include_empty, edge_blackout,
                          sample_strategy)
@@ -729,7 +760,7 @@ class RasterCropperBoxes(RasterCropper):
                         intersection_polygon = shapely.intersection(pol, annotation.bbox_polygon)
                         max_bbox_area = max(max_bbox_area, intersection_polygon.area)
 
-                    if annotation.bbox_polygon.within(pol):
+                    if is_bbox and annotation.bbox_polygon.within(pol):
                         logger.info(f"Box is completely within the sliding window, annotation id: {annotation.id}")
                         # the box is completely within the sliding window
                         one_good_box = True
@@ -788,6 +819,10 @@ class RasterCropperBoxes(RasterCropper):
                         il.attributes["edge_partial"] = True
                         partial_slice_labels.append(il)
 
+
+                    else:
+                        raise ValueError("At least on condition should be true, either bbox_polygon or polygon_s")
+
                     # If an iguana is in the middle of the image but under a rock it can be a partial iguana
                     if il.attributes.get("edge_partial", False):
                         # logger.info(f"Box or polygon is not completly within the sliding window {annotation.id}")
@@ -803,6 +838,7 @@ class RasterCropperBoxes(RasterCropper):
                     # logger.info(f"Box or polygon is not within the sliding window {annotation.id}")
                     pass
 
+                self.masks[annotation.id] = masks
 
             if empty == False and max_bbox_area < 5000: # TODO this should depend on the portion which is outside the sliding window
                 # reject = True
@@ -871,7 +907,7 @@ class RasterCropperBoxes(RasterCropper):
                         'distance': distance
                     })
 
-            elif SpatialSampleStrategy.NEAREST:
+            elif self.empty_selection_strategy == SpatialSampleStrategy.NEAREST:
                 # Calculate distances from this occupied raster to all empty rasters
                 distances = gdf_empty_rasters.distance(oR)
 
@@ -929,6 +965,233 @@ class RasterCropperBoxes(RasterCropper):
         return annotated_images, image_paths
 
 class RasterCropperPoints(RasterCropper):
+    """
+    Crop Point Annotations from a rasterized image into smaller images based
+    on the provided rasters (shapely polygons).
+    """
+
+    def __init__(self, hi: AnnotatedImage, rasters: List[shapely.Polygon], full_image_path: Path, output_path: Path,
+                 dataset_name: str = DATA_SET_NAME, include_empty: float = 0.0, edge_blackout=True,
+                 sample_strategy=SpatialSampleStrategy.RANDOM):
+
+        super().__init__(hi, rasters, full_image_path, output_path, dataset_name, include_empty, edge_blackout,
+                         sample_strategy)
+
+
+    def crop_out_images(self, masks):
+        """ iterate through rasters and crop out the tiles from the image return the new images and an annotations file
+
+            :param include_empty:
+            :param dataset_name:
+            :param full_image_path:
+            :param rasters:
+            :param output_path:
+            :param full_images_path:
+
+            :param hi:
+            """
+        images_with_objects = []
+
+        self.output_path.mkdir(parents=True, exist_ok=True)
+        output_path_images = self.output_path
+        output_path_images.mkdir(parents=True, exist_ok=True)
+
+        image = PIL.Image.open(self.full_image_path)
+        # imr = np.array(image)
+
+        # Convert to string if you need a string representation
+        annotated_images: List[AnnotatedImage] = []
+        image_paths: typing.List[Path] = []
+        empty_rasters: List[shapely.Polygon] = []
+        partial_empty_rasters: List[shapely.Polygon] = []
+        occupied_rasters: List[shapely.Polygon] = []
+        # slice the image in tiles
+
+        # sliding window of the image
+        for raster_id, pol in enumerate(self.rasters):
+            assert isinstance(pol, shapely.Polygon)
+            minx, miny, maxx, maxy = pol.bounds
+            slice_width = maxx - minx
+            slice_height = maxy - miny
+            full_slice_labels = []
+            partial_slice_labels = []
+
+            ## TODO extract this to another function
+            empty = True
+            partial = False
+            reject = False
+            max_bbox_area = 0
+
+            sliced_image = image.crop(pol.bounds)
+
+            filename = str(Path(self.hi.image_name).stem)
+
+            # TODO this is a bit messy, I want to get tiles which are completely empty, partially empty and occupied
+            # Right now if the first label
+            for annotation in self.hi.labels:
+
+                is_polygon = isinstance(annotation.polygon_s, shapely.Polygon)
+                is_keypoint = isinstance(annotation.keypoints, typing.List) and len(annotation.keypoints) > 0
+                is_bbox = isinstance(annotation.bbox_polygon, shapely.Polygon) and not is_polygon
+
+                # iterate through labels and check if any of the boxes intersects with the sliding window
+                if ((is_polygon and pol.intersects(annotation.polygon_s))
+                        or (is_bbox and pol.intersects(annotation.bbox_polygon))
+                        or (is_keypoint and pol.contains(annotation.keypoints[0].coordinate))):
+
+                    # any of the annotations is in the sliding window
+                    if is_bbox:
+                        intersection_polygon = shapely.intersection(pol, annotation.bbox_polygon)
+                        max_bbox_area = max(max_bbox_area, intersection_polygon.area)
+                    elif is_keypoint:
+                        is_point_inside = shapely.Point(annotation.keypoints[0].coordinate).within(pol)
+                    else:
+                        try:
+                            intersection_polygon = shapely.intersection(pol, annotation.polygon_s)
+                            max_bbox_area = max(max_bbox_area, intersection_polygon.area)
+                        except shapely.errors.GEOSException as e:
+                            logger.error(f"Error in intersection: {e}")
+                            logger.error(f"Annotation is not valid: {annotation.id} ")
+                            continue
+
+
+
+                    # Process the keypoints
+                    if is_keypoint and annotation.keypoints[0].coordinate.within(pol):
+                        # keypoint is within the sliding window, project the keypoints to the sliding window and keep that
+                        empty = False
+                        box_keypoints = []
+                        for k in annotation.keypoints:
+                            kc = copy.deepcopy(k)
+                            kc.x = int(k.x - minx)
+                            kc.y = int(k.y - miny)
+                            box_keypoints.append(kc)
+
+                        # translated_keypoints = [Keypoint(x=int(k.x - minx), y=int(k.y - miny)) for k in box.keypoints]
+
+                        il = ImageLabel(
+                            id=annotation.id,
+                            class_name=annotation.class_name,
+                            keypoints=box_keypoints,
+                            attributes=annotation.attributes,
+                        )
+
+                        full_slice_labels.append(il)
+
+                    # is a keypoint but outside the sliding window
+                    elif is_keypoint and not annotation.keypoints[0].coordinate.within(pol):
+                        # The keypoint is outside of the sliding window
+                        # So far we do not do anything here
+                        pass
+
+
+                else:
+                    # logger.info(f"Box or polygon is not within the sliding window {annotation.id}")
+                    pass
+
+            for m in masks.values():
+                # remove points which are in the mask
+                full_slice_labels = [sl for sl in full_slice_labels if
+                                     isinstance(sl.incenter_centroid, shapely.Point) and sl.incenter_centroid.within(
+                                         m) == False]
+
+            if empty == False and max_bbox_area < 5000: # TODO this should depend on the portion which is outside the sliding window
+                # reject = True
+                # logger.warning(f"Should Rejecting image, label very small {hi.image_name} because of max_bbox_area {max_bbox_area}")
+                pass
+
+            if empty: # box is completely empty
+                empty_rasters.append(pol)
+            # elif partial: # box contains partial iguanas and no single full one
+            #     partial_empty_rasters.append(pol)
+            elif not empty:
+                occupied_rasters.append(pol)
+            else:
+                ValueError(f"This should not happen, the box is neither empty nor occupied {self.hi.image_name} with {len(full_slice_labels)} labels")
+
+            # Save the image if it is not empty or if we want to include empty images
+            if not empty:
+                xx, yy = pol.exterior.coords.xy
+                slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
+                if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                    pass # TODO do not commit
+                im = AnnotatedImage(
+                    image_id=str(uuid.uuid4()),
+                    dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
+                    image_name=slice_path_jpg.name,
+                    labels=full_slice_labels,
+                    width=int(slice_width),
+                    height=int(slice_height))
+
+                annotated_images.append(im)
+
+                logger.info(f"Saving occupied raster {slice_path_jpg} with {len(full_slice_labels)} labels")
+                sliced_im = sliced_image.convert("RGB")
+                sliced_im.save(slice_path_jpg)
+                image_paths.append(slice_path_jpg)
+        ### Loooking for empties now!
+        closest_pairs = []
+        # for each occupied Raster find the closest empty raster and add it to the list
+
+        gdf_empty_rasters = gpd.GeoDataFrame(geometry=empty_rasters)
+
+        # sample empty raster which are nearby the found iguanas
+        for oR in occupied_rasters:
+            # query for the closest empty raster
+
+            # Calculate distances from this occupied raster to all empty rasters
+            distances = gdf_empty_rasters.distance(oR)
+
+            # Find the index of the minimum distance
+            if not distances.empty:
+                min_idx = distances.idxmin()
+                closest_empty = gdf_empty_rasters.loc[min_idx]
+                distance = distances.loc[min_idx]
+
+                # Add to our results
+                closest_pairs.append({
+                    'occupied_raster': oR,
+                    'closest_empty': closest_empty.geometry,
+                    'distance': distance
+                })
+
+                sliced_image = image.crop(closest_empty.geometry.bounds)
+                xx, yy = closest_empty.geometry.exterior.coords.xy
+                slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
+                if slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                    pass # TODO do not commit
+                sliced_im = sliced_image.convert("RGB")
+                sliced_im.save(slice_path_jpg)
+                image_paths.append(slice_path_jpg)
+
+                minx, miny, maxx, maxy = closest_empty.geometry.bounds
+                slice_width = maxx - minx
+                slice_height = maxy - miny
+
+                im = AnnotatedImage(
+                    image_id=str(uuid.uuid4()),
+                    dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
+                    image_name=slice_path_jpg.name,
+                    labels=[],
+                    width=int(slice_width),
+                    height=int(slice_height))
+
+                annotated_images.append(im)
+
+                # TODO remove that raster from
+                gdf_empty_rasters.drop(min_idx, inplace=True)
+
+        # Now save these results to a file
+        self.occupied_rasters = occupied_rasters
+        self.empty_rasters = empty_rasters
+        self.partial_empty_rasters = partial_empty_rasters
+        self.closest_pairs = closest_pairs
+        self.annotated_images = annotated_images
+        self.image_paths = image_paths
+
+        return annotated_images, image_paths
+
+class RasterCropperPolygon(RasterCropper):
     """
     Crop Point Annotations from a rasterized image into smaller images based
     on the provided rasters (shapely polygons).
@@ -1238,6 +1501,7 @@ class RasterCropperPoints(RasterCropper):
         self.image_paths = image_paths
 
         return annotated_images, image_paths
+
 
 
 

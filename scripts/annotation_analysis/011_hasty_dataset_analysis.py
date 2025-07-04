@@ -11,7 +11,7 @@ labels_path = Path("/Users/christian/data/training_data/2025-07-02")
 
 # hacky way
 # get a list of images which are in a dataset
-labels_file_path = labels_path / "unzipped_hasty_annotation/labels_2025_07_02.json"
+labels_file_path = labels_path / "unzipped_hasty_annotation/labels_2025_07_03.json"
 df_flat = HastyAnnotationV2.from_file(labels_file_path).get_flat_df()
 
 # dataset_mask = df_flat['dataset_name'] == "Fer_FCD01-02-03_20122021_single_images"

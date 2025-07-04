@@ -1,3 +1,6 @@
+from loguru import logger
+from pathlib import Path
+
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import os
@@ -222,8 +225,8 @@ def visualise_points_only(points: List[shapely.Point],
                           colors: Optional[List[str]] = None,
                           markersize: float = 5.0,
                           title: str = "Points Visualization",
-                          filename: Optional[str] = None,
-                          show: bool = True,
+                          filename: Optional[Path] = None,
+                          show: bool = True, text_buffer=True, font_size=10,
                           ax=None) -> axes:
     """
     Simplified function to visualize just points.
@@ -232,7 +235,7 @@ def visualise_points_only(points: List[shapely.Point],
         fig, ax = plt.subplots(1, figsize=(10, 8))
 
     if not points:
-        print("No points to visualize")
+        logger.warning("No points to visualize")
         return ax
 
     # Extract coordinates
@@ -253,8 +256,11 @@ def visualise_points_only(points: List[shapely.Point],
     if labels:
         for i, (x, y) in enumerate(zip(x_coords, y_coords)):
             if i < len(labels):
-                ax.annotate(labels[i], (x, y), xytext=(5, 5),
-                            textcoords='offset points', fontsize=10)
+                if text_buffer:
+                    # add a small box around the text in white is it is easier to read
+                    ax.text(x + 5, y + 5, labels[i], fontsize=font_size,
+                            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+
 
     ax.set_title(title)
     ax.grid(True, alpha=0.3)

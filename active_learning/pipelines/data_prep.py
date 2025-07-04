@@ -7,6 +7,7 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.filter import ImageFilter
+from active_learning.types.Exceptions import LabelInconsistenyError
 from active_learning.util.converter import coco2hasty, hasty2coco
 from active_learning.util.image_manipulation import crop_by_regular_grid
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
@@ -19,19 +20,24 @@ def process_image(args):
     Create a regular grid and crop the images
     """
     train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out = args
+    try:
+        images, cropped_images_path = crop_by_regular_grid(
+            crop_size,
+            full_images_path_padded,
+            i,
+            images_path,
+            overlap=overlap,
+            train_images_output_path=train_images_output_path,
+            empty_fraction=empty_fraction,
+            edge_black_out=edge_black_out,
+            visualisation_path=visualise_path
+        )
+        return images, cropped_images_path
+    except LabelInconsistenyError as e:
+        logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
+        logger.warning(e)
+        return [], []
 
-    images, cropped_images_path = crop_by_regular_grid(
-        crop_size,
-        full_images_path_padded,
-        i,
-        images_path,
-        overlap=overlap,
-        train_images_output_path=train_images_output_path,
-        empty_fraction=empty_fraction,
-        edge_black_out=edge_black_out,
-        visualisation_path=visualise_path
-    )
-    return images, cropped_images_path
 
 
 class UnpackAnnotations(object):
@@ -260,6 +266,12 @@ class DataprepPipeline(object):
 
         :return:
         """
+        if self.hA is None:
+            raise ValueError("HastyAnnotationV2 object is not set. Please provide it before running the pipeline.")
+        # order the images from the image with the least labels to the most labels
+        # order the images from the image with the least labels to the most labels
+        self.hA.images = sorted(self.hA.images, key=lambda image: len(image.labels))
+
         hA = hasty_filter_pipeline(
             hA=self.hA,
             class_filter=self.class_filter,
@@ -382,6 +394,7 @@ class DataprepPipeline(object):
                     empty_fraction=self.empty_fraction,
                     edge_black_out=edge_black_out,
                     visualisation_path=self.visualise_path,
+
                     # TODO pass the grid manager here
                     # grid_manager=self.grid_manager
                 )

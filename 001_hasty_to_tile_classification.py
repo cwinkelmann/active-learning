@@ -156,11 +156,11 @@ if __name__ == "__main__":
 
 
     datasets = [
-        # train_floreana_sample,
-        train_floreana, val_floreana,
-        train_fernandina_m, val_fernandina_m,
-        train_fernandina_s1, val_fernandina_s2,
-        train_genovesa, val_genovesa
+        train_floreana_sample,
+        #train_floreana, val_floreana,
+        #train_fernandina_m, val_fernandina_m,
+        #train_fernandina_s1, val_fernandina_s2,
+        #train_genovesa, val_genovesa
     ]
 
     report = {}
