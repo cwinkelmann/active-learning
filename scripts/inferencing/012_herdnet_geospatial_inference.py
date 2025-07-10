@@ -47,7 +47,8 @@ def current_date():
     return today
 
 def get_tiles(orthomosaic_path,
-              output_dir, tile_size=1250):
+              output_dir,
+              tile_size=1250):
     """
     Helper to to create a grid of tiles from an orthomosaic and slice it into smaller images.
     :param orthomosaic_path:

@@ -172,6 +172,7 @@ if __name__ == "__main__":
               "area": l.width * l.height,
               "visibility": l.attributes.get("visibility", -99),
               "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels] # TODO add the bounding box in here too
+
         df_parameter = pd.DataFrame(l)
         df_parameter.to_csv(output_path_dset / "individual_object.csv")
         # visualise a histogram

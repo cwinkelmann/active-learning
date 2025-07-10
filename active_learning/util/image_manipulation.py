@@ -881,7 +881,7 @@ class RasterCropperBoxes(RasterCropper):
         # for each occupied Raster find the closest empty raster and add it to the list
 
         gdf_empty_rasters = gpd.GeoDataFrame(geometry=empty_rasters)
-
+        closest_empty = None
 
         # sample empty raster which are nearby the found iguanas
         for oR in occupied_rasters:
@@ -930,29 +930,29 @@ class RasterCropperBoxes(RasterCropper):
                 raise WrongSpatialSamplingStrategy(f"Use any of {SpatialSampleStrategy}")
 
 
+            if closest_empty is not None:
+                sliced_image = image.crop(closest_empty.geometry.bounds)
+                xx, yy = closest_empty.geometry.exterior.coords.xy
+                slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
+                if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                    pass # TODO do not commit
+                sliced_im = sliced_image.convert("RGB")
+                sliced_im.save(slice_path_jpg)
+                image_paths.append(slice_path_jpg)
 
-            sliced_image = image.crop(closest_empty.geometry.bounds)
-            xx, yy = closest_empty.geometry.exterior.coords.xy
-            slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-            if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
-                pass # TODO do not commit
-            sliced_im = sliced_image.convert("RGB")
-            sliced_im.save(slice_path_jpg)
-            image_paths.append(slice_path_jpg)
+                minx, miny, maxx, maxy = closest_empty.geometry.bounds
+                slice_width = maxx - minx
+                slice_height = maxy - miny
 
-            minx, miny, maxx, maxy = closest_empty.geometry.bounds
-            slice_width = maxx - minx
-            slice_height = maxy - miny
+                im = AnnotatedImage(
+                    image_id=str(uuid.uuid4()),
+                    dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
+                    image_name=slice_path_jpg.name,
+                    labels=[],
+                    width=int(slice_width),
+                    height=int(slice_height))
 
-            im = AnnotatedImage(
-                image_id=str(uuid.uuid4()),
-                dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
-                image_name=slice_path_jpg.name,
-                labels=[],
-                width=int(slice_width),
-                height=int(slice_height))
-
-            annotated_images.append(im)
+                annotated_images.append(im)
 
         # Now save these results to a file
         self.occupied_rasters = occupied_rasters

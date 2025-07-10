@@ -368,7 +368,7 @@ class DataprepPipeline(object):
                           full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out) for i in hA.images]
 
             # Use multiprocessing pool
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 5) as pool:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 3) as pool:
                 results = pool.map(process_image, args_list)
 
             # Collect results

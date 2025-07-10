@@ -1,33 +1,23 @@
 """
 slice images into smaller parts
 """
-import numpy as np
-import osgeo.gdal
-import pandas as pd
-import typing
-
-from pathlib import Path
-
-import os
-from time import sleep
-import math
-from loguru import logger
-from osgeo import gdal
 import geopandas as gpd
 import multiprocessing
 import numpy as np
+import os
+import pandas as pd
+import rasterio
+import typing
+from loguru import logger
+from osgeo import gdal
+from pathlib import Path
+from rtree import index
+from shapely.geometry import Polygon
 from tqdm import tqdm
 
 from active_learning.types.Exceptions import ProjectionError, NoLabelsError
-from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal, \
-    create_regular_geospatial_raster_grid
+from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal
 from active_learning.util.projection import world_to_pixel
-
-import numpy as np
-import geopandas as gpd
-import rasterio
-from pathlib import Path
-from shapely.geometry import Polygon
 
 
 class ImageGrid(object):
@@ -38,7 +28,6 @@ class OrdinaryImageGrid(ImageGrid):
     """
     Class for creating and managing ordinary image grids.
     """
-
 
 
 class GeoSpatialRasterGrid(ImageGrid):
@@ -57,7 +46,7 @@ class GeoSpatialRasterGrid(ImageGrid):
             raster_path (Path, optional): Path to the raster image.
         """
         self.raster_path: Path = raster_path
-        self.grid_gdf:  typing.Optional[gpd.GeoDataFrame] = None
+        self.grid_gdf: typing.Optional[gpd.GeoDataFrame] = None
         self.crs = None
         self.transform = None
         self.bounds = None
@@ -153,7 +142,6 @@ class GeoSpatialRasterGrid(ImageGrid):
                 self.gdf_raster_mask = gpd.GeoDataFrame(geometry=[], crs=src.crs)
                 return self.gdf_raster_mask
 
-
     def _load_raster_metadata(self):
         """Load metadata from the raster file."""
         with rasterio.open(self.raster_path) as src:
@@ -164,8 +152,6 @@ class GeoSpatialRasterGrid(ImageGrid):
             # Get pixel sizes (resolution in X and Y directions)
             self.pixel_size_x = self.transform.a  # Pixel width in world units
             self.pixel_size_y = abs(self.transform.e)  # Pixel height (absolute value)
-
-
 
     def _get_epsg_code(self):
         """Determine the EPSG code for the raster."""
@@ -223,8 +209,8 @@ class GeoSpatialRasterGrid(ImageGrid):
         y_overlap_world = y_size_world * overlap_ratio
 
         # Compute step size (tile size minus overlap)
-        step_x = x_size_world - x_overlap_world
-        step_y = y_size_world - y_overlap_world
+        step_x = x_size_world - x_overlap_world # + self.pixel_size_x # add pixel size to ensure no gaps
+        step_y = y_size_world - y_overlap_world # + self.pixel_size_y # add pixel size to ensure annotations are in the grid
 
         grid_cells = []
         tiles = []
@@ -238,8 +224,8 @@ class GeoSpatialRasterGrid(ImageGrid):
                 x2, y2 = x + x_size_world, y + y_size_world
 
                 # Ensure tiles stay within bounds # TODO this probably a bad idea, because then the tiles are not the same size
-                #x2 = min(x2, max_x)
-                #y2 = min(y2, max_y)
+                # x2 = min(x2, max_x)
+                # y2 = min(y2, max_y)
 
                 # Create polygon
                 tile_polygon = Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
@@ -271,7 +257,7 @@ class GeoSpatialRasterGrid(ImageGrid):
         epsg_code = self._get_epsg_code()
         self.grid_gdf = gpd.GeoDataFrame(data=grid_cells, geometry=tiles, crs=epsg_code)
 
-        # remove empties # TODO check if this is right
+
         # Get indices of grid polygons that intersect with raster mask
         intersecting_indices = gpd.sjoin(
             self.grid_gdf,
@@ -280,7 +266,6 @@ class GeoSpatialRasterGrid(ImageGrid):
             how='inner'
         ).index
         self.grid_gdf = self.grid_gdf.loc[intersecting_indices]
-
 
         return self.grid_gdf
 
@@ -324,6 +309,10 @@ class GeoSpatialRasterGrid(ImageGrid):
         # For each point, create a centered box
         for idx, point in points_gdf.iterrows():
             # Get point coordinates
+            if point.geometry is None or point.geometry.is_empty:
+                logger.warning(f"Skipping empty point at index {idx}.")
+                continue
+
             x_center, y_center = point.geometry.x, point.geometry.y
 
             # Calculate box corners
@@ -331,7 +320,6 @@ class GeoSpatialRasterGrid(ImageGrid):
             y1 = y_center - half_height
             x2 = x_center + half_width
             y2 = y_center + half_height
-
 
             tile_key = (float(x_center), float(y_center))
             if tile_key not in tile_registry:
@@ -366,7 +354,7 @@ class GeoSpatialRasterGrid(ImageGrid):
         return centered_grid_gdf
 
     def create_empty_regions_grid_slow(self, points_gdf, box_size_x, box_size_y, min_distance_pixels=400,
-                                  min_area_ratio=0.7):
+                                       min_area_ratio=0.7):
         """
         Create a grid of rectangles that are guaranteed to be empty (no points within min_distance_pixels)
         and only within the non-blank areas of the raster.
@@ -556,13 +544,16 @@ class GeoSpatialRasterGrid(ImageGrid):
         buffered_points['geometry'] = buffered_points.geometry.buffer(min_distance_world)
 
         # Create spatial index for buffered points
-        from rtree import index
+
         points_idx = index.Index()
         for i, point in enumerate(buffered_points.geometry):
-            if not point.is_empty:  # Avoid indexing empty geometries
+
+            if point is None or point.is_empty:
+                logger.warning(f"Skipping empty point at index {i}.")
+            else:
                 points_idx.insert(i, point.bounds)
 
-        from shapely.geometry import box
+
         image_name = Path(self.raster_path).stem
 
         # Lists to store valid boxes
@@ -661,8 +652,9 @@ class GeoSpatialRasterGrid(ImageGrid):
 
         return empty_grid_cells
 
-
-    def create_balanced_dataset_grids(self, points_gdf: gpd.GeoDataFrame, box_size_x: int, box_size_y: int, num_empty_samples=None,
+    def create_balanced_dataset_grids(self, points_gdf: gpd.GeoDataFrame,
+                                      box_size_x: int, box_size_y: int,
+                                      num_empty_samples=None,
                                       min_distance_pixels=400, random_seed=42,
                                       object_centered=True,
                                       overlap_ratio=0.0):
@@ -682,8 +674,6 @@ class GeoSpatialRasterGrid(ImageGrid):
         """
         # Get the object-centered grid
 
-
-
         if object_centered:
             logger.info(f"cutting objects centered grid with box size {box_size_x}x{box_size_y}")
             object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
@@ -694,7 +684,9 @@ class GeoSpatialRasterGrid(ImageGrid):
         logger.info(f"start empty cutout")
         # Get the empty regions grid
         all_empty_regions = self.create_empty_regions_grid(points_gdf=points_gdf, box_size_x=box_size_x,
-                                                           box_size_y=box_size_y, min_distance_pixels=min_distance_pixels, max_boxes=num_empty_samples,
+                                                           box_size_y=box_size_y,
+                                                           min_distance_pixels=min_distance_pixels,
+                                                           max_boxes=num_empty_samples,
                                                            min_area_ratio=0.7, random_seed=random_seed)
 
         # Determine how many empty samples to select
@@ -714,8 +706,6 @@ class GeoSpatialRasterGrid(ImageGrid):
         empty_regions['has_object'] = False
 
         return object_grid, empty_regions
-
-
 
     def filter_by_points(self, points_gdf):
         """
@@ -821,12 +811,11 @@ def _process_grid_chunk(args) -> gpd.GeoDataFrame:
     return grid_chunk
 
 
-
-
 class GeoSlicer():
     """
     Helper to slice geospational rasters into smaller parts
     """
+
     def __init__(self, base_path: Path, image_name: str, grid: gpd.GeoDataFrame, output_dir: Path):
         self.gdf_slices: gpd.GeoDataFrame = None
         self.sliced_paths: typing.List[Path] = []
@@ -842,7 +831,8 @@ class GeoSlicer():
         full_image_path = self.base_path.joinpath(image_name)
         if not full_image_path.exists():
             raise FileNotFoundError(f"File {full_image_path} does not exist")
-        image_size = os.path.getsize(full_image_path)  ## gdal.Open is not realizing when the file is missing. So do this before
+        image_size = os.path.getsize(
+            full_image_path)  ## gdal.Open is not realizing when the file is missing. So do this before
         logger.info(f"size of the image: {image_size}")
         orthophoto_raster = gdal.Open(full_image_path)
         self.geo_transform = orthophoto_raster.GetGeoTransform()
@@ -877,7 +867,6 @@ class GeoSlicer():
         points_in_grid["image_name_right"] = grid_gdf["image_name"].values
         points_in_grid["grid_geometry"] = grid_gdf["geometry"].values
         points_in_grid["tile_name"] = grid_gdf["tile_name"].values
-
 
         # Check if any points couldn't be assigned to a grid cell
         if points_in_grid["image_name_right"].isnull().any():
@@ -917,7 +906,8 @@ class GeoSlicer():
 
         return points_in_grid
 
-    def slice_annotations_regular_grid(self, points_gdf: gpd.GeoDataFrame, grid_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def slice_annotations_regular_grid(self, points_gdf: gpd.GeoDataFrame,
+                                       grid_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         project the points into the local pixel coordinates of the raster cell. This assumes the grid was created around the points NOT as regular grid across the image
         :param points_gdf:
@@ -927,17 +917,16 @@ class GeoSlicer():
         if len(points_gdf) == 0:
             raise NoLabelsError("No points to slice")
 
-
         grid_index_col = "grid_id"
         # assign each point to a grid cell
         # Step 1: Assign each point to a grid cell using spatial join
         # This will match each point to the grid cell that contains it
         points_in_grid = gpd.sjoin(points_gdf, grid_gdf, how="left", predicate="within")
 
-
         # TODO check if any row "image_name_right" is None
         if "image_name_right" in points_in_grid.columns and points_in_grid["image_name_right"].isnull().any():
-            logger.error(f"some points could not be assigned to a grid cell: {points_in_grid['image_name_right'].isnull().sum()}, THIS IS DUE TO THE fact someone messed up the shapefile or orhtomosaic projections")
+            logger.error(
+                f"some points could not be assigned to a grid cell: {points_in_grid['image_name_right'].isnull().sum()}, THIS IS DUE TO THE fact someone messed up the shapefile or orhtomosaic projections")
             raise ProjectionError("There is a problem with the projection")
 
         points_in_grid.rename(columns={"index_right": grid_index_col}, inplace=True)
@@ -951,6 +940,7 @@ class GeoSlicer():
         # Convert all points from world to pixel coordinates
         points_in_grid["pixel_x"], points_in_grid["pixel_y"] = zip(
             *points_in_grid.geometry.apply(lambda point: world_to_pixel(self.geo_transform, point.x, point.y)))
+
 
         # Step 3: Calculate local pixel coordinates relative to the grid cell origin
 
@@ -969,10 +959,19 @@ class GeoSlicer():
 
                 # Calculate local coordinates with bottom-left origin
                 local_x = row["pixel_x"] - min_pixel_x  # Distance from left edge
+                if local_x == max_pixel_x - min_pixel_x:
+                    logger.warning(
+                        f"local_x is equal to grid height in pixels for point {row['geometry']}, this might be due to rounding errors or very small grid cells")
+                    local_x = local_x-1
 
                 # For Y, we need to flip the orientation:
                 # Instead of measuring from the top, measure from the bottom
                 local_y = -1 * (min_pixel_y - row["pixel_y"])  # Distance from bottom edge
+
+                if local_y == max_pixel_y - min_pixel_y:
+                    logger.warning(
+                        f"local_x is equal to grid height in pixels for point {row['geometry']}, this might be due to rounding errors or very small grid cells")
+                    local_y = local_y - 1
 
                 return local_x, local_y
 
@@ -982,7 +981,7 @@ class GeoSlicer():
         return points_in_grid
 
     # Then modify your method to use this function
-    def slice_very_big_raster(self, num_workers=None, num_chunks = 10):
+    def slice_very_big_raster(self, num_workers=None, num_chunks=10):
         """
         Slice the very big geotiff into smaller parts in parallel
 
@@ -997,12 +996,10 @@ class GeoSlicer():
         if num_workers is None:
             num_workers = max(1, multiprocessing.cpu_count() - 1)  # Leave one CPU free
 
-
         # Make sure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Split the grid into chunks for parallel processing
-
 
         if len(self.grid) < num_chunks:
             num_chunks = len(self.grid)
@@ -1016,7 +1013,8 @@ class GeoSlicer():
             for chunk in grid_dfs
         ]
 
-        logger.info(f"Processing raster {self.image_name} in parallel using {num_workers} workers to process {len(self.grid)} grid cells")
+        logger.info(
+            f"Processing raster {self.image_name} in parallel using {num_workers} workers to process {len(self.grid)} grid cells")
         all_slices: typing.List[Path] = []
 
         if num_workers == 1:
@@ -1052,7 +1050,6 @@ class GeoSlicer():
         logger.info(f"Created {len(gdf_all_slices)} slices from {len(self.grid)} grid cells")
 
         return self.gdf_slices
-
 
 
 def get_geospatial_sliced_path(base_path, x_size, y_size):

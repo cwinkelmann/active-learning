@@ -73,6 +73,10 @@ class DatasetFilterConfig(BaseModel):
         default=None,
         description="Filter for labeling status of images."
     )
+    edge_black_out: bool = Field(
+        default=False,
+        description="Whether to apply edge blackout to images."
+    )
 
 
 class DataPrepReport(DatasetFilterConfig):
@@ -81,9 +85,16 @@ class DataPrepReport(DatasetFilterConfig):
         None,
         description="Path to the images directory."
     )
-
     destination_path: typing.Optional[Path] = Field(
         None,
         description="Path to the destination directory where filtered data will be saved."
+    )
+    num_labels_filtered: int = Field(
+        default=0,
+        description="Number of labels that were filtered out based on the provided filters."
+    )
+    num_labels_crops: int = Field(
+        default=0,
+        description="Number of labels that were cropped based on the provided crop size."
     )
 

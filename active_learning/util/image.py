@@ -43,6 +43,6 @@ def get_image_dimensions(image_path: Path) -> typing.Tuple[int, int]:
     :param imag_path:
     :return:
     """
-    with Image.open(image_path) as img:
+    with PIL.Image.open(image_path) as img:
         width, height = img.size
     return width, height

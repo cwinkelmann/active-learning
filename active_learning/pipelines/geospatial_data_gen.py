@@ -81,6 +81,7 @@ def geospatial_data_to_detection_training_data(
     grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
 
     grid_manager.gdf_raster_mask.to_file(filename= vis_output_dir / f"raster_mask_{orthomosaic_path.stem}.geojson", driver='GeoJSON')
+    logger.info(f"Raster mask saved to {vis_output_dir / f'raster_mask_{orthomosaic_path.stem}.geojson'}")
 
     logger.info(f"Partitioning annotations into a balanced dataset")
     grid_gdf, gdf_empty_cells = grid_manager.create_balanced_dataset_grids(points_gdf=gdf_points,
@@ -129,9 +130,9 @@ def geospatial_data_to_detection_training_data(
                              output_dir=tile_output_dir)
 
     logger.info(f"cut empty tiles from the orthomosaic into {len(slicer_occupied.grid)} tiles")
-    slicer_empty.slice_very_big_raster(num_chunks=len(gdf_points) // 20 + 1, num_workers=3)
+    slicer_empty.slice_very_big_raster(num_chunks=len(gdf_points) // 20 + 1, num_workers=5)
     logger.info(f"cut occupied tiles from the orthomosaic into {len(slicer_occupied.grid)} tiles")
-    occupied_tiles = slicer_occupied.slice_very_big_raster(num_chunks=len(gdf_points) // 20 + 1, num_workers=3)
+    occupied_tiles = slicer_occupied.slice_very_big_raster(num_chunks=len(gdf_points) // 20 + 1, num_workers=5)
 
     converted_empty_tiles = convert_tiles_to(tiles=list(slicer_empty.gdf_slices.slice_path),
                                              format=format,

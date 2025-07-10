@@ -47,7 +47,7 @@ dataset_name_island_mapping = {
     "FMO04": "Floreana",  # FMO code pattern
     "FPA03 condor": "Floreana",  # FPA likely Floreana + location code
     "FSCA02": "Floreana",  # F prefix + SCA code
-    "floreana": "Floreana",  # Explicit island name (lowercase)
+    "floreana": "floreana_FPE01_FECA01",  # Explicit island name (lowercase)
     "FPM01_24012023": "Fernandina",  # F prefix + PM code
     "Isabella": "Isabela",  # Explicit island name (corrected spelling)
     "Fer_FPE02_07052024": "Fernandina",  # Fer prefix
@@ -63,7 +63,16 @@ ortho_single_images_mapping = {
     "SCruz_SCM01_06012023": "Metashape",
     "Zooniverse_expert_phase_2": "Mixed",  # Multi-island dataset
     "Zooniverse_expert_phase_3": "Mixed",
-    "San_STJB03_12012023": "OpenDroneMap",
+    "SCris_SRIL01_04022023": "DroneDeploy",  # Orthomosaic
+    "SCris_SRIL02_04022023": "DroneDeploy",  # Orthomosaic
+    "SCris_SRIL04_04022023": "DroneDeploy",  # Orthomosaic, 4 iguanas
+
+    "San_STJB01_12012023": "OpenDroneMap",  # Orthomosaic, 13
+    "San_STJB02_12012023": "OpenDroneMap",  # Orthomosaic
+    "San_STJB03_12012023": "OpenDroneMap",  # Orthomosaic
+    "San_STJB04_12012023": "OpenDroneMap",  # Orthomosaic
+    "San_STJB06_12012023": "OpenDroneMap",  # Orthomosaic
+
 }
 
 # remove the names that are in the mapping

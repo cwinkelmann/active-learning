@@ -341,6 +341,19 @@ if __name__ == "__main__":
 
         # Save the herdnet annotations to a CSV filep
     combined_df = pd.concat(herdnet_annotations, ignore_index=True)
+
+    # replace the column names to match the Herdnet format {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels}
+    combined_df.rename(columns={
+        "tile_name": "images",
+        "local_pixel_x": "x",
+        "local_pixel_y": "y"
+    }, inplace=True)
+    combined_df["labels"] = combined_df["labels"].astype(int)  # convert labels to int
+
+
+    raise ValueError(
+        "replace {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels} in the next line")
+    raise ValueError("convert labels to int")
     combined_df.to_csv(
         analysis_output_dir / "herdnet_annotations.csv", index=False)
 

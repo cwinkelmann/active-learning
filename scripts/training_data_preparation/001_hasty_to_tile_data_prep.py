@@ -14,7 +14,7 @@ from data_configs import val_fmo05, \
     train_big
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
-from util.util import visualise_image, visualise_polygons
+from image_template_search.util.util import visualise_image
 
 if __name__ == "__main__":
     visualise_crops = False
@@ -174,23 +174,23 @@ if __name__ == "__main__":
                 plt.close()
     logger.warning(f"If points are used then the label has to chagen from 8 to 1")
 
-    # # This YOLO data.yaml sucks
-    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-    #                                               images_train_path=report["destination_path_train"],
-    #                                               images_val_path=report["destination_path_val"],
-    #                                               labels_train_path=report["yolo_box_path_train"],
-    #                                               labels_val_path=report["yolo_box_path_val"],
-    #                                               # images_test_path=report["destination_path_test"],
-    #                                               # labels_test_path=report["yolo_box_path_test"],
-    #                                               class_names=report["class_names"],
-    #                                               data_yaml_path=labels_path / "data_boxes.yaml")
-    #
-    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-    #                                               images_train_path=report["destination_path_train"],
-    #                                               images_val_path=report["destination_path_val"],
-    #                                               # images_test_path=report["destination_path_test"],
-    #                                               labels_train_path=report["yolo_segments_path_train"],
-    #                                               labels_val_path=report["yolo_segments_path_val"],
-    #                                               # labels_test_path=report["yolo_segments_path_test"],
-    #                                               class_names=report["class_names"],
-    #                                               data_yaml_path=labels_path / "data_segments.yaml")
+    # This YOLO data.yaml sucks
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  labels_train_path=report["yolo_box_path_train"],
+                                                  labels_val_path=report["yolo_box_path_val"],
+                                                  # images_test_path=report["destination_path_test"],
+                                                  # labels_test_path=report["yolo_box_path_test"],
+                                                  class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "data_boxes.yaml")
+
+    HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
+                                                  images_train_path=report["destination_path_train"],
+                                                  images_val_path=report["destination_path_val"],
+                                                  # images_test_path=report["destination_path_test"],
+                                                  labels_train_path=report["yolo_segments_path_train"],
+                                                  labels_val_path=report["yolo_segments_path_val"],
+                                                  # labels_test_path=report["yolo_segments_path_test"],
+                                                  class_names=report["class_names"],
+                                                  data_yaml_path=labels_path / "data_segments.yaml")

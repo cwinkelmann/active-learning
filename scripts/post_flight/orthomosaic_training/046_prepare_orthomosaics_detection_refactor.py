@@ -24,9 +24,8 @@ from active_learning.util.image_manipulation import convert_tiles_to, remove_emp
 from active_learning.util.projection import convert_gdf_to_jpeg_coords, project_gdfcrs
 from active_learning.util.super_resolution import super_resolve, SuperResolution
 from com.biospheredata.converter.HastyConverter import ImageFormat
-from geospatial_transformations import get_gsd, get_geotiff_compression
-from util.util import visualise_image, visualise_polygons
-
+from active_learning.util.geospatial_transformations import get_geotiff_compression, get_gsd
+from image_template_search.util.util import (visualise_image, visualise_polygons)
 from osgeo import gdal
 from collections import defaultdict
 gdal.UseExceptions()
@@ -134,7 +133,7 @@ if __name__ == "__main__":
     # Expert export
     # expert = "Andrea"
     # base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_14_robin_{tile_size}_obcj_{OBJECT_CENTERED}")
-    base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_15_{tile_size}_objcenter_{OBJECT_CENTERED}")
+    base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_07_06_{tile_size}_objcenter_{OBJECT_CENTERED}")
 
     for index, row in gdf_mapping.iterrows():
         try:
@@ -217,7 +216,9 @@ if __name__ == "__main__":
     for split, annotations in herdnet_annotations.items():
         # Save the herdnet annotations to a CSV filep
         combined_df = pd.concat(herdnet_annotations[split], ignore_index=True)
-
+        raise ValueError(
+            "replace {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels} in the next line")
+        raise ValueError("convert labels to int")
         output_annotation_dir = base_path / "herdnet" / f"{split}"
         combined_df.to_csv(
             output_annotation_dir / f"herdnet_annotations_{split}.csv", index=False)
