@@ -37,6 +37,10 @@ def process_image(args):
         logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
         logger.warning(e)
         return [], []
+    except OSError as e:
+        logger.error(f"OSError image {i.image_name}, skipping this image.")
+        logger.error(e)
+        return [], []
 
 
 
@@ -383,21 +387,26 @@ class DataprepPipeline(object):
                 # df_grid = self.grid_manager(i)
                 # TODO implement this
                 # annotated_images, cropped_images_path = self.cropper(df_grid, i, images_path, full_images_path_padded)
+                try:
+                    annotated_images, cropped_images_path = crop_by_regular_grid(
+                        crop_size=crop_size,
+                        full_images_path_padded=full_images_path_padded,
+                        i=i,
+                        images_path=images_path,
+                        overlap=overlap,
+                        train_images_output_path=self.train_images_output_path,
+                        empty_fraction=self.empty_fraction,
+                        edge_black_out=edge_black_out,
+                        visualisation_path=self.visualise_path,
 
-                annotated_images, cropped_images_path = crop_by_regular_grid(
-                    crop_size=crop_size,
-                    full_images_path_padded=full_images_path_padded,
-                    i=i,
-                    images_path=images_path,
-                    overlap=overlap,
-                    train_images_output_path=self.train_images_output_path,
-                    empty_fraction=self.empty_fraction,
-                    edge_black_out=edge_black_out,
-                    visualisation_path=self.visualise_path,
-
-                    # TODO pass the grid manager here
-                    # grid_manager=self.grid_manager
-                )
+                        # TODO pass the grid manager here
+                        # grid_manager=self.grid_manager
+                    )
+                except LabelInconsistenyError as e:
+                    logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
+                    logger.warning(e)
+                    annotated_images = []
+                    cropped_images_path = []
 
                 all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)

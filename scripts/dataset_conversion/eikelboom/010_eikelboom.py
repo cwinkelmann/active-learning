@@ -1,3 +1,5 @@
+import shutil
+
 import uuid
 
 import pandas as pd
@@ -8,11 +10,8 @@ from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel
 
 from loguru import logger
 
-base_path = Path('/Volumes/G-DRIVE/Datasets/deep_forest_birds')
-
-everglades_subset = base_path / 'everglades'
-hayes_subset = base_path / 'hayes'
-pfeifer_subset = base_path / 'pfeifer'
+base_path = Path('/Volumes/G-DRIVE/Datasets/ImprovingPrecisionAccuracy_Eikelboom2019data/Improving the precision and accuracy of animal population estimates with aerial image object detection_1_all')
+destination_base_path = base_path / "hasty_style"
 
 images_train = base_path / 'train'
 images_val = base_path / 'val'
@@ -26,17 +25,21 @@ data_splits = {
 
 annotations = base_path / 'annotations_images.csv'
 
-# annotations which are based on images which are not in the folder
-annotations_train = base_path / 'annotations_train.csv'
-annotations_val = base_path / 'annotations_val.csv'
-annotations_test = base_path / 'annotations_test.csv'
+# # annotations which are based on images which are not in the folder
+# annotations_train = base_path / 'annotations_train.csv'
+# annotations_val = base_path / 'annotations_val.csv'
+# annotations_test = base_path / 'annotations_test.csv'
 
 annotated_images = []
 label_classes = set()
 
 for split, images in data_splits.items():
+    dataset_name = f"eikelboom_{split}"
 
-    loaded_train_images = [i for i in images_train.glob('*.JPG') if not i.name.startswith('._')]
+    logger.info(f"Working on dataset: {dataset_name} with split: {split}")
+
+    (destination_base_path / dataset_name).mkdir(parents=True, exist_ok=True)
+    loaded_train_images = [i for i in (base_path / split).glob('*.JPG') if not i.name.startswith('._')]
 
     df_annotations = pd.read_csv(annotations)
 
@@ -59,7 +62,7 @@ for split, images in data_splits.items():
         annotated_image = AnnotatedImage(
                     image_id=image_id,
                     image_name=l.name,
-                    dataset_name=f"eikelboom_{split}",
+                    dataset_name=dataset_name,
                     ds_image_name=None,
                     width=width,
                     height=height,
@@ -70,6 +73,9 @@ for split, images in data_splits.items():
                 )
 
         annotated_images.append(annotated_image)
+
+        if not (destination_base_path / dataset_name / l.name).exists():
+            shutil.copy(base_path / split / l.name, destination_base_path / dataset_name / l.name)
 
     obj_lc = [
         LabelClass(
@@ -83,10 +89,10 @@ for split, images in data_splits.items():
     ]
 
 hA = HastyAnnotationV2(
-        project_name="weinstein_birds",
+        project_name="eikelboom2019",
         images=annotated_images,
         export_format_version="1.1",
         label_classes=obj_lc
     )
 
-hA.save(base_path / "weinstein_birds_hasty.json")
+hA.save(base_path / "eikelboom_hasty.json")

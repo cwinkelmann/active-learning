@@ -89,6 +89,14 @@ class DataPrepReport(DatasetFilterConfig):
         None,
         description="Path to the destination directory where filtered data will be saved."
     )
+    num_images_filtered: int = Field(
+        default=0,
+        description="Number of images after filtering were filtered out based on the provided filters."
+    )
+    num_images_crops: int = Field(
+        default=0,
+        description="Number of images after cropping."
+    )
     num_labels_filtered: int = Field(
         default=0,
         description="Number of labels that were filtered out based on the provided filters."

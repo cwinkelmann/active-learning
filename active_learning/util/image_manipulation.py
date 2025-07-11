@@ -268,15 +268,7 @@ def crop_by_regular_grid(
     boxes_count = len(images_boxes)
     points_count = len(images_points)
 
-    # Simplest version:
-    if boxes_count > 0 and points_count > 0:
-        logger.error(f"Either boxes {boxes_count} or points {points_count} should be cropped, not both.")
 
-    if (boxes_count > 0 and points_count > 0):
-        error_msg = f"Both have items - only one should be non-empty" if boxes_count > 0 else "Both are empty - at least one should have items. image: {i.image_name}"
-        logger.error(f"Invalid state: boxes={boxes_count}, points={points_count}. {error_msg}, image: {i.image_name}")
-
-        raise LabelInconsistenyError(error_msg)
 
     images = images_boxes + images_points
     cropped_images_path = cropped_images_boxes_path + cropped_images_points_path
@@ -298,6 +290,16 @@ def crop_by_regular_grid(
     # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
 
     logger.info(f"Cropped {len(images)} images from {i.image_name} to {train_images_output_path}")
+
+    # Simplest version:
+    if boxes_count > 0 and points_count > 0:
+        logger.error(f"Either boxes {boxes_count} or points {points_count} should be cropped, not both.")
+
+    if (boxes_count > 0 and points_count > 0):
+        error_msg = f"Both have items - only one should be non-empty" if boxes_count > 0 else "Both are empty - at least one should have items. image: {i.image_name}"
+        logger.error(f"Invalid state: boxes={boxes_count}, points={points_count}. {error_msg}, image: {i.image_name}")
+
+        raise LabelInconsistenyError(error_msg)
 
     return images, cropped_images_path
 

@@ -32,6 +32,8 @@ if __name__ == "__main__":
     label_mapping = {"iguana_point": 1, "iguana": 2}
     logger.warning(f"Later this should work with Box first to remove edge partials then point to mark")
 
+# def main(labels_path: Path):
+
     crop_size = 512
     overlap = 0
     VISUALISE_FLAG = False
@@ -149,7 +151,22 @@ if __name__ == "__main__":
         "class_filter": class_filter,
         "crop_size": crop_size,
         "num": x
-    }) for x in range(10, 11)]
+    }) for x in range(1, 36)]
+
+    train_fernandina_s1_increasing_length = [DatasetFilterConfig(**{
+        "dset": "train",
+        "dataset_name": f"Fernandina_s_detection_il_{x}",
+        "dataset_filter": datasets["Fernandina_s_1"],
+        "output_path": labels_path,
+        "empty_fraction": empty_fraction,
+        "overlap": overlap,
+        "status_filter": [LabelingStatus.COMPLETED],
+        "annotation_types": annotation_types,
+        "class_filter": class_filter,
+        "crop_size": crop_size,
+        "num": x
+    }) for x in range(1, 25)]
+
     val_floreana = DatasetFilterConfig(**{
         "dset": "val",
         "dataset_name": "Floreana_detection",
@@ -234,7 +251,19 @@ if __name__ == "__main__":
     train_single_all = DatasetFilterConfig(**{
         "dset": "train",
         "dataset_name": "All_detection_single",
-        "dataset_filter": datasets["Floreana_1"] + datasets["Fernandina_s_2"] + datasets["Fernandina_s_1"]  + datasets["Genovesa"],
+        "dataset_filter": datasets["Floreana_1"] + datasets["Fernandina_s_1"]  + datasets["Genovesa"] + datasets["the_rest"],
+        "output_path": labels_path,
+        "empty_fraction": empty_fraction,
+        "overlap": overlap,
+        "status_filter": [LabelingStatus.COMPLETED],
+        "annotation_types": annotation_types,
+        "class_filter": class_filter,
+        "crop_size": crop_size,
+    })
+    val_single_all = DatasetFilterConfig(**{
+        "dset": "val",
+        "dataset_name": "All_detection_single",
+        "dataset_filter": datasets["Floreana_2"] + datasets["Fernandina_s_2"]  + datasets["Genovesa"],
         "output_path": labels_path,
         "empty_fraction": empty_fraction,
         "overlap": overlap,
@@ -259,16 +288,18 @@ if __name__ == "__main__":
 
 
     datasets = [
-        train_floreana_sample,
-        train_floreana, val_floreana,
-        train_fernandina_m, val_fernandina_m,
-        train_fernandina_s1, val_fernandina_s2,
-        train_genovesa, val_genovesa,
+        # train_floreana_sample,
+        # train_floreana, val_floreana,
+        # train_fernandina_m, val_fernandina_m,
+        # train_fernandina_s1, val_fernandina_s2,
+        # train_genovesa, val_genovesa,
         # train_rest,
         # train_all,
-        train_single_all
+        train_single_all,
+        val_single_all
     ]
     # datasets += train_floreana_increasing_length
+    # datasets += train_fernandina_s1_increasing_length
 
     for dataset in datasets:  # , "val", "test"]:
         dataset_dict = dataset.model_dump()
@@ -279,7 +310,7 @@ if __name__ == "__main__":
         })
         report = DataPrepReport(**dataset_dict)
 
-        logger.info(f"Starting {dataset.dset}")
+        logger.info(f"Starting {dataset.dataset_name}, split: {dataset.dset}")
         dset = dataset.dset
         num = dataset.num
         overlap = dataset.overlap
@@ -332,9 +363,11 @@ if __name__ == "__main__":
                                                  label_mapping=label_mapping)
 
         report.num_labels_filtered = len([i.labels for i in hA_filtered.images])
+        report.num_images_filtered = len(hA_filtered.images)
 
         hA_crops = dp.get_hA_crops()
         report.num_labels_crops = len([i.labels for i in hA_crops.images])
+        report.num_images_crops = len(hA_crops.images)
 
         aI = AnnotationsIntermediary()
         logger.info(f"After processing {len(hA_crops.images)} images remain")
@@ -410,6 +443,8 @@ if __name__ == "__main__":
 
         logger.info(f"Saved report to {labels_path / dataset.dataset_name / f'datapreparation_report_{dset}.yaml'}")
 
+        shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
+        shutil.rmtree(output_path_dset.joinpath("padded_images"))
 
     gc.collect()
 

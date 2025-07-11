@@ -56,9 +56,9 @@ if __name__ == "__main__":
     # class_filter = ["iguana_point", "iguana"]
 
     ## Segmentation masks
-    labels_path = Path("/Users/christian/data/training_data/2025-07-02")
-    hasty_annotations_labels_zipped = "labels_2025_07_02.zip"
-    hasty_annotations_images_zipped = "images_2025_07_02.zip"
+    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final_analysis")
+    hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
+    hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
     annotation_types = [AnnotationType.BOUNDING_BOX]
 
     class_filter = ["iguana"]

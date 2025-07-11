@@ -23,14 +23,14 @@ from image_template_search.util.visualisation import visualise_annotated_image
 if __name__ == "__main__":
 
     ## Meeting presentation
-    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final")
+    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final_classification_640")
     hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
     hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
     annotation_types = [AnnotationType.BOUNDING_BOX]
     class_filter = ["iguana"]
 
-    crop_size = 224
-    empty_fraction = 1
+    crop_size = 640
+    empty_fraction = 0.0
     overlap = 0
     VISUALISE_FLAG = False
     use_multiprocessing = True
@@ -147,6 +147,19 @@ if __name__ == "__main__":
         "class_filter": class_filter,
         "crop_size": crop_size,
     })
+    train_floreana_increasing_length = [DatasetFilterConfig(**{
+        "dset": "train",
+        "dataset_name": f"Floreana_classification_il_{x}",
+        "dataset_filter": datasets["Floreana_1"],
+        "output_path": labels_path,
+        "empty_fraction": empty_fraction,
+        "overlap": overlap,
+        "status_filter": [LabelingStatus.COMPLETED],
+        "annotation_types": annotation_types,
+        "class_filter": class_filter,
+        "crop_size": crop_size,
+        "num": x
+    }) for x in range(1, 36)]
     ## Fernandina Mosaic
     train_fernandina_m = DatasetFilterConfig(**{
         "dset": "train",
@@ -254,6 +267,7 @@ if __name__ == "__main__":
         # train_all,
         train_single_all
     ]
+    datasets += train_floreana_increasing_length
 
     for dataset in datasets:  # , "val", "test"]:
         dataset_dict = dataset.model_dump()
@@ -310,6 +324,11 @@ if __name__ == "__main__":
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
+
+        report.num_images_filtered = len(hA_filtered.images)
+        hA_crops = dp.get_hA_crops()
+        report.num_labels_crops = len([i.labels for i in hA_crops.images])
+
         # full size annotations
         HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / f"herdnet_format.csv")
 
@@ -323,6 +342,7 @@ if __name__ == "__main__":
 
         hA_crops = dp.get_hA_crops()
         report.num_labels_crops = len([i.labels for i in hA_crops.images])
+        report.num_images_crops = len(hA_crops.images)
 
         if VISUALISE_FLAG:
 
