@@ -105,4 +105,8 @@ class DataPrepReport(DatasetFilterConfig):
         default=0,
         description="Number of labels that were cropped based on the provided crop size."
     )
+    bbox_statistics: typing.Optional[dict] = Field(
+        default=0,
+        description="statistics about bounding boxes in the dataset, such as size distribution, number of boxes per image, etc."
+    )
 

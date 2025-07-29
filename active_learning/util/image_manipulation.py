@@ -12,7 +12,7 @@ from PIL import Image
 from io import BytesIO
 from loguru import logger
 from pathlib import Path
-from shapely import affinity
+from shapely import affinity, unary_union
 
 from active_learning.filter import SpatialSampleStrategy
 from active_learning.types.Exceptions import WrongSpatialSamplingStrategy, LabelInconsistenyError
@@ -23,7 +23,7 @@ from active_learning.util.image import get_image_id
 from active_learning.util.image_rasterization import generate_positions
 #
 from com.biospheredata.converter.Annotation import add_offset_to_box
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.converter.HastyConverter import ImageFormat, AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabelCollection, PredictedImageLabel, Keypoint
 from com.biospheredata.visualization.visualize_result import blackout_bbox
@@ -196,8 +196,7 @@ def create_regular_raster_grid(max_x: int, max_y: int,
 
     return tiles, tile_coordinates
 
-
-def crop_by_regular_grid(
+def crop_by_regular_grid_two_stage(
         crop_size: int,
         full_images_path_padded: Path,
         i: AnnotatedImage,
@@ -207,6 +206,7 @@ def crop_by_regular_grid(
         overlap: float = 0.0,
         edge_black_out: bool = True,
         visualisation_path: Path = None,
+        annotated_types: typing.List[AnnotationType] = None,
         grid_manager: typing.Callable = None):
     """
 
@@ -244,7 +244,126 @@ def crop_by_regular_grid(
     box_labels = [i for i in i.labels if i.bbox is not None]
     ib = copy.deepcopy(i)
     ib.labels = box_labels
-    cropper = RasterCropperBoxes(hi=ib,
+    cropper_boxes = RasterCropperBoxes(hi=ib,
+                                 rasters=grid,
+                                 full_image_path=padded_image_path,
+                                 output_path=train_images_output_path,
+                                 include_empty=empty_fraction,
+                                 dataset_name=i.dataset_name,
+                                 edge_blackout=edge_black_out)
+
+
+    images_boxes, cropped_images_boxes_path = cropper_boxes.crop_out_images()
+
+    occupied_rasters = cropper_boxes.occupied_rasters
+    masks = cropper_boxes.masks
+
+    point_labels = [i for i in i.labels if i.bbox is None]
+
+
+    ip = copy.deepcopy(i)
+    ip.labels = point_labels
+
+    cropper_points = RasterCropperPoints(hi=ip,
+                                         rasters=occupied_rasters,
+                                         full_image_path=padded_image_path,
+                                         output_path=train_images_output_path,
+                                         include_empty=empty_fraction,
+                                         dataset_name=i.dataset_name,
+                                         edge_blackout=edge_black_out,
+                                         )
+
+
+    images_points, cropped_images_points_path = cropper_points.crop_out_images(masks=cropper_boxes.masks)
+    boxes_count = len(images_boxes)
+    points_count = len(images_points)
+
+    images = images_points
+    cropped_images_path = cropped_images_points_path
+
+    if visualisation_path is not None:
+        axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
+
+        axi = visualise_polygons(cropper_boxes.empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="red")
+        axi = visualise_polygons(cropper_boxes.occupied_rasters.values(), show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="green", linewidth=3)
+        axi = visualise_polygons([c["closest_empty"] for c in cropper_boxes.closest_pairs], show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="blue", linewidth=3)
+        axi = visualise_polygons(cropper_boxes.partial_empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                           max_y=new_height, ax=axi, color="orange", linewidth=0.8,
+                           filename=visualisation_path / f"selected_grid_{padded_image_path.name}")
+        plt.close()
+
+        logger.info(f"Visualised grid for {i.image_name} with {len(cropper_boxes.empty_rasters)} empty tiles and {visualisation_path}")
+        # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
+
+    logger.info(f"Cropped {len(images)} images from {i.image_name} to {train_images_output_path}")
+
+    # Simplest version:
+    if boxes_count > 0 and points_count > 0:
+        logger.error(f"Either boxes {boxes_count} or points {points_count} should be cropped, not both.")
+
+    if AnnotationType.KEYPOINT in annotated_types and AnnotationType.BOUNDING_BOX in annotated_types:
+        pass
+        # thats fine
+    elif len(annotated_types) == 1 and (boxes_count > 0 and points_count > 0):
+        error_msg = f"Both have items - only one should be non-empty" if boxes_count > 0 else "Both are empty - at least one should have items. image: {i.image_name}"
+        logger.error(f"Invalid state: boxes={boxes_count}, points={points_count}. {error_msg}, image: {i.image_name}")
+
+        raise LabelInconsistenyError(error_msg)
+
+    return images, cropped_images_path
+
+def crop_by_regular_grid(
+        crop_size: int,
+        full_images_path_padded: Path,
+        i: AnnotatedImage,
+        images_path: Path,
+        train_images_output_path: Path,
+        empty_fraction: float,
+        overlap: float = 0.0,
+        edge_black_out: bool = True,
+        visualisation_path: Path = None,
+        annotated_types: typing.List[AnnotationType] = None,
+        grid_manager: typing.Callable = None):
+    """
+
+    :param crop_size:
+    :param full_images_path_padded:
+    :param i:
+    :param images_path:
+    :param train_images_output_path:
+    :param empty_fraction:
+    :param overlap:
+    :return:
+    """
+    # original_image_path = self.images_path / i.dataset_name / i.image_name if i.dataset_name else self.images_path / i.image_name
+    # padded_image_path = full_images_path_padded / i.dataset_name / i.image_name if i.dataset_name else full_images_path_padded / i.image_name
+    original_image_path = images_path / i.image_name
+    padded_image_path = full_images_path_padded / i.image_name
+    padded_image_path.parent.mkdir(exist_ok=True, parents=True)
+
+    new_width, new_height = pad_to_multiple(original_image_path,
+                                            padded_image_path,
+                                            crop_size,
+                                            crop_size,
+                                            overlap)
+    logger.info(f"Padded {i.image_name} to {new_width}x{new_height}")
+
+    # TODO use the grid manager to create the grid
+    grid, _ = create_regular_raster_grid(max_x=new_width,
+                                         max_y=new_height,
+                                         slice_height=crop_size,
+                                         slice_width=crop_size,
+                                         overlap=overlap)
+
+    logger.info(f"Created grid for {i.image_name} with {len(grid)} tiles")
+
+    box_labels = [i for i in i.labels if i.bbox is not None]
+    ib = copy.deepcopy(i)
+    ib.labels = box_labels
+    cropper_boxes = RasterCropperBoxes(hi=ib,
                                  rasters=grid,
                                  full_image_path=padded_image_path,
                                  output_path=train_images_output_path,
@@ -263,8 +382,8 @@ def crop_by_regular_grid(
                                  dataset_name=i.dataset_name,
                                  edge_blackout=edge_black_out)
 
-    images_boxes, cropped_images_boxes_path = cropper.crop_out_images()
-    images_points, cropped_images_points_path = cropper_points.crop_out_images(masks=cropper.masks)
+    images_boxes, cropped_images_boxes_path = cropper_boxes.crop_out_images()
+    images_points, cropped_images_points_path = cropper_points.crop_out_images(masks=cropper_boxes.masks)
     boxes_count = len(images_boxes)
     points_count = len(images_points)
 
@@ -273,29 +392,32 @@ def crop_by_regular_grid(
     images = images_boxes + images_points
     cropped_images_path = cropped_images_boxes_path + cropped_images_points_path
 
-    axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
+    if visualisation_path is not None:
+        axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
 
-    axi = visualise_polygons(cropper.empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
-                             max_y=new_height, ax=axi, color="red")
-    axi = visualise_polygons(cropper.occupied_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
-                             max_y=new_height, ax=axi, color="green", linewidth=3)
-    axi = visualise_polygons([c["closest_empty"] for c in cropper.closest_pairs], show=False, title=f"grid_{i.image_name}", max_x=new_width,
-                             max_y=new_height, ax=axi, color="blue", linewidth=3)
-    axi = visualise_polygons(cropper.partial_empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
-                       max_y=new_height, ax=axi, color="orange", linewidth=0.8,
-                       filename=visualisation_path / f"selected_grid_{padded_image_path.name}")
-    plt.close()
+        axi = visualise_polygons(cropper_boxes.empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="red")
+        axi = visualise_polygons(cropper_boxes.occupied_rasters.values(), show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="green", linewidth=3)
+        axi = visualise_polygons([c["closest_empty"] for c in cropper_boxes.closest_pairs], show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                                 max_y=new_height, ax=axi, color="blue", linewidth=3)
+        axi = visualise_polygons(cropper_boxes.partial_empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
+                           max_y=new_height, ax=axi, color="orange", linewidth=0.8,
+                           filename=visualisation_path / f"selected_grid_{padded_image_path.name}")
+        plt.close()
 
-    logger.info(f"Visualised grid for {i.image_name} with {len(cropper.empty_rasters)} empty tiles and {visualisation_path}")
-    # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
+        logger.info(f"Visualised grid for {i.image_name} with {len(cropper_boxes.empty_rasters)} empty tiles and {visualisation_path}")
+        # visualise_polygons(grid, show=True, title=f"grid_{i.image_name}", max_x=new_width, max_y=new_height, ax=axi)
 
     logger.info(f"Cropped {len(images)} images from {i.image_name} to {train_images_output_path}")
 
-    # Simplest version:
+    if annotated_types is None:
+        pass
+
     if boxes_count > 0 and points_count > 0:
         logger.error(f"Either boxes {boxes_count} or points {points_count} should be cropped, not both.")
 
-    if (boxes_count > 0 and points_count > 0):
+    elif len(annotated_types) == 1 and (boxes_count > 0 and points_count > 0):
         error_msg = f"Both have items - only one should be non-empty" if boxes_count > 0 else "Both are empty - at least one should have items. image: {i.image_name}"
         logger.error(f"Invalid state: boxes={boxes_count}, points={points_count}. {error_msg}, image: {i.image_name}")
 
@@ -655,7 +777,7 @@ class RasterCropper():
 
     def __init__(self,
                  hi: AnnotatedImage,
-                 rasters: List[shapely.Polygon],
+                 rasters: dict[str, shapely.Polygon],
                  full_image_path: Path,
                  output_path: Path,
                  dataset_name: str = DATA_SET_NAME,
@@ -669,7 +791,7 @@ class RasterCropper():
         self.closest_pairs: typing.List[dict] = []
         self.gdf_empty_rasters: gpd.GeoDataFrame = gpd.GeoDataFrame(columns=['geometry'])
         self.empty_rasters: typing.Optional[typing.List[shapely.Polygon]] = None
-        self.occupied_rasters: typing.Optional[typing.List[shapely.Polygon]] = None
+        self.occupied_rasters: typing.Optional[typing.Dict[shapely.Polygon]] = None
         self.partial_empty_rasters: typing.Optional[typing.List[shapely.Polygon]] = None
 
         self.hi = hi
@@ -721,7 +843,7 @@ class RasterCropperBoxes(RasterCropper):
         image_paths: typing.List[Path] = []
         empty_rasters: List[shapely.Polygon] = []
         partial_empty_rasters: List[shapely.Polygon] = []
-        occupied_rasters: List[shapely.Polygon] = []
+        occupied_rasters: dict[str, shapely.Polygon] = {}
 
         # sliding window of the image
         for raster_id, pol in enumerate(self.rasters):
@@ -782,7 +904,7 @@ class RasterCropperBoxes(RasterCropper):
 
                         xx, yy = pol.exterior.coords.xy
                         slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                        if slice_path_jpg.name == "FMO03___DJI_0514_x3200_y2560.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                        if slice_path_jpg.name == "FMO03___DJI_0514_x3200_y2560.jpg" or slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg" or slice_path_jpg.name == "FMO04___DJI_0906_x2048_y3072.jpg":
                             pass  # TODO do not commit
 
                     elif is_bbox and annotation.bbox_polygon.intersects(pol):
@@ -808,7 +930,7 @@ class RasterCropperBoxes(RasterCropper):
                             (int_minx - minx, int_maxy - miny)
                         ]
 
-                        if int_minx == 3200 and int_miny == 2560:
+                        if int_minx == 2048 and int_miny == 3072:
                             logger.warning(f"Intersection coordinates: {translated_coords} for annotation {annotation.id}")
 
                         translated_inner_polygon = Polygon(translated_coords)
@@ -840,7 +962,7 @@ class RasterCropperBoxes(RasterCropper):
                     # logger.info(f"Box or polygon is not within the sliding window {annotation.id}")
                     pass
 
-                self.masks[annotation.id] = masks
+                self.masks[raster_id] = masks
 
             if empty == False and max_bbox_area < 5000: # TODO this should depend on the portion which is outside the sliding window
                 # reject = True
@@ -852,7 +974,7 @@ class RasterCropperBoxes(RasterCropper):
             elif partial and not one_good_box: # box contains partial iguanas and no single full one
                 partial_empty_rasters.append(pol)
             elif one_good_box:
-                occupied_rasters.append(pol)
+                occupied_rasters[raster_id] = pol
             else:
                 ValueError(f"This should not happen, the box is neither empty nor occupied {self.hi.image_name} with {len(full_slice_labels)} labels")
 
@@ -860,8 +982,9 @@ class RasterCropperBoxes(RasterCropper):
             if one_good_box:
                 xx, yy = pol.exterior.coords.xy
                 slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg" or slice_path_jpg.name == "FMO04___DJI_0906_x1024_y2560.jpg":
                     pass # TODO do not commit
+
                 im = AnnotatedImage(
                     image_id=str(uuid.uuid4()),
                     dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
@@ -886,7 +1009,7 @@ class RasterCropperBoxes(RasterCropper):
         closest_empty = None
 
         # sample empty raster which are nearby the found iguanas
-        for oR in occupied_rasters:
+        for oR in occupied_rasters.values():
             # query for the closest empty raster
 
             if self.empty_selection_strategy == SpatialSampleStrategy.RANDOM:
@@ -972,7 +1095,7 @@ class RasterCropperPoints(RasterCropper):
     on the provided rasters (shapely polygons).
     """
 
-    def __init__(self, hi: AnnotatedImage, rasters: List[shapely.Polygon], full_image_path: Path, output_path: Path,
+    def __init__(self, hi: AnnotatedImage, rasters: Dict[str, shapely.Polygon], full_image_path: Path, output_path: Path,
                  dataset_name: str = DATA_SET_NAME, include_empty: float = 0.0, edge_blackout=True,
                  sample_strategy=SpatialSampleStrategy.RANDOM):
 
@@ -1006,11 +1129,11 @@ class RasterCropperPoints(RasterCropper):
         image_paths: typing.List[Path] = []
         empty_rasters: List[shapely.Polygon] = []
         partial_empty_rasters: List[shapely.Polygon] = []
-        occupied_rasters: List[shapely.Polygon] = []
+        occupied_rasters: dict[str, shapely.Polygon] = {}
         # slice the image in tiles
 
         # sliding window of the image
-        for raster_id, pol in enumerate(self.rasters):
+        for pol in self.rasters:
             assert isinstance(pol, shapely.Polygon)
             minx, miny, maxx, maxy = pol.bounds
             slice_width = maxx - minx
@@ -1057,7 +1180,6 @@ class RasterCropperPoints(RasterCropper):
                             continue
 
 
-
                     # Process the keypoints
                     if is_keypoint and annotation.keypoints[0].coordinate.within(pol):
                         # keypoint is within the sliding window, project the keypoints to the sliding window and keep that
@@ -1093,9 +1215,7 @@ class RasterCropperPoints(RasterCropper):
 
             for m in masks.values():
                 # remove points which are in the mask
-                full_slice_labels = [sl for sl in full_slice_labels if
-                                     isinstance(sl.incenter_centroid, shapely.Point) and sl.incenter_centroid.within(
-                                         m) == False]
+                full_slice_labels = [sl for sl in full_slice_labels if not sl.incenter_centroid.within(unary_union(m))]
 
             if empty == False and max_bbox_area < 5000: # TODO this should depend on the portion which is outside the sliding window
                 # reject = True
@@ -1107,7 +1227,7 @@ class RasterCropperPoints(RasterCropper):
             # elif partial: # box contains partial iguanas and no single full one
             #     partial_empty_rasters.append(pol)
             elif not empty:
-                occupied_rasters.append(pol)
+                occupied_rasters[raster_id] = pol
             else:
                 ValueError(f"This should not happen, the box is neither empty nor occupied {self.hi.image_name} with {len(full_slice_labels)} labels")
 
@@ -1115,7 +1235,9 @@ class RasterCropperPoints(RasterCropper):
             if not empty:
                 xx, yy = pol.exterior.coords.xy
                 slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                if slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                if (slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg"
+                        or slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg"
+                        or slice_path_jpg.name == "FMO04___DJI_0906_x2048_y3072.jpg"):
                     pass # TODO do not commit
                 im = AnnotatedImage(
                     image_id=str(uuid.uuid4()),
@@ -1127,9 +1249,10 @@ class RasterCropperPoints(RasterCropper):
 
                 annotated_images.append(im)
 
-                logger.info(f"Saving occupied raster {slice_path_jpg} with {len(full_slice_labels)} labels")
-                sliced_im = sliced_image.convert("RGB")
-                sliced_im.save(slice_path_jpg)
+                if not slice_path_jpg.exists():
+                    logger.info(f"Saving occupied raster {slice_path_jpg} with {len(full_slice_labels)} labels")
+                    sliced_im = sliced_image.convert("RGB")
+                    sliced_im.save(slice_path_jpg)
                 image_paths.append(slice_path_jpg)
         ### Loooking for empties now!
         closest_pairs = []
@@ -1138,7 +1261,8 @@ class RasterCropperPoints(RasterCropper):
         gdf_empty_rasters = gpd.GeoDataFrame(geometry=empty_rasters)
 
         # sample empty raster which are nearby the found iguanas
-        for oR in occupied_rasters:
+        # TODO do this only if empty rasters are requested
+        for oR in occupied_rasters.values():
             # query for the closest empty raster
 
             # Calculate distances from this occupied raster to all empty rasters
@@ -1160,7 +1284,8 @@ class RasterCropperPoints(RasterCropper):
                 sliced_image = image.crop(closest_empty.geometry.bounds)
                 xx, yy = closest_empty.geometry.exterior.coords.xy
                 slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                if slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg" or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg":
+                if (slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg"
+                        or slice_path_jpg == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg"):
                     pass # TODO do not commit
                 sliced_im = sliced_image.convert("RGB")
                 sliced_im.save(slice_path_jpg)

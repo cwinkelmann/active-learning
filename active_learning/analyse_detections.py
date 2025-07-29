@@ -6,18 +6,17 @@ This produces a csv file with the false positives because they are what we need 
  Similar to Kellenberger - maybe this one Benjamin, et al. "Detecting and classifying elephants in the wild." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2020.
 
 """
-import numpy as np
-from loguru import logger
-
-import pandas as pd
 import geopandas as gpd
+import numpy as np
+import pandas as pd
+from loguru import logger
 from pyproj import CRS
 from scipy.spatial import cKDTree
 
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 
 
-def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.DataFrame, radius = 150):
+def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.DataFrame, radius=150):
     """
     @deprectaed
     Analyse detection and look into false positives, false negatives
@@ -28,18 +27,20 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
     raise DeprecationWarning("This function is deprecated, use analyse_point_detections_greedy instead")
     crs = CRS.from_proj4("+proj=cart +ellps=WGS84 +units=m +no_defs")
 
-    gdf_detections = gpd.GeoDataFrame(df_detections, geometry=gpd.points_from_xy(df_detections.x, df_detections.y)).set_crs(crs)
+    gdf_detections = gpd.GeoDataFrame(df_detections,
+                                      geometry=gpd.points_from_xy(df_detections.x, df_detections.y)).set_crs(crs)
     gdf_detections['buffer'] = gdf_detections.geometry.buffer(radius)
     # df_detections_all = gdf_detections.set_geometry('buffer')
     gdf_detections_all = gdf_detections.copy()
 
-    gdf_ground_truth_all = gpd.GeoDataFrame(df_ground_truth, geometry=gpd.points_from_xy(df_ground_truth.x, df_ground_truth.y)).set_crs(crs)
+    gdf_ground_truth_all = gpd.GeoDataFrame(df_ground_truth,
+                                            geometry=gpd.points_from_xy(df_ground_truth.x, df_ground_truth.y)).set_crs(
+        crs)
 
     image_list = df_ground_truth['images'].unique()
     l_fp = []
     l_tp = []
     l_fn = []
-
 
     for i in image_list:
         gdf_ground_truth = gdf_ground_truth_all[gdf_ground_truth_all['images'] == i]
@@ -66,13 +67,13 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
         true_positive_indices = np.unique(indices[~false_positives_mask])
         df_false_negatives = gt.loc[~gt.index.isin(true_positive_indices)].copy()
 
-        assert len(df_false_positives) + len(df_true_positives) == len(pred), "The sum of false positives and true positives must equal the number of predictions"
-        assert len(df_false_negatives) + len(df_true_positives) == len(gt), "The sum of false negatives and true positives must equal the number of ground truth"
+        assert len(df_false_positives) + len(df_true_positives) == len(
+            pred), "The sum of false positives and true positives must equal the number of predictions"
+        assert len(df_false_negatives) + len(df_true_positives) == len(
+            gt), "The sum of false negatives and true positives must equal the number of ground truth"
         l_fp.append(df_false_positives)
         l_tp.append(df_true_positives)
         l_fn.append(df_false_negatives)
-
-
 
     df_false_positives = pd.concat(l_fp)
     df_false_positives['kind'] = 'false_positive'
@@ -86,8 +87,8 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
 
 
 def analyse_point_detections_greedy(df_detections: pd.DataFrame,
-                             df_ground_truth: pd.DataFrame,
-                             radius=150,
+                                    df_ground_truth: pd.DataFrame,
+                                    radius=150,
                                     confidence_threshold=0.5) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
     Analyse detections and look into false positives, false negatives
@@ -136,11 +137,20 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
     for image in image_list:
         # Filter for the current image
+
+
         gdf_gt = gdf_ground_truth_all[gdf_ground_truth_all['images'] == image].copy()
         gdf_pred = gdf_detections_all[gdf_detections_all['images'] == image].copy()
 
+        if len(gdf_pred) == 1:
+            len_before = len(gdf_pred)
+            gdf_pred = gdf_pred[~(gdf_pred['labels'].isna() & gdf_pred['scores'].isna())]
+            if len(gdf_pred) < len_before:
+                # logger.warning(f"Removed {len_before - len(gdf_pred)} predictions with NaN labels and scores for image {image}")
+                pass
         # Convert geometries to tuples (here we use int() conversion; adjust if necessary)
         gt_coords = gdf_gt.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
+
         pred_coords = gdf_pred.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
 
         # If there are no predictions for the image, mark all ground truth as false negatives
@@ -187,45 +197,46 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
         false_negative_indices = all_gt_indices - matched_gt
         df_fn_img = gdf_gt.iloc[list(false_negative_indices)].copy()
         df_fn_img['kind'] = 'false_negative'
-        df_fn_img['scores'] = 0.0 # TODO make sure to get the scores if an prediction was below the confidence threshold
+        df_fn_img['scores'] = 0.0  # TODO make sure to get the scores if an prediction was below the confidence threshold
 
-        assert len(df_tp_img) + len(df_fp_img) == len(gdf_pred), "The sum of false positives and true positives must equal the number of predictions"
-        assert len(df_fn_img) + len(df_tp_img) == len(gdf_gt), "The sum of false negatives and true positives must equal the number of ground truth"
+        assert len(df_tp_img) + len(df_fp_img) == len(
+            gdf_pred), "The sum of false positives and true positives must equal the number of predictions"
+        assert len(df_fn_img) + len(df_tp_img) == len(
+            gdf_gt), "The sum of false negatives and true positives must equal the number of ground truth"
 
         # Accumulate the results for this image.
         l_tp.append(df_tp_img)
         l_fp.append(df_fp_img)
         l_fn.append(df_fn_img)
 
-
         err = len(df_fp_img) + len(df_tp_img) - len(gdf_gt)
-        image_errors.append(err)
-        logger.info(
-            f"{image}: False Positives: {len(df_fp_img)} True Positives: {len(df_tp_img)}, False Negatives: {len(df_fn_img)}, Ground Truth: {len(gdf_gt)}, Counting Error: {err}")
+        image_errors.append({"image_name": image, "err": err, "num_gt": len(gdf_gt), "num_pred": len(df_fp_img) + len(df_tp_img)})
 
+
+    logger.info(f"Aggregating results over {len(image_list)} images.")
     # Calculate mean error over all images.
-    mean_error = np.mean(image_errors)
-    logger.info(f"Mean Errors over all iamges : {mean_error}")
+    df_image_errors = pd.DataFrame(image_errors)
+    mean_error = df_image_errors.err.mean() if len(df_image_errors) > 0 else None
+    logger.info(f"Mean Errors over all images : {mean_error}")
 
     # Concatenate the results from all images.
-    df_false_positives = pd.concat(l_fp, ignore_index=True)
-    df_true_positives = pd.concat(l_tp, ignore_index=True)
-    df_false_negatives = pd.concat(l_fn, ignore_index=True)
+    df_false_positives = pd.concat(l_fp, ignore_index=True) if len(l_fp) > 0 else pd.DataFrame(columns=df_detections.columns)
+    df_true_positives = pd.concat(l_tp, ignore_index=True) if len(l_tp) > 0 else pd.DataFrame(columns=df_detections.columns)
+    df_false_negatives = pd.concat(l_fn, ignore_index=True) if len(l_fn) > 0 else pd.DataFrame(columns=df_ground_truth.columns)
 
-    # Optionally add additional assertions to verify consistency.
-    # (For example, sum of TP and FP should equal total predictions per image; TP+FN equals total GT per image.)
 
     return df_false_positives, df_true_positives, df_false_negatives
 
 
 def analyse_point_detection_correction(predicted: AnnotatedImage,
-                             corrected: AnnotatedImage,
-                             radius=150):
+                                       corrected: AnnotatedImage,
+                                       radius=150):
     """
     Analyse the correction of a point detector. This function compares the predicted detections with the corrected
     """
 
     raise NotImplementedError("This function is not implemented yet")
+
 
 if __name__ == "__main__":
     pass

@@ -31,9 +31,9 @@ if __name__ == "__main__":
 
     crop_size = 640
     empty_fraction = 0.0
-    overlap = 0
+    overlap = 500
     VISUALISE_FLAG = False
-    use_multiprocessing = True
+    use_multiprocessing = False
     edge_black_out = True
 
     datasets = {
@@ -259,15 +259,16 @@ if __name__ == "__main__":
 
     datasets = [
         # train_floreana_sample,
-        train_floreana, val_floreana,
+        # train_floreana, val_floreana,
         train_fernandina_m, val_fernandina_m,
         train_fernandina_s1, val_fernandina_s2,
-        train_genovesa, val_genovesa,
+        # train_genovesa, val_genovesa,
         # train_rest,
-        # train_all,
-        train_single_all
+        train_all,
+
+        # train_single_all
     ]
-    datasets += train_floreana_increasing_length
+    # datasets += train_floreana_increasing_length
 
     for dataset in datasets:  # , "val", "test"]:
         dataset_dict = dataset.model_dump()
@@ -327,7 +328,7 @@ if __name__ == "__main__":
 
         report.num_images_filtered = len(hA_filtered.images)
         hA_crops = dp.get_hA_crops()
-        report.num_labels_crops = len([i.labels for i in hA_crops.images])
+        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
 
         # full size annotations
         HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / f"herdnet_format.csv")
@@ -338,10 +339,10 @@ if __name__ == "__main__":
         if len(hA_crops.images) == 0:
             raise ValueError("No images left after filtering")
 
-        report.num_labels_filtered = len([i.labels for i in hA_filtered.images])
+        report.num_labels_filtered = sum(len(i.labels) for i in hA_filtered.images)
 
         hA_crops = dp.get_hA_crops()
-        report.num_labels_crops = len([i.labels for i in hA_crops.images])
+        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
         report.num_images_crops = len(hA_crops.images)
 
         if VISUALISE_FLAG:
@@ -411,6 +412,7 @@ if __name__ == "__main__":
         logger.info(f"Moved to {destination_path}")
 
         report.destination_path = destination_path
+        report.edge_black_out = edge_black_out
 
         report_dict = json.loads(report.model_dump_json())
         with open(labels_path / dataset.dataset_name / f"datapreparation_report_{dset}.yaml", 'w', encoding='utf-8') as f:
@@ -418,8 +420,8 @@ if __name__ == "__main__":
 
         logger.info(f"Saved report to {labels_path / dataset.dataset_name / f'datapreparation_report_{dset}.yaml'}")
 
-        shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
-        shutil.rmtree(output_path_dset.joinpath("padded_images"))
+        # shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
+        # shutil.rmtree(output_path_dset.joinpath("padded_images"))
 
 
     # # YOLO Box data

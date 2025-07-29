@@ -27,22 +27,32 @@ from loguru import logger
 
 def main():
     # Create an empty dataset, TODO put this away so the dataset is just passed into this
-    analysis_date = "2025_02_22"
+    analysis_date = "2025_07_10"
     # lcrop_size = 640
     num = 56
     type = "points"
 
-    # test dataset
-    # base_path = Path(f'/Users/christian/data/training_data/{analysis_date}_debug/test/')
+    ## On full size original images
+    # base_path = Path(
+    #     f'/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_07_10_final_point_detection_edge_blackout')
     # df_detections = pd.read_csv(
-    #     '/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-01-15/16-14-19/detections.csv')
-    # images_path = base_path  / "Default"
+    #     '/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/inference_2025-07-15_fullsize/08-19-14/detections.csv')
+    # hasty_annotation_name = 'hasty_format_full_size.json'
+    # herdnet_annotation_name = 'herdnet_format.csv'
+    # images_path = base_path / "Default"
+    # suffix = "JPG"
 
-    base_path = Path(f'/Users/christian/data/training_data/2025_02_22_HIT/FMO02_full_orthophoto_tiles')
-    df_detections = pd.read_csv(
-         '/Users/christian/data/training_data/2025_02_22_HIT/06-25-46/detections.csv')
+    ## On sample images
+    base_path = Path("/Users/christian/data/training_data/2025_07_10_final_point_detection_edge_black/floreana_sample/train")
+    df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/2025-07-15/inference_floreana_sample_10-59-42/detections.csv')
+    hasty_annotation_name = 'hasty_format_512_0.json'
+    herdnet_annotation_name = 'herdnet_format.csv'
+    images_path = base_path / "Default"
+    suffix = "JPG"
 
-    images_path = base_path
+    box_size = 350
+    radius = 150
+
     dataset_name = f"eal_{analysis_date}_review"
 
 
@@ -52,7 +62,7 @@ def main():
     IL_all_detections = herdnet_prediction_to_hasty(df_detections, images_path)
 
     # getting this reference just for the label classes
-    hA_reference = hA_from_file(Path("/Users/christian/data/training_data/2024_12_09_debug/unzipped_hasty_annotation/FMO02_03_05_labels.json"))
+    hA_reference = hA_from_file(base_path / hasty_annotation_name)
     hA_prediction = HastyAnnotationV2(
         project_name="correction",
         images=IL_all_detections,
@@ -65,15 +75,15 @@ def main():
     hA_tiled_prediction.images = []
     all_image_mappings: List[ImageCropMetadata] = []
 
-    # # delete the dataset if it exists
-    # try:
-    #     fo.delete_dataset(dataset_name)
-    # except:
-    #     logger.warning(f"Dataset {dataset_name} does not exist")
-    # finally:
-    #     # Create an empty dataset, TODO put this away so the dataset is just passed into this
-    #     dataset = fo.Dataset(name=dataset_name)
-    #     dataset.persistent = True
+    # delete the dataset if it exists
+    try:
+        fo.delete_dataset(dataset_name)
+    except:
+        logger.warning(f"Dataset {dataset_name} does not exist")
+    finally:
+        # Create an empty dataset, TODO put this away so the dataset is just passed into this
+        dataset = fo.Dataset(name=dataset_name)
+        dataset.persistent = True
 
     # create crops for each of the detections
     for i in IL_all_detections:
@@ -109,7 +119,6 @@ def main():
         # TODO visualise where the crops happened
 
         dataset = submit_for_cvat_evaluation(dataset=dataset,
-                                   images_set=images_set,
                                    detections=cropped_annotated_images)
 
         # TODO keep the annotated images

@@ -294,62 +294,80 @@ def visualise_hasty_annotation_statistics(annotated_images: typing.List[Annotate
     dimensions = [(img.width, img.height) for img in annotated_images]
     annotation_counts = [len(img.labels) for img in annotated_images]
 
-    # Create figure with subplots
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    # Create figure with subplots - using GridSpec for custom layout
+    fig = plt.figure(figsize=(15, 12))
+    gs = fig.add_gridspec(2, 4, hspace=0.3, wspace=0.3)
     fig.suptitle('Image Dataset Analysis', fontsize=16, fontweight='bold')
 
-    # 1. Image Dimensions Histogram (as combined dimensions)
-    dimension_strings = [f"{w}x{h}" for w, h in dimensions]
-    dimension_counts = typing.Counter(dimension_strings)
+    # 1. Width Distribution (was position 2)
+    ax1 = fig.add_subplot(gs[0, 0:2])
+    ax1.hist(widths, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+    ax1.set_title('Image Width Distribution')
+    ax1.set_xlabel('Width (pixels)')
+    ax1.set_ylabel('Number of Images')
+    ax1.grid(True, alpha=0.3)
 
-    # Sort by frequency
-    sorted_dimensions = sorted(dimension_counts.items(), key=lambda x: x[1], reverse=True)
-    dim_labels, dim_counts = zip(*sorted_dimensions) if sorted_dimensions else ([], [])
+    # 2. Height Distribution (was position 3)
+    ax2 = fig.add_subplot(gs[0, 2:4])
+    ax2.hist(heights, bins=20, alpha=0.7, color='lightgreen', edgecolor='black')
+    ax2.set_title('Image Height Distribution')
+    ax2.set_xlabel('Height (pixels)')
+    ax2.set_ylabel('Number of Images')
+    ax2.grid(True, alpha=0.3)
 
-    axes[0, 0].bar(range(len(dim_labels)), dim_counts)
-    axes[0, 0].set_title('Image Dimensions Distribution')
-    axes[0, 0].set_xlabel('Image Dimensions (Width x Height)')
-    axes[0, 0].set_ylabel('Number of Images')
-    axes[0, 0].set_xticks(range(len(dim_labels)))
-    axes[0, 0].set_xticklabels(dim_labels, rotation=45, ha='right')
-
-    # Add value labels on bars
-    for i, count in enumerate(dim_counts):
-        axes[0, 0].text(i, count + 0.1, str(count), ha='center', va='bottom')
-
-    # 2. Width Distribution
-    axes[0, 1].hist(widths, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-    axes[0, 1].set_title('Image Width Distribution')
-    axes[0, 1].set_xlabel('Width (pixels)')
-    axes[0, 1].set_ylabel('Number of Images')
-    axes[0, 1].grid(True, alpha=0.3)
-
-    # 3. Height Distribution
-    axes[1, 0].hist(heights, bins=20, alpha=0.7, color='lightgreen', edgecolor='black')
-    axes[1, 0].set_title('Image Height Distribution')
-    axes[1, 0].set_xlabel('Height (pixels)')
-    axes[1, 0].set_ylabel('Number of Images')
-    axes[1, 0].grid(True, alpha=0.3)
-
-    # 4. Annotations per Image Histogram
+    # 3. Annotations per Image Histogram (double width - spans all 4 columns)
+    ax3 = fig.add_subplot(gs[1, :])
     max_annotations = max(annotation_counts) if annotation_counts else 0
-    bins = range(0, max_annotations + 2)  # +2 to include the max value
 
-    axes[1, 1].hist(annotation_counts, bins=bins, alpha=0.7, color='orange', edgecolor='black')
-    axes[1, 1].set_title('Annotations per Image Distribution')
-    axes[1, 1].set_xlabel('Number of Annotations')
-    axes[1, 1].set_ylabel('Number of Images')
-    axes[1, 1].grid(True, alpha=0.3)
+    # Create fewer, more meaningful bins
+    if max_annotations <= 10:
+        bins = list(range(0, max_annotations + 2))
+        bin_labels = None
 
-    # Set integer ticks for annotation histogram
-    axes[1, 1].set_xticks(range(0, max_annotations + 1))
+    elif max_annotations <= 50:
+        base_bins = [0, 1, 5, 10, 20, 30, 50]
+        bins = [b for b in base_bins if b <= max_annotations] + [max_annotations + 1]
+        bin_labels = [f'{bins[i]}-{bins[i + 1] - 1}' if bins[i] != 0 else '0' for i in range(len(bins) - 2)]
+        bin_labels = ['0'] + bin_labels[1:] + [f'{bins[-2]}+']
 
-    plt.tight_layout()
+    elif max_annotations <= 100:
+        base_bins = [0, 1, 5, 10, 25, 50, 75, 100]
+        bins = [b for b in base_bins if b <= max_annotations] + [max_annotations + 1]
+        bin_labels = ['0'] + [f'{bins[i]}-{bins[i + 1] - 1}' for i in range(1, len(bins) - 2)] + [f'{bins[-2]}+']
+
+    elif max_annotations <= 200:
+        base_bins = [0, 1, 5, 10, 25, 50, 75, 100, 200]
+        bins = [b for b in base_bins if b <= max_annotations] + [max_annotations + 1]
+        bin_labels = ['0'] + [f'{bins[i]}-{bins[i + 1] - 1}' for i in range(1, len(bins) - 2)] + [f'{bins[-2]}+']
+
+    else:
+        base_bins = [0, 1, 5, 10, 25, 50, 75, 100, 200]
+        bins = base_bins + [max_annotations + 1]
+        bin_labels = ['0'] + [f'{bins[i]}-{bins[i + 1] - 1}' for i in range(1, len(bins) - 1)]
+
+    try:
+        n, bins_edges, patches = ax3.hist(annotation_counts, bins=bins, alpha=0.7, color='orange', edgecolor='black')
+        ax3.set_title('Annotations per Image Distribution')
+        ax3.set_xlabel('Number of Annotations')
+        ax3.set_ylabel('Number of Images')
+        ax3.grid(True, alpha=0.3)
+    except ValueError as e:
+        logger.error(f"Error creating histogram: {e}")
+        return
+    # Add custom bin labels if we have them
+    if bin_labels:
+        ax3.set_xticks([(bins_edges[i] + bins_edges[i + 1]) / 2 for i in range(len(bins_edges) - 1)])
+        ax3.set_xticklabels(bin_labels, rotation=45, ha='right')
+
     plt.show()
 
     # Print summary statistics
     print("=== Dataset Summary ===")
     print(f"Total Images: {len(annotated_images)}")
+    dimension_strings = [f"{w}x{h}" for w, h in dimensions]
+    dimension_counts = typing.Counter(dimension_strings)
+    sorted_dimensions = sorted(dimension_counts.items(), key=lambda x: x[1], reverse=True)
+
     print(f"Unique Dimensions: {len(dimension_counts)}")
     print(
         f"Most Common Dimension: {sorted_dimensions[0][0]} ({sorted_dimensions[0][1]} images)" if sorted_dimensions else "No images")
@@ -362,17 +380,21 @@ def visualise_hasty_annotation_statistics(annotated_images: typing.List[Annotate
     print(f"Images with annotations: {len([c for c in annotation_counts if c > 0])}")
 
 
-def create_simple_histograms(annotated_images: typing.List[AnnotatedImage], title: str = 'Annotations per Image Distribution'):
+def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
+                             dataset_name: str):
     """
     Create just the two main histograms requested with improved binning
     """
     # Extract data
+    annotated_images
+
     dimensions = [(img.width, img.height) for img in annotated_images]
     annotation_counts = [len(img.labels) for img in annotated_images]
 
     # Create figure with 2 subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-
+    fig.suptitle(f'Bounding Box Size Analysis {dataset_name})',
+                 fontsize=16, fontweight='bold')
     # 1. Image Dimensions Histogram
     dimension_strings = [f"{w}x{h}" for w, h in dimensions]
     dimension_counts = typing.Counter(dimension_strings)
@@ -419,7 +441,7 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage], titl
 
     # Create bar chart for annotations
     bars = ax2.bar(range(len(bin_labels)), bin_counts, color='orange', alpha=0.7, edgecolor='black')
-    ax2.set_title(title, fontsize=14, fontweight='bold')
+    ax2.set_title("# Images per Annotations", fontsize=14, fontweight='bold') # TODO
     ax2.set_xlabel('Number of Annotations')
     ax2.set_ylabel('Number of Images')
     ax2.set_xticks(range(len(bin_labels)))
@@ -447,7 +469,8 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage], titl
     print(f"Average annotations per image: {avg_annotations:.2f}")
 
 
-def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage], dataset_name, bins=50,
+def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage],
+                    dataset_name, bins=50,
                     plot_name: str = "box_sizes.png"):
     """
     Create continuous histograms for bounding box sizes
@@ -478,8 +501,8 @@ def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage], dataset_name,
                     bbox_aspect_ratios.append(width / height)
 
     if not bbox_widths:
-        print("No bounding boxes found in the dataset!")
-        return
+        raise ValueError("No bounding boxes found in the dataset!")
+
 
     # Create figure with subplots
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
@@ -546,5 +569,13 @@ def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage], dataset_name,
         print(
             f"Aspect Ratio - Min: {min(bbox_aspect_ratios):.2f}, Max: {max(bbox_aspect_ratios):.2f}, Mean: {np.mean(bbox_aspect_ratios):.2f}, Std: {np.std(bbox_aspect_ratios):.2f}")
 
-
+    return {
+        "min_box_width": min(bbox_widths) if bbox_widths else None,
+        "max_box_width": max(bbox_widths) if bbox_widths else None,
+        "mean_box_width": np.mean(bbox_widths) if bbox_widths else None,
+        "std_box_width": np.std(bbox_widths) if bbox_widths else None,
+        "min_bbox_aspect_ratio": min(bbox_aspect_ratios) if bbox_aspect_ratios else None,
+        "max_bbox_aspect_ratio": max(bbox_aspect_ratios) if bbox_aspect_ratios else None,
+        "mean_bbox_aspect_ratio": np.mean(bbox_aspect_ratios) if bbox_aspect_ratios else None,
+    }
 

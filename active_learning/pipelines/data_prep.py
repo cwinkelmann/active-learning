@@ -9,7 +9,7 @@ from pathlib import Path
 from active_learning.filter import ImageFilter
 from active_learning.types.Exceptions import LabelInconsistenyError
 from active_learning.util.converter import coco2hasty, hasty2coco
-from active_learning.util.image_manipulation import crop_by_regular_grid
+from active_learning.util.image_manipulation import crop_by_regular_grid, crop_by_regular_grid_two_stage
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage
 from com.biospheredata.types.serialisation import save_model_to_file
@@ -19,7 +19,7 @@ def process_image(args):
     """
     Create a regular grid and crop the images
     """
-    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out = args
+    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out, annotated_types = args
     try:
         images, cropped_images_path = crop_by_regular_grid(
             crop_size,
@@ -30,7 +30,8 @@ def process_image(args):
             train_images_output_path=train_images_output_path,
             empty_fraction=empty_fraction,
             edge_black_out=edge_black_out,
-            visualisation_path=visualise_path
+            visualisation_path=visualise_path,
+            annotated_types=annotated_types
         )
         return images, cropped_images_path
     except LabelInconsistenyError as e:
@@ -273,7 +274,6 @@ class DataprepPipeline(object):
         if self.hA is None:
             raise ValueError("HastyAnnotationV2 object is not set. Please provide it before running the pipeline.")
         # order the images from the image with the least labels to the most labels
-        # order the images from the image with the least labels to the most labels
         self.hA.images = sorted(self.hA.images, key=lambda image: len(image.labels))
 
         hA = hasty_filter_pipeline(
@@ -308,10 +308,6 @@ class DataprepPipeline(object):
             for v in hA_flat.images:
                 v.dataset_name = default_dataset_name
                 v.image_name = f"{v.ds_image_name}"
-
-            # TODO saving sth in there is not good practice
-            # hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
-            # hA_flat.save(self.output_path / hastyfilename)
 
             self.hA_filtered = copy.deepcopy(hA_flat)
         else:
@@ -369,7 +365,7 @@ class DataprepPipeline(object):
         if use_multiprocessing:
             # train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out
             args_list = [(self.train_images_output_path, self.empty_fraction, crop_size,
-                          full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out) for i in hA.images]
+                          full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out, self.annotation_types) for i in hA.images]
 
             # Use multiprocessing pool
             with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 3) as pool:
@@ -388,20 +384,36 @@ class DataprepPipeline(object):
                 # TODO implement this
                 # annotated_images, cropped_images_path = self.cropper(df_grid, i, images_path, full_images_path_padded)
                 try:
-                    annotated_images, cropped_images_path = crop_by_regular_grid(
-                        crop_size=crop_size,
-                        full_images_path_padded=full_images_path_padded,
-                        i=i,
-                        images_path=images_path,
-                        overlap=overlap,
-                        train_images_output_path=self.train_images_output_path,
-                        empty_fraction=self.empty_fraction,
-                        edge_black_out=edge_black_out,
-                        visualisation_path=self.visualise_path,
+                    if len(self.annotation_types) == 2:
+                        annotated_images, cropped_images_path = crop_by_regular_grid_two_stage(
+                            crop_size=crop_size,
+                            full_images_path_padded=full_images_path_padded,
+                            i=i,
+                            images_path=images_path,
+                            overlap=overlap,
+                            train_images_output_path=self.train_images_output_path,
+                            empty_fraction=self.empty_fraction,
+                            edge_black_out=edge_black_out,
+                            visualisation_path=self.visualise_path,
+                            annotated_types=self.annotation_types
 
-                        # TODO pass the grid manager here
-                        # grid_manager=self.grid_manager
-                    )
+                        )
+                    else:
+                        annotated_images, cropped_images_path = crop_by_regular_grid(
+                            crop_size=crop_size,
+                            full_images_path_padded=full_images_path_padded,
+                            i=i,
+                            images_path=images_path,
+                            overlap=overlap,
+                            train_images_output_path=self.train_images_output_path,
+                            empty_fraction=self.empty_fraction,
+                            edge_black_out=edge_black_out,
+                            visualisation_path=self.visualise_path,
+                            annotated_types=self.annotation_types
+
+                            # TODO pass the grid manager here
+                            # grid_manager=self.grid_manager
+                        )
                 except LabelInconsistenyError as e:
                     logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
                     logger.warning(e)

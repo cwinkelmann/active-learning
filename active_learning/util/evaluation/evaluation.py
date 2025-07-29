@@ -134,7 +134,7 @@ def evaluate_in_fifty_one(dataset_name: str, images_set: typing.List[Path],
                           IL_fp_detections: typing.List[ImageLabelCollection],
                           IL_fn_detections: typing.List[ImageLabelCollection],
                           IL_tp_detections: typing.List[ImageLabelCollection],
-                          type:AnnotationType =AnnotationType.KEYPOINT):
+                          type: AnnotationType =AnnotationType.KEYPOINT):
     try:
         fo.delete_dataset(dataset_name)
     except:

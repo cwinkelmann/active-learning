@@ -22,28 +22,29 @@ from image_template_search.util.util import (visualise_image, visualise_polygons
 
 if __name__ == "__main__":
 
-    ## Meeting presentation
-    labels_path = Path("/Users/christian/data/training_data/2025_07_10_eikelboom_640")
-    hasty_annotations_labels_zipped = "eikelboom_hasty.zip"
-    hasty_annotations_images_zipped = "hasty_style.zip"
+    base_path = Path("/Volumes/G-DRIVE/Datasets/deep_forest_birds/hasty_style")
+    labels_name = base_path / Path("weinstein_birds_hasty.json")
+    images_path = base_path
+
     annotation_types = [AnnotationType.BOUNDING_BOX]
-    class_filter = ["Giraffe", "Elephant", "Zebra"]
+    class_filter = ["Bird"]
 
     crop_size = 640
     empty_fraction = 0.0
     overlap = 0
-    VISUALISE_FLAG = True
+    VISUALISE_FLAG = False
     use_multiprocessing = True
     edge_black_out = True
     num = None
 
+    labels_path = base_path / f"labels_{crop_size}_overlap_{overlap}"
 
-
-    train_eikelboom = DatasetFilterConfig(**{
+    train = DatasetFilterConfig(**{
         "dset": "train",
-        "dataset_name": "eikelboom_train",
-        "dataset_filter": ["eikelboom_train"],
-        #"images_filter": ["DJI_0514.JPG"],
+        "dataset_name": "birds_edge_blackout_train",
+        # "dataset_filter": ["everglades_train", "hayes_train", "mckellar_train", "michigan_train"],
+        "dataset_filter": ["michigan_train"],
+        # "images_filter": ["C3_L10_F589_T20200925_132438_149_27.png"],
         "output_path": labels_path,
         "empty_fraction": empty_fraction,
         "overlap": overlap,
@@ -53,39 +54,71 @@ if __name__ == "__main__":
         "class_filter": class_filter,
         "crop_size": crop_size,
     })
-    val_eikelboom = DatasetFilterConfig(**{
+    val = DatasetFilterConfig(**{
         "dset": "val",
-        "dataset_name": "eikelboom_val",
-        "dataset_filter": ["eikelboom_val"],
+        "dataset_name": "birds_edge_blackout_val",
+        # "dataset_filter": ["everglades_test", "hayes_test", "mckellar_test", "michigan_test"],
+        "dataset_filter": ["michigan_test"],
         # "images_filter": ["DJI_0514.JPG"],
         "output_path": labels_path,
         "empty_fraction": empty_fraction,
         "overlap": overlap,
-        # "num": 10
-        "status_filter": [LabelingStatus.COMPLETED],
-        "annotation_types": annotation_types,
-        "class_filter": class_filter,
-        "crop_size": crop_size,
-    })
-    test_eikelboom = DatasetFilterConfig(**{
-        "dset": "test",
-        "dataset_name": "eikelboom_test",
-        "dataset_filter": ["eikelboom_test"],
-        # "images_filter": ["DJI_0514.JPG"],
-        "output_path": labels_path,
-        "empty_fraction": empty_fraction,
-        "overlap": overlap,
-        # "num": 10
+        "num": num,
         "status_filter": [LabelingStatus.COMPLETED],
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
     })
 
-    datasets = [train_eikelboom, val_eikelboom, test_eikelboom]
+
+    datasets = [train, val, ]
+
+
+
+    dataset_names = set(ai.dataset_name for ai in HastyAnnotationV2.from_file(labels_name).images)
+    dataset_names_train = [dset for dset in dataset_names if "train" in dset]
+    dataset_names_val = [dset for dset in dataset_names if "test" in dset]
+
+    all_train = DatasetFilterConfig(**{
+        "dset": "train",
+        "dataset_name": "all_birds_train",
+        # "dataset_filter": ["everglades_train", "hayes_train", "mckellar_train", "michigan_train"],
+        "dataset_filter": dataset_names_train,
+        # "images_filter": ["C3_L10_F589_T20200925_132438_149_27.png"],
+        "output_path": labels_path,
+        "empty_fraction": empty_fraction,
+        "overlap": overlap,
+        "num": num,
+        "status_filter": [LabelingStatus.COMPLETED],
+        "annotation_types": annotation_types,
+        "class_filter": class_filter,
+        "crop_size": crop_size,
+    })
+    all_val = DatasetFilterConfig(**{
+        "dset": "val",
+        "dataset_name": "all_birds_val",
+        # "dataset_filter": ["everglades_test", "hayes_test", "mckellar_test", "michigan_test"],
+        "dataset_filter": dataset_names_val,
+        # "images_filter": ["DJI_0514.JPG"],
+        "output_path": labels_path,
+        "empty_fraction": empty_fraction,
+        "overlap": overlap,
+        "num": num,
+        "status_filter": [LabelingStatus.COMPLETED],
+        "annotation_types": annotation_types,
+        "class_filter": class_filter,
+        "crop_size": crop_size,
+    })
+
+
+    datasets = [all_train, all_val]
+    # datasets = [all_val]
     # datasets = [train_eikelboom]
 
     for dataset in datasets:  # , "val", "test"]:
+
+        logger.info(f"Processing dataset {dataset.dataset_name} for {dataset.dset}")
+
         dataset_dict = dataset.model_dump()
 
         # Add the new required fields
@@ -94,18 +127,15 @@ if __name__ == "__main__":
         })
         report = DataPrepReport(**dataset_dict)
 
-        logger.info(f"Starting {dataset.dset}")
+        logger.info(f"Starting Dataset {dataset.dataset_name} for {dataset.dset}")
         dset = dataset.dset
         num = dataset.num
         overlap = dataset.overlap
         ifcn = ImageFilterConstantNum(num=num, dataset_config=dataset)
         # output_path = dataset["output_path"]
 
-        uA = UnpackAnnotations()
-        hA, images_path = uA.unzip_hasty(hasty_annotations_labels_zipped=labels_path / hasty_annotations_labels_zipped,
-                                         hasty_annotations_images_zipped=labels_path / hasty_annotations_images_zipped)
+        hA = HastyAnnotationV2.from_file(labels_name)
 
-        logger.info(f"Unzipped {len(hA.images)} images.")
         output_path_dset = labels_path / dataset.dataset_name / f"detection_{dset}_{overlap}_{crop_size}"
         output_path_classifcation_dset = labels_path / dataset.dataset_name /  f"classification_{dset}_{overlap}_{crop_size}"
 
@@ -132,18 +162,34 @@ if __name__ == "__main__":
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
         dp.empty_fraction = dataset.empty_fraction
-        dp.visualise_path = vis_path
+        if VISUALISE_FLAG:
+            dp.visualise_path = vis_path
+
         dp.use_multiprocessing = use_multiprocessing
         dp.edge_black_out = edge_black_out
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
+
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
 
-        report.num_images_filtered = len(hA_filtered.images)
-        hA_crops = dp.get_hA_crops()
-        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
+
+        # find labels which have 0 height or width
+        def has_valid_bbox_size(label, min_size=5):
+            bounds = label.bbox  # (minx, miny, maxx, maxy)
+            width = bounds[2] - bounds[0]  # maxx - minx
+            height = bounds[3] - bounds[1]  # maxy - miny
+            return width > min_size and height > min_size
+
+
+        hA_filtered.images = [
+            image for image in hA_filtered.images
+            if all(has_valid_bbox_size(label) for label in image.labels)
+        ]
+
+        HastyConverter.convert_deep_forest(hA_filtered,
+                                           output_file=output_path_dset / f"deep_forest_format.csv")
 
         # full size annotations
         HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / f"herdnet_format.csv")
@@ -155,9 +201,10 @@ if __name__ == "__main__":
             raise ValueError("No images left after filtering")
 
         report.num_labels_filtered = sum(len(i.labels) for i in hA_filtered.images)
+        report.num_images_filtered = len(hA_filtered.images)
 
         hA_crops = dp.get_hA_crops()
-        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
+        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images)
         report.num_images_crops = len(hA_crops.images)
 
         if VISUALISE_FLAG:
@@ -211,9 +258,7 @@ if __name__ == "__main__":
 
         # TODO move the crops to a new folder for YOLO
 
-        output_path_classifcation_dset.joinpath("Elephant").mkdir(exist_ok=True)
-        output_path_classifcation_dset.joinpath("Giraffe").mkdir(exist_ok=True)
-        output_path_classifcation_dset.joinpath("Zebra").mkdir(exist_ok=True)
+        output_path_classifcation_dset.joinpath("Bird").mkdir(exist_ok=True)
         output_path_classifcation_dset.joinpath("empty").mkdir(exist_ok=True)
 
         # TODO move the crops to a new folder for classification
@@ -250,8 +295,8 @@ if __name__ == "__main__":
 
         logger.info(f"Saved report to {labels_path / dataset.dataset_name / f'datapreparation_report_{dset}.yaml'}")
 
-        shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
-        shutil.rmtree(output_path_dset.joinpath("padded_images"))
+        # shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME), ignore_errors=True)
+        # shutil.rmtree(output_path_dset.joinpath("padded_images"), ignore_errors=True)
 
 
     # # YOLO Box data

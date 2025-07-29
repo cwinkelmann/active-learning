@@ -1,5 +1,5 @@
 """
-Create patches from images and labels from hasty annotation files to be used in CVAT/training
+This becomes cool now
 """
 import gc
 import json
@@ -12,7 +12,8 @@ from pathlib import Path
 from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from active_learning.util.visualisation.annotation_vis import visualise_points_only
+from active_learning.util.visualisation.annotation_vis import visualise_points_only, create_simple_histograms, \
+    visualise_hasty_annotation_statistics, plot_bbox_sizes
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from image_template_search.util.util import (visualise_image, visualise_polygons)
@@ -23,11 +24,15 @@ from image_template_search.util.util import (visualise_image, visualise_polygons
 if __name__ == "__main__":
 
     ## Meeting presentation
-    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final_point_detection")
+    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final_point_detection_edge_black")
     hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
     hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
-    annotation_types = [AnnotationType.KEYPOINT]
-    class_filter = ["iguana_point"]
+
+    annotation_types = [AnnotationType.BOUNDING_BOX, AnnotationType.KEYPOINT]
+    class_filter = ["iguana", "iguana_point"]
+
+    # annotation_types = [AnnotationType.KEYPOINT]
+    # class_filter = ["iguana_point"]
 
     label_mapping = {"iguana_point": 1, "iguana": 2}
     logger.warning(f"Later this should work with Box first to remove edge partials then point to mark")
@@ -38,7 +43,8 @@ if __name__ == "__main__":
     overlap = 0
     VISUALISE_FLAG = False
     empty_fraction = 0
-    multiprocessing = False
+    multiprocessing = False # Fixme later, currently not working with multiprocessing
+    edge_black_out = True
 
     datasets = {
         "Floreana": ['Floreana_22.01.21_FPC07', 'Floreana_03.02.21_FMO06', 'FLMO02_28012023', 'FLBB01_28012023',
@@ -87,8 +93,8 @@ if __name__ == "__main__":
     train_floreana_sample = DatasetFilterConfig(**{
         "dset": "train",
         "dataset_name": "floreana_sample",
-        "dataset_filter": datasets["Fernandina_m"],
-        "images_filter": ["FCD01-02-03_20122021_Fernandina_m_3_8.jpg"],
+        "dataset_filter": datasets["Floreana"],
+        "images_filter": ["DJI_0906.JPG"],
         "output_path": labels_path,
         "empty_fraction": empty_fraction,
         "overlap": overlap,
@@ -96,6 +102,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
 
         # "num": 1
     })
@@ -130,7 +137,11 @@ if __name__ == "__main__":
         "dset": "train",
         "dataset_name": "Floreana_detection",
         "dataset_filter": datasets["Floreana_1"],
-        #"images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
+        # "images_filter": [
+        #     # "DJI_0064_FECA01.JPG",
+        #     "DJI_0210_FPE01.JPG",
+        #     # "DJI_0485_FPE01.JPG"
+        # ],
         "output_path": labels_path,
         "empty_fraction": empty_fraction,
         "overlap": overlap,
@@ -138,6 +149,8 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        # "num": 5
+        "edge_black_out": edge_black_out,
     })
     train_floreana_increasing_length = [DatasetFilterConfig(**{
         "dset": "train",
@@ -150,6 +163,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
         "num": x
     }) for x in range(1, 36)]
 
@@ -164,6 +178,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
         "num": x
     }) for x in range(1, 25)]
 
@@ -179,6 +194,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     ## Fernandina Mosaic
     train_fernandina_m = DatasetFilterConfig(**{
@@ -193,6 +209,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     val_fernandina_m = DatasetFilterConfig(**{
         "dset": "val",
@@ -206,6 +223,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     # Fernandina single images
     train_fernandina_s1 = DatasetFilterConfig(**{
@@ -220,6 +238,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     val_fernandina_s2 = DatasetFilterConfig(**{
         "dset": "val",
@@ -233,6 +252,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     # All other datasets which are just out of Orthomosaics
     train_rest = DatasetFilterConfig(**{
@@ -246,6 +266,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     # All single images from all datasets
     train_single_all = DatasetFilterConfig(**{
@@ -259,6 +280,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     val_single_all = DatasetFilterConfig(**{
         "dset": "val",
@@ -271,6 +293,7 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
     # All datasets combined
     train_all = DatasetFilterConfig(**{
@@ -284,19 +307,20 @@ if __name__ == "__main__":
         "annotation_types": annotation_types,
         "class_filter": class_filter,
         "crop_size": crop_size,
+        "edge_black_out": edge_black_out,
     })
 
 
     datasets = [
-        # train_floreana_sample,
+        train_floreana_sample,
         # train_floreana, val_floreana,
         # train_fernandina_m, val_fernandina_m,
         # train_fernandina_s1, val_fernandina_s2,
         # train_genovesa, val_genovesa,
         # train_rest,
         # train_all,
-        train_single_all,
-        val_single_all
+        # train_single_all,
+        # val_single_all
     ]
     # datasets += train_floreana_increasing_length
     # datasets += train_fernandina_s1_increasing_length
@@ -329,8 +353,8 @@ if __name__ == "__main__":
         vis_path = labels_path / f"visualisations" / f"{dataset.dataset_name}_{overlap}_{crop_size}_{dset}"
         vis_path.mkdir(exist_ok=True, parents=True)
 
-        # hA_flat = hA.get_flat_df()
-        # logger.info(f"Flattened annotations {hA_flat} annotations.")
+        hA_flat = hA.get_flat_df()
+        logger.info(f"Flattened annotations {hA_flat} annotations.")
 
         dp = DataprepPipeline(annotations_labels=hA,
                               images_path=images_path,
@@ -353,11 +377,16 @@ if __name__ == "__main__":
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)
 
-
-
         hA_filtered = dp.get_hA_filtered()
-        hA_filtered.save(output_path_dset / f"hasty_format_{crop_size}_{overlap}.json")
+
+        # create_simple_histograms(hA.images)
+        visualise_hasty_annotation_statistics(hA_filtered.images)
+        plot_bbox_sizes(hA_filtered.images, dataset_name=dataset.dataset_name, plot_name=f"box_sizes_{dataset.dataset_name}.png")
+
+
+        hA_filtered.save(output_path_dset / f"hasty_format_full_size.json")
         # full size annotations
+
         HastyConverter.convert_to_herdnet_format(hA_filtered,
                                                  output_file=output_path_dset / f"herdnet_format.csv",
                                                  label_mapping=label_mapping)
@@ -366,8 +395,15 @@ if __name__ == "__main__":
         report.num_images_filtered = len(hA_filtered.images)
 
         hA_crops = dp.get_hA_crops()
+
+        annotated_images_split = hA_crops.images
+        create_simple_histograms(hA_crops.images, dataset_name=dataset.dataset_name)
+        bbox_statistics = plot_bbox_sizes(hA_crops.images, dataset_name=dataset.dataset_name, plot_name=f"box_sizes_{dataset.dataset_name}.png")
+        # visualise_hasty_annotation_statistics(hA_crops.images)
+
         report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
         report.num_images_crops = len(hA_crops.images)
+        report.bbox_statistics = bbox_statistics
 
         aI = AnnotationsIntermediary()
         logger.info(f"After processing {len(hA_crops.images)} images remain")
@@ -382,19 +418,19 @@ if __name__ == "__main__":
                 logger.info(f"Visualising {image}")
                 ax_s = visualise_image(image_path=output_path_dset / f"crops_{crop_size}" / image.image_name, show=False)
 
-                if image.image_name == "FMO03___DJI_0514_x3200_y2560.jpg":
-                    if len(image.labels) == 0:
-                        raise ValueError("No labels but there should be one full iguana and a blacked out edge partial")
+                # if image.image_name == "FMO04___DJI_0906_x3072_y1024.jpg":
+                #     if len(image.labels) == 0:
+                #         raise ValueError("No labels but there should be one full iguana and a blacked out edge partial")
                 if image.image_name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg":
                     if len(image.labels) == 0:
                         raise ValueError("No labels but there should be one full iguana and some blacked out edge partial")
 
                 filename = vis_path / f"cropped_iguana_{image.image_name}.png"
-                if AnnotationType.BOUNDING_BOX in annotation_types:
-                    ax_s = visualise_polygons(polygons=[p.bbox_polygon for p in image.labels],
-                                              labels=[p.class_name for p in image.labels], ax=ax_s,
-                                              show=False, linewidth=2,
-                                              filename=filename, title=f"Cropped Objects  {image.image_name} polygons")
+                # if AnnotationType.BOUNDING_BOX in annotation_types:
+                #     ax_s = visualise_polygons(polygons=[p.bbox_polygon for p in image.labels],
+                #                               labels=[p.class_name for p in image.labels], ax=ax_s,
+                #                               show=False, linewidth=2,
+                #                               filename=filename, title=f"Cropped Objects  {image.image_name} polygons")
                 if AnnotationType.KEYPOINT in annotation_types:
                     visualise_points_only(points=[p.incenter_centroid for p in image.labels],
                                           labels=[p.class_name for p in image.labels], ax=ax_s,
@@ -433,7 +469,7 @@ if __name__ == "__main__":
         logger.info(f"Moved to {destination_path}")
 
         report.destination_path = destination_path
-
+        report.edge_black_out = edge_black_out
 
         # TODO add to the report: Datset statistiscs, number of images, number of annotations, number of classes, geojson of location
         # Save the report
@@ -443,8 +479,8 @@ if __name__ == "__main__":
 
         logger.info(f"Saved report to {labels_path / dataset.dataset_name / f'datapreparation_report_{dset}.yaml'}")
 
-        shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
-        shutil.rmtree(output_path_dset.joinpath("padded_images"))
+        # shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
+        # shutil.rmtree(output_path_dset.joinpath("padded_images"))
 
     gc.collect()
 
