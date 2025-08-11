@@ -3,6 +3,7 @@ Take Detections from a model and display them in a FiftyOne Dataset
 
 TODO: why are there missing objects
 """
+import numpy as np
 import typing
 
 import PIL.Image
@@ -33,7 +34,6 @@ def evaluate_predictions(
         type: AnnotationType = AnnotationType.KEYPOINT,
         sample_field_name="prediction") -> fo.Sample:
     """
-    TODO get the comments right. This function
     Evaluate the predictions
     :return:
     """
@@ -237,3 +237,129 @@ def submit_for_roboflow_evaluation(dataset_name: str, images_set: typing.List[Pa
                           detections: typing.List[ImageLabelCollection],
                           type="points"):
     raise NotImplementedError("Roboflow is not yet implemented")
+
+
+class Evaluator():
+
+    def __init__(self, df_detections, df_ground_truth, radius=150):
+        self.df_detections = df_detections
+        self.df_ground_truth = df_ground_truth
+        self.radius = radius
+
+        self.df_false_positives, self.df_true_positives, self.df_false_negatives = analyse_point_detections_greedy(
+            df_detections=self.df_detections,
+            df_ground_truth=self.df_ground_truth,
+            radius=self.radius
+        )
+        self.precision_all = self.precision(self.df_true_positives, self.df_false_positives)
+        self.recall_all = self.recall(self.df_true_positives, self.df_false_negatives)
+        self.f1_all = self.f1(self.precision_all, self.recall_all)
+
+    def precision(self, df_true_positives, df_false_positives):
+            if len(df_true_positives) + len(df_false_positives) == 0:
+                return 0.0
+            return len(df_true_positives) / (len(df_true_positives) + len(df_false_positives))
+
+    def recall(self, df_true_positives, df_false_negatives):
+        if len(df_true_positives) + len(df_false_negatives) == 0:
+            return 0.0
+        return len(df_true_positives) / (len(df_true_positives) + len(df_false_negatives))
+
+    def f1(self, precision, recall):
+        if precision + recall == 0:
+            return 0.0
+        return 2 * (precision * recall) / (precision + recall)
+
+
+    def get_precision_recall_f1(self, df_detections):
+
+        df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
+            df_detections=df_detections,
+            df_ground_truth=self.df_ground_truth,
+            radius=self.radius
+        )
+
+        precision = self.precision(df_true_positives, df_false_positives)
+        recall = self.recall(df_true_positives, df_false_negatives)
+        f1 = self.f1(precision, recall)
+
+        return precision, recall, f1
+
+
+    def get_precition_recall_curve(self, values: typing.List[float] = None, range_start=0, range_end=1.0, step=0.05):
+        results = []
+        all_errors = []
+
+        for confidence_threshold in values:
+            df_detections = self.df_detections[self.df_detections.scores >= confidence_threshold]
+
+            df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
+                df_detections=df_detections,
+                df_ground_truth=self.df_ground_truth,
+                radius=self.radius
+            )
+
+            precision = self.precision(df_true_positives, df_false_positives)
+            recall = self.recall(df_true_positives, df_false_negatives)
+            f1 = self.f1(precision, recall)
+
+            errors = self.calculate_error_metrics(df_true_positives, df_false_positives, df_false_negatives)
+
+            all_errors.append(errors)
+            d=[confidence_threshold, precision, recall, f1]
+            results.append(d)
+
+        df_results = pd.DataFrame(results, columns=["confidence_threshold", "precision", "recall", "f1"])
+        df_errors = pd.DataFrame(all_errors)
+
+
+        return pd.concat([df_results, df_errors], axis=1)
+
+    def calculate_error_metrics(self, df_true_positives: pd.DataFrame,
+                                df_false_positives: pd.DataFrame,
+                                df_false_negatives: pd.DataFrame):
+
+        # Get the counting errors (your existing function)
+        diffs = self.get_counting_errors(df_true_positives, df_false_positives, df_false_negatives)
+        errors = np.array(diffs)
+
+        # Calculate all error metrics with numpy
+        mean_error = np.mean(errors)  # Mean Error (ME)
+        mean_absolute_error = np.mean(np.abs(errors))  # Mean Absolute Error (MAE)
+        mean_squared_error = np.mean(errors ** 2)  # Mean Squared Error (MSE)
+        root_mean_squared_error = np.sqrt(mean_squared_error)  # RMSE (bonus)
+
+        return {
+            'mean_error': mean_error,
+            'mean_absolute_error': mean_absolute_error,
+            'mean_squared_error': mean_squared_error,
+            'root_mean_squared_error': root_mean_squared_error,
+            'total_images': len(errors)
+        }
+
+    def get_counting_errors(self, df_true_positives: pd.DataFrame,
+                            df_false_positives: pd.DataFrame, df_false_negatives: pd.DataFrame):
+
+        image_list = self.df_ground_truth['images'].unique()
+
+        tp_counts = df_true_positives['images'].value_counts().reindex(image_list, fill_value=0).values
+        fp_counts = df_false_positives['images'].value_counts().reindex(image_list, fill_value=0).values
+        fn_counts = df_false_negatives['images'].value_counts().reindex(image_list, fill_value=0).values
+        gt_counts = self.df_ground_truth['images'].value_counts().reindex(image_list, fill_value=0).values
+
+        total_counts = tp_counts + fp_counts + fn_counts
+        mismatched = total_counts != gt_counts
+
+        if np.any(mismatched):
+            # Only loop for warnings (much fewer iterations)
+            mismatched_images = image_list[mismatched]
+            for i, image in enumerate(mismatched_images):
+                idx = np.where(image_list == image)[0][0]
+                # logger.warning(f"Counting error in image {image}: "
+                #                f"TP: {tp_counts[idx]}, FP: {fp_counts[idx]}, FN: {fn_counts[idx]}, "
+                #                f"GT: {gt_counts[idx]}")
+
+            # Vectorized calculation of diffs
+        diffs = fp_counts - fn_counts
+
+        return diffs.tolist()

@@ -381,7 +381,7 @@ def visualise_hasty_annotation_statistics(annotated_images: typing.List[Annotate
 
 
 def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
-                             dataset_name: str):
+                             dataset_name: str, filename: Optional[Path] = None):
     """
     Create just the two main histograms requested with improved binning
     """
@@ -454,7 +454,8 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
             ax2.text(i, count + 0.1, str(count), ha='center', va='bottom')
 
     plt.tight_layout()
-    plt.show()
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
 
     # Print summary statistics for annotations
     print("=== Annotation Distribution Summary ===")
@@ -468,9 +469,11 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
     print(f"Total annotations: {total_annotations}")
     print(f"Average annotations per image: {avg_annotations:.2f}")
 
+    return fig
 
 def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage],
-                    dataset_name, bins=50,
+                    suffix,
+                    bins: int = 50,
                     plot_name: str = "box_sizes.png"):
     """
     Create continuous histograms for bounding box sizes
@@ -506,7 +509,7 @@ def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage],
 
     # Create figure with subplots
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    fig.suptitle(f'Bounding Box Size Analysis ({len(bbox_widths)} boxes total, {dataset_name})',
+    fig.suptitle(f'Bounding Box Size Analysis ({len(bbox_widths)} boxes total, {suffix})',
                  fontsize=16, fontweight='bold')
 
     # 1. Box Width Distribution

@@ -1,4 +1,5 @@
 """
+Deprecated
 inspect annotations and correct them using cvat
 
 """

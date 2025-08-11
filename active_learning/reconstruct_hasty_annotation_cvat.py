@@ -15,7 +15,6 @@ import pandas as pd
 
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file, \
     HastyAnnotationV2, ImageLabelCollection
-from util.util import visualise_polygons, visualise_image
 from PIL import Image
 
 
@@ -327,8 +326,8 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
         bbox_field = anno_field if anno_field else "ground_truth_boxes"
         if hasattr(sample, bbox_field):
             bbox_detections = getattr(sample, bbox_field)
-            for det in bbox_detections.detections:
-                if det.label != class_name and class_name != "any":
+            for det in bbox_detections.detections if bbox_detections else []:
+                if det.label != bbox_field and bbox_field != "any":
                     continue
 
                 # Convert normalized coordinates to pixel values
@@ -353,7 +352,7 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
                     mask=None,
                     z_index=0,
                     keypoints=[],
-                    attributes={"source": "bbox_detection"}
+                    attributes={"cvat": "created"}
                 )
 
                 image_labels.append(label)
@@ -383,7 +382,7 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
                     # TODO update the class
                     original_label.class_name = kp.label
                     original_label.keypoints = [hasty_keypoint]
-                    original_label.attributes["cvat_modified"] = "modified"
+                    original_label.attributes["cvat"] = "created"
                     image_labels.append(original_label)
 
                 except IndexError:
@@ -391,7 +390,7 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
                         id=label_id,
                         class_name=kp.label,
                         keypoints=[hasty_keypoint],
-                        attributes={"cvat_modified": "created"}
+                        attributes={"cvat": "created"}
                     )
                     image_labels.append(label)
 
@@ -422,8 +421,7 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
 
 def determine_changes(
     hA_reference: HastyAnnotationV2,
-    hA_updated: HastyAnnotationV2,
-
+    hA_reference_updated: HastyAnnotationV2,
     class_name="iguana"):
     """
     Compare the original and updated Hasty annotations to determine changes.
@@ -433,16 +431,24 @@ def determine_changes(
     :return:
     """
 
-    # check if a label was deleted: label_id exists in reference but not in updated
+    df_old = hA_reference.get_flat_df()
+    df_new = hA_reference_updated.get_flat_df()
+
+    rows_not_in_df2 = df_new[~df_new['label_id'].isin(df_old['label_id'])]
+
+    logger.info(f"There were {len(df_old)} labels in the original annotation and {len(df_new)} in the updated annotation")
+
+    for i in hA_reference_updated.images:
+        updated_image = hA_reference_updated.get_image_by_id(i.image_id)
+        reference_image = hA_reference.get_image_by_id(i.image_id)
+        diff = set(updated_image.labels) - set(reference_image.labels)
+        if len(diff) > 0:
+
+            updated_image.labels
 
 
-    # check if label was created: label_id exists in updated but not in reference
 
-    # check if label was moved: label_id exists in both but coordinates are different
 
-    # else label is unchanged
-
-    return {}
 
 def cvat2hasty_v2(hA_tiled_prediction: HastyAnnotationV2,
                dataset_name,

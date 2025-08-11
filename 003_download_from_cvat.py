@@ -1,3 +1,7 @@
+"""
+deprectated:
+"""
+
 from pathlib import Path
 
 from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty

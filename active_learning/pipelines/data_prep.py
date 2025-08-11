@@ -6,6 +6,7 @@ import typing
 from loguru import logger
 from pathlib import Path
 
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilter
 from active_learning.types.Exceptions import LabelInconsistenyError
 from active_learning.util.converter import coco2hasty, hasty2coco
@@ -210,6 +211,7 @@ class DataprepPipeline(object):
     images_filter_func: typing.List[typing.Callable]  = []
     grid_manager: typing.Callable
     _image_type = "jpg"
+    num_labels: int = 0
 
     def __init__(self,
                  annotations_labels: HastyAnnotationV2,
@@ -221,7 +223,9 @@ class DataprepPipeline(object):
                  class_filter=None,
                  status_filter=None,
                  annotation_types=None,
-                 empty_fraction= False):
+                 empty_fraction= False,
+                 num_labels=None,
+                 config: typing.Optional[DatasetFilterConfig] = None):
         """
 
         :param annotations_labels:
@@ -256,6 +260,7 @@ class DataprepPipeline(object):
         self.status_filter = status_filter
         self.annotation_types = annotation_types
         self.tag_filter = None
+        self.num_labels = num_labels
 
         self.images_path = images_path
         self.empty_fraction = empty_fraction
@@ -263,7 +268,20 @@ class DataprepPipeline(object):
         self.edge_black_out = False
         self.use_multiprocessing = True
 
+        self.flat_images_path = None
+        self.config = config
+
     def run(self, flatten=True):
+        self.run_filter(flatten=flatten)
+
+        if self.config.crop:
+            hA_crop = self.run_crop()
+
+            return hA_crop
+        else:
+            return self.hA_filtered
+
+    def run_filter(self, flatten=True):
         """
         Run the data pipeline
 
@@ -313,15 +331,20 @@ class DataprepPipeline(object):
         else:
             self.hA_filtered = copy.deepcopy(hA)
             flat_images_path = self.images_path
+            self.flat_images_path = flat_images_path
 
         if self.rename_dictionary is not None:
             for k, v in self.rename_dictionary.items():
                 self.hA_filtered.rename_label_class(k, v)
 
+
+
+    def run_crop(self):
+        assert self.flat_images_path is not None, "Please run the pipeline first to get the flat images path."
         hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
                                           overlap=self.overlap,
                                           hA=copy.deepcopy(self.hA_filtered),
-                                          images_path=flat_images_path,
+                                          images_path=self.flat_images_path,
                                           edge_black_out=self.edge_black_out,
                                           use_multiprocessing=self.use_multiprocessing)
 
@@ -368,7 +391,7 @@ class DataprepPipeline(object):
                           full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out, self.annotation_types) for i in hA.images]
 
             # Use multiprocessing pool
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 3) as pool:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
                 results = pool.map(process_image, args_list)
 
             # Collect results

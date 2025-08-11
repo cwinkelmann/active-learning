@@ -237,3 +237,47 @@ class ImageFilterConstantNum(ImageFilter):
         else:
             logger.info(f"Number of images after filtering: {len(hA_filtered.images)}")
         return hA_filtered
+
+
+class ImageFilterConstantNumByLabel(ImageFilter):
+    """
+    Get as many images as longs as the total sum is less than N labels.
+
+    """
+
+
+    def __init__(self, num_labels: typing.Optional[int] = None,
+                 sample_strategy: SampleStrategy = SampleStrategy.RANDOM,
+                 seed: int = 42
+                 ):
+
+        super().__init__()
+        self.sample_strategy = sample_strategy
+        self.num_labels = num_labels
+
+        random.seed(seed)
+
+    def __call__(self, hA: HastyAnnotationV2):
+        """ get N images randomly
+        :return:
+        """
+        assert isinstance(hA, HastyAnnotationV2), "hA must be a HastyAnnotationV2 object"
+        hA = super().__call__(hA)
+
+        hA_filtered = copy.deepcopy(hA)
+
+        collected_images = []
+        collected_labels = 0
+        if self.num_labels is not None and self.num_labels > 0:
+            # remove every image with less than min_labels labels
+            for i in hA_filtered.images:
+                if sum([len(i.labels) for i in collected_images]) >= self.num_labels + len(i.labels):
+                    break
+                else:
+                    collected_images.append(i)
+                    collected_labels += len(i.labels)
+
+            hA_filtered.images = collected_images
+            logger.info(f"Number of images after filtering: {len(hA_filtered.images)} with {collected_labels} labels")
+
+        return hA_filtered

@@ -15,7 +15,7 @@ from active_learning.analyse_detections import analyse_point_detections_greedy
 # import pytest
 
 from active_learning.util.converter import herdnet_prediction_to_hasty
-from active_learning.util.evaluation.evaluation import evaluate_in_fifty_one
+from active_learning.util.evaluation.evaluation import evaluate_in_fifty_one, Evaluator
 from active_learning.util.image_manipulation import crop_out_images_v3
 from active_learning.util.visualisation.draw import draw_text, draw_thumbnail
 from com.biospheredata.converter.Annotation import project_point_to_crop
@@ -25,37 +25,7 @@ import fiftyone as fo
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 
-class Evaluator():
 
-    def __init__(self, df_detections, df_ground_truth, radius=150):
-        self.df_detections = df_detections
-        self.df_ground_truth = df_ground_truth
-        self.radius = radius
-
-    def get_precision_recall_f1(self, df_detections):
-        df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
-            df_detections=df_detections,
-            df_ground_truth=self.df_ground_truth,
-            radius=self.radius
-        )
-
-        precision = len(df_true_positives) / (len(df_true_positives) + len(df_false_positives))
-        recall = len(df_true_positives) / (len(df_true_positives) + len(df_false_negatives))
-        f1 = 2 * (precision * recall) / (precision + recall)
-
-        return precision, recall, f1
-
-    def get_precition_recall_curve(self, range_start=0, range_end=1.0, step=0.05):
-        results = []
-        for confidence_threshold in np.arange(range_start, range_end, step):
-            df_detections = self.df_detections[self.df_detections.scores >= confidence_threshold]
-            precision_recall_f1 = self.get_precision_recall_f1(df_detections)
-
-            d=[confidence_threshold] + list(precision_recall_f1)
-            results.append(d)
-        df_results = pd.DataFrame(results, columns=["confidence_threshold", "precision", "recall", "f1"])
-
-        return df_results
 
 if __name__ == "__main__":
     # Create an empty dataset, TODO put this away so the dataset is just passed into this
@@ -120,7 +90,7 @@ if __name__ == "__main__":
     # TODO draw a curve: x: confidence, y: precision, recall, f1, MAE, MSE
     ev = Evaluator(df_detections=df_detections, df_ground_truth=df_ground_truth, radius=radius)
     ev.get_precition_recall_curve()
-
+    precision, recall, f1 = ev.get_precision_recall_f1()
     logger.info(f"Precision: {precision:.2f}, Recall: {recall:.2f}, F1: {f1:.2f}")
 
     for i in images:

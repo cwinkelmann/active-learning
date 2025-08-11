@@ -35,5 +35,5 @@ for split in ["delplanque_train", "delplanque_val", "delplanque_test"]:
 
     annotated_images_split = [ai for ai in annotated_images if ai.dataset_name == split]
     create_simple_histograms(annotated_images_split)
-    plot_bbox_sizes(annotated_images_split, dataset_name=split)
+    plot_bbox_sizes(annotated_images_split, suffix=f"Delplanque {split}", plot_name=f"box_sizes_Delplanque_{split}.png")
     # visualise_hasty_annotation_statistics(annotated_images_split)

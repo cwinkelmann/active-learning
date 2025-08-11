@@ -12,6 +12,7 @@ from shapely.geometry.point import Point
 from ultralytics.data.converter import convert_coco
 
 from active_learning.config.mapping import keypoint_id_mapping
+from active_learning.util.image import get_image_id
 from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords
 from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
@@ -373,7 +374,7 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
     return hasty_annotation
 
 
-def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) -> typing.List[ImageLabelCollection]:
+def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, hA_reference: typing.Optional[HastyAnnotationV2] = None) -> typing.List[ImageLabelCollection]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
     assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
@@ -410,12 +411,26 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
             )
             annotations.append(annotation)
 
-        ILC_list.append( ImageLabelCollection(
+        if hA_reference is not None:
+            ilC = hA_reference.get_image_by_name(image_name)
+            # ilC.labels.extend(annotations)
+            # get the image from the reference
+
+            ilC = ImageLabelCollection(
+                image_id=ilC.image_id,
+                image_name=str(image_name),
+                labels=annotations,
+                width=w,
+                height=h
+            )
+        else:
+            ilC = ImageLabelCollection(
             image_name=str(image_name),
             labels=annotations,
             width=w,
             height=h
-        ))
+        )
+        ILC_list.append( ilC )
 
     return ILC_list
 

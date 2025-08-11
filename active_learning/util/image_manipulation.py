@@ -144,7 +144,7 @@ def create_regular_raster_grid_from_center(max_x: int, max_y: int,
 def create_regular_raster_grid(max_x: int, max_y: int,
                                slice_height: int,
                                slice_width: int,
-                               overlap: int = 0) -> Tuple[List[Polygon], List[Dict]]:
+                               overlap: int = 0) -> Tuple[Dict[str, Polygon], List[Dict]]:
     """
     Create a regular raster grid of bounding boxes starting from the top-left corner of the image.
 
@@ -160,7 +160,7 @@ def create_regular_raster_grid(max_x: int, max_y: int,
             - A list of shapely Polygons representing the grid tiles.
             - A list of dictionaries with tile metadata (indices and coordinates).
     """
-    tiles = []
+    grid_tiles = {}
     tile_coordinates = []
 
     # Calculate step size (tile size minus overlap)
@@ -178,7 +178,7 @@ def create_regular_raster_grid(max_x: int, max_y: int,
 
             if x2 <= max_x and y2 <= max_y:
                 # Append to results
-                tiles.append(pol)
+                grid_tiles[f"{x1}_{y1}_{step_x}"] = pol
                 tile_coordinates.append({
                     "height_i": y1 // step_y,
                     "width_j": x1 // step_x,
@@ -194,7 +194,7 @@ def create_regular_raster_grid(max_x: int, max_y: int,
         if y2 == max_y:
             break
 
-    return tiles, tile_coordinates
+    return grid_tiles, tile_coordinates
 
 def crop_by_regular_grid_two_stage(
         crop_size: int,
@@ -576,7 +576,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
                 width=int(width),
                 height=int(width))
 
-            # TODO this is deprecated
+            # TODO this is deprecated with what ??
             image_mapping = ImageCropMetadata(
                 parent_image=i.image_name,
                 parent_image_id=i.image_id,
@@ -644,6 +644,7 @@ def crop_out_images(hi: AnnotatedImage,
                     slice_width: int,
                     full_images_path: Path,
                     output_path: Path,
+                    class_name = "iguana"
                     ) -> (List[Path], List[Path], List[AnnotatedImage]):
     """ iterate through the image and crop out regular grid tiles
 
@@ -715,7 +716,7 @@ def crop_out_images(hi: AnnotatedImage,
                         il = ImageLabel(id=str(uuid.uuid4()),
                                         image_id=str(uuid.uuid4()),
                                         # category_id="888",  # TODO get this right
-                                        class_name="iguana",
+                                        class_name=class_name,
                                         bbox=[int(x) for x in translated_inner_polygon.bounds],
                                         iscrowd=0, segmentation=[])
                         slice_labels.append(il)
@@ -846,7 +847,7 @@ class RasterCropperBoxes(RasterCropper):
         occupied_rasters: dict[str, shapely.Polygon] = {}
 
         # sliding window of the image
-        for raster_id, pol in enumerate(self.rasters):
+        for raster_id, pol in self.rasters.items():
             assert isinstance(pol, shapely.Polygon)
             minx, miny, maxx, maxy = pol.bounds
             slice_width = maxx - minx
@@ -1133,7 +1134,7 @@ class RasterCropperPoints(RasterCropper):
         # slice the image in tiles
 
         # sliding window of the image
-        for pol in self.rasters:
+        for raster_id, pol in self.rasters.items():
             assert isinstance(pol, shapely.Polygon)
             minx, miny, maxx, maxy = pol.bounds
             slice_width = maxx - minx

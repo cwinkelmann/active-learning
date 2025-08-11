@@ -1,7 +1,8 @@
 """
 Create patches from images and labels from hasty annotation files to be used in CVAT/training
 """
-from dataset_configs_hasty_iguanas import *
+
+from dataset_configs_hasty_point_iguanas import *
 
 import json
 
@@ -16,13 +17,11 @@ from matplotlib import pyplot as plt
 from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
+from active_learning.util.visualisation.annotation_vis import visualise_points_only
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from image_template_search.util.util import (visualise_image, visualise_polygons)
-from image_template_search.util.visualisation import visualise_annotated_image
-
-
 
 if __name__ == "__main__":
 
@@ -37,7 +36,7 @@ if __name__ == "__main__":
         })
         report = DataPrepReport(**dataset_dict)
 
-        logger.info(f"Starting {dataset.dset}")
+        logger.info(f"Starting Dataset {dataset.dataset_name}, split: {dataset.dset}")
         dset = dataset.dset
         num = dataset.num
         overlap = dataset.overlap
@@ -49,13 +48,11 @@ if __name__ == "__main__":
                                          hasty_annotations_images_zipped=labels_path / hasty_annotations_images_zipped)
 
         logger.info(f"Unzipped {len(hA.images)} images.")
-        output_path_dset = labels_path / dataset.dataset_name / f"detection_{dset}_{overlap}_{crop_size}"
-        output_path_classifcation_dset = labels_path / dataset.dataset_name /  f"classification_{dset}_{overlap}_{crop_size}"
+        output_path_dset = labels_path / dataset.dataset_name / dset
 
         output_path_dset.mkdir(exist_ok=True, parents=True)
-        output_path_classifcation_dset.mkdir(exist_ok=True, parents=True)
 
-        vis_path = labels_path / f"visualisations" / f"{dataset.dataset_name}_{dset}_{overlap}_{crop_size}"
+        vis_path = labels_path / f"visualisations" / f"{dataset.dataset_name}_{overlap}_{crop_size}_{dset}"
         vis_path.mkdir(exist_ok=True, parents=True)
 
         # hA_flat = hA.get_flat_df()
@@ -69,39 +66,41 @@ if __name__ == "__main__":
                               )
 
         dp.dataset_filter = dataset.dataset_filter
-
+        dp.status_filter = dataset.status_filter
         dp.images_filter = dataset.images_filter
         dp.images_filter_func = [ifcn]
         dp.class_filter = class_filter
         dp.annotation_types = annotation_types
         dp.empty_fraction = dataset.empty_fraction
-        dp.visualise_path = vis_path
-        dp.use_multiprocessing = use_multiprocessing
-        dp.edge_black_out = edge_black_out
+        if VISUALISE_FLAG:
+            dp.visualise_path = vis_path
+        dp.use_multiprocessing = multiprocessing
+        dp.edge_black_out = dataset.edge_black_out
 
         # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)
 
-        hA_filtered = dp.get_hA_filtered()
 
+
+        hA_filtered = dp.get_hA_filtered()
+        hA_filtered.save(output_path_dset / f"hasty_format_full_size.json")
+        # full size annotations
+        HastyConverter.convert_to_herdnet_format(hA_filtered,
+                                                 output_file=output_path_dset / f"herdnet_format.csv",
+                                                 label_mapping=label_mapping)
+
+        report.num_labels_filtered = sum(len(i.labels) for i in hA_filtered.images)
         report.num_images_filtered = len(hA_filtered.images)
+
         hA_crops = dp.get_hA_crops()
         report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
+        report.num_images_crops = len(hA_crops.images)
 
-        # full size annotations
-        HastyConverter.convert_to_herdnet_format(hA_filtered, output_file=output_path_dset / f"herdnet_format.csv")
-
-        hA_crops = dp.get_hA_crops()
         aI = AnnotationsIntermediary()
         logger.info(f"After processing {len(hA_crops.images)} images remain")
         if len(hA_crops.images) == 0:
             raise ValueError("No images left after filtering")
 
-        report.num_labels_filtered = sum(len(i.labels) for i in hA_filtered.images)
-
-        hA_crops = dp.get_hA_crops()
-        report.num_labels_crops = sum(len(i.labels) for i in hA_crops.images) 
-        report.num_images_crops = len(hA_crops.images)
 
         if VISUALISE_FLAG:
 
@@ -109,6 +108,7 @@ if __name__ == "__main__":
             for image in hA_crops.images:
                 logger.info(f"Visualising {image}")
                 ax_s = visualise_image(image_path=output_path_dset / f"crops_{crop_size}" / image.image_name, show=False)
+
                 if image.image_name == "FMO03___DJI_0514_x3200_y2560.jpg":
                     if len(image.labels) == 0:
                         raise ValueError("No labels but there should be one full iguana and a blacked out edge partial")
@@ -117,11 +117,20 @@ if __name__ == "__main__":
                         raise ValueError("No labels but there should be one full iguana and some blacked out edge partial")
 
                 filename = vis_path / f"cropped_iguana_{image.image_name}.png"
-                visualise_polygons(polygons=[p.bbox_polygon for p in image.labels],
-                                   labels=[p.class_name for p in image.labels], ax=ax_s,
-                                   show=False, linewidth=2,
-                                   filename=filename, title=f"Cropped #{len([p.class_name for p in image.labels])} Objects  {image.image_name} polygons")
+                if AnnotationType.BOUNDING_BOX in annotation_types:
+                    ax_s = visualise_polygons(polygons=[p.bbox_polygon for p in image.labels],
+                                              labels=[p.class_name for p in image.labels], ax=ax_s,
+                                              show=False, linewidth=2,
+                                              filename=filename, title=f"Cropped Objects  {image.image_name} polygons")
+                if AnnotationType.KEYPOINT in annotation_types:
+                    visualise_points_only(points=[p.incenter_centroid for p in image.labels],
+                                          labels=[p.class_name for p in image.labels], ax=ax_s,
+                                          text_buffer=True, font_size=15,
+                                          show=False, markersize=10,
+                                          filename=filename,
+                                          title=f"Cropped Objects  {image.image_name} Points")
                 plt.close()
+
 
         aI.set_hasty_annotations(hA=hA_crops)
         coco_path = aI.coco(output_path_dset / f"coco_format_{crop_size}_{overlap}.json")
@@ -132,29 +141,10 @@ if __name__ == "__main__":
         hA_crops.save(output_path_dset / f"hasty_format_crops_{crop_size}_{overlap}.json")
 
         # TODO check if the conversion from polygon to point is correct
-        HastyConverter.convert_to_herdnet_format(hA_crops, output_file=output_path_dset / f"herdnet_format_{crop_size}_{overlap}_crops.csv")
+        HastyConverter.convert_to_herdnet_format(hA_crops,
+                                                 output_file=output_path_dset / f"herdnet_format_{crop_size}_{overlap}_crops.csv",
+                                                 label_mapping=label_mapping)
 
-        if AnnotationType.BOUNDING_BOX in annotation_types or AnnotationType.POLYGON in annotation_types:
-            HastyConverter.convert_deep_forest(hA_crops, output_file=output_path_dset / f"deep_forest_format__{crop_size}_{overlap}_crops.csv")
-
-            # TODO convert to YOLO format later from COCO
-            # class_names = aI.to_YOLO_annotations(output_path=output_path_dset / "yolo")
-            # report[f"yolo_box_path_{dset}"] = output_path_dset / "yolo" / f"yolo_boxes"
-            # report[f"yolo_segments_path_{dset}"] = output_path_dset / "yolo" / "yolo_segments"
-            # report[f"class_names"] = class_names
-
-        # TODO move the crops to a new folder for YOLO
-
-        output_path_classifcation_dset.joinpath("iguana").mkdir(exist_ok=True)
-        output_path_classifcation_dset.joinpath("empty").mkdir(exist_ok=True)
-
-        # TODO move the crops to a new folder for classification
-
-        for hA_cropped_image in hA_crops.images:
-            if len(hA_cropped_image.labels) > 0:
-                shutil.copy(output_path_dset / f"crops_{crop_size}" / hA_cropped_image.image_name, output_path_classifcation_dset / "iguana" / hA_cropped_image.image_name)
-            else:
-                shutil.copy(output_path_dset / f"crops_{crop_size}" / hA_cropped_image.image_name, output_path_classifcation_dset / "empty" / hA_cropped_image.image_name)
 
         stats = dp.get_stats()
         logger.info(f"Stats {dset}: {stats}")
@@ -170,34 +160,22 @@ if __name__ == "__main__":
         logger.info(f"Moved to {destination_path}")
 
         report.destination_path = destination_path
-        report.edge_black_out = edge_black_out
 
+
+        # TODO add to the report: Datset statistiscs, number of images, number of annotations, number of classes, geojson of location
+        # Save the report
         report_dict = json.loads(report.model_dump_json())
         with open(labels_path / dataset.dataset_name / f"datapreparation_report_{dset}.yaml", 'w', encoding='utf-8') as f:
             yaml.dump(report_dict, f, default_flow_style=False, indent=2)
 
         logger.info(f"Saved report to {labels_path / dataset.dataset_name / f'datapreparation_report_{dset}.yaml'}")
 
-        # shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME))
-        # shutil.rmtree(output_path_dset.joinpath("padded_images"))
+        if dataset.remove_Default:
+            shutil.rmtree(output_path_dset.joinpath(HastyConverter.DEFAULT_DATASET_NAME), ignore_errors=True)
+        if dataset.remove_Padding:
+            shutil.rmtree(output_path_dset.joinpath("padded_images"), ignore_errors=True)
 
-
-    # # YOLO Box data
-    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-    #                                               images_train_path=report["destination_path_train"],
-    #                                               images_val_path=report["destination_path_val"],
-    #                                               labels_train_path=report["yolo_box_path_train"],
-    #                                               labels_val_path=report["yolo_box_path_val"],
-    #                                               class_names=report["class_names"],
-    #                                               data_yaml_path=labels_path / "data_boxes.yaml")
-    #
-    # # YOLO Segmentation Data
-    # HastyConverter.prepare_YOLO_output_folder_str(base_path=labels_path,
-    #                                               images_train_path=report["destination_path_train"],
-    #                                               images_val_path=report["destination_path_val"],
-    #                                               labels_train_path=report["yolo_box_path_train"],
-    #                                               labels_val_path=report["yolo_box_path_val"],
-    #                                               class_names=report["class_names"],
-    #                                               data_yaml_path=labels_path / "data_segments.yaml")
 
     gc.collect()
+
+    # logger.info(f"Finished all datasets, reports saved to {labels_path}")

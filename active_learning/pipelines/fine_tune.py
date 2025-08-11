@@ -451,7 +451,7 @@ class ModelFineTuner:
             start_time = time.time()
 
             # Training phase
-            self.model.train()
+            self.model.michigan_train()
             train_loss = 0
             batch_count = 0
 

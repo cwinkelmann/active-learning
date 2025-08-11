@@ -1,7 +1,7 @@
 """
 Take Detections from a model, compare them with ground truth and display them in a FiftyOne Dataset
 
-TODO: why are there missing objects
+
 """
 import numpy as np
 import typing
@@ -15,7 +15,7 @@ from active_learning.analyse_detections import analyse_point_detections_greedy
 # import pytest
 
 from active_learning.util.converter import herdnet_prediction_to_hasty
-from active_learning.util.evaluation.evaluation import evaluate_in_fifty_one
+from active_learning.util.evaluation.evaluation import evaluate_in_fifty_one, Evaluator
 from active_learning.util.image_manipulation import crop_out_images_v3
 from active_learning.util.visualisation.draw import draw_text, draw_thumbnail
 from com.biospheredata.converter.Annotation import project_point_to_crop
@@ -28,130 +28,106 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-class Evaluator():
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
 
-    def __init__(self, df_detections, df_ground_truth, radius=150):
-        self.df_detections = df_detections
-        self.df_ground_truth = df_ground_truth
-        self.radius = radius
+def plot_confidence_density(df: pd.DataFrame,
+                            title="Confidence Score Density Distribution",
+                            xlabel="Confidence Score",
+                            ylabel="Density",
+                            figsize=(12, 6),
+                            color='blue',
+                            fill=True,
+                            show_stats=True,
+                            show_histogram=True,
+                            kde_bandwidth=None):
+    """
+    Create a density plot of confidence scores.
 
-        self.df_false_positives, self.df_true_positives, self.df_false_negatives = analyse_point_detections_greedy(
-            df_detections=self.df_detections,
-            df_ground_truth=self.df_ground_truth,
-            radius=self.radius
-        )
-        self.precision_all = self.precision(self.df_true_positives, self.df_false_positives)
-        self.recall_all = self.recall(self.df_true_positives, self.df_false_negatives)
-        self.f1_all = self.f1(self.precision_all, self.recall_all)
+    :param df: DataFrame with a 'scores' column containing confidence scores
+    :param title: Title for the plot
+    :param xlabel: Label for x-axis
+    :param ylabel: Label for y-axis
+    :param figsize: Figure size as tuple (width, height)
+    :param color: Color for the density plot
+    :param fill: Whether to fill the area under the curve
+    :param show_stats: Whether to show mean, median lines
+    :param show_histogram: Whether to show histogram behind density
+    :param kde_bandwidth: Bandwidth for KDE (None for automatic)
+    :return: matplotlib figure and axis objects
+    """
 
-    def precision(self, df_true_positives, df_false_positives):
-            if len(df_true_positives) + len(df_false_positives) == 0:
-                return 0.0
-            return len(df_true_positives) / (len(df_true_positives) + len(df_false_positives))
+    # Check if 'scores' column exists
+    if 'scores' not in df.columns:
+        raise ValueError("DataFrame must contain a 'scores' column")
 
-    def recall(self, df_true_positives, df_false_negatives):
-        if len(df_true_positives) + len(df_false_negatives) == 0:
-            return 0.0
-        return len(df_true_positives) / (len(df_true_positives) + len(df_false_negatives))
+    # Extract scores and remove NaN values
+    scores = df['scores'].dropna()
 
-    def f1(self, precision, recall):
-        if precision + recall == 0:
-            return 0.0
-        return 2 * (precision * recall) / (precision + recall)
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot histogram if requested (in background)
+    if show_histogram:
+        ax.hist(scores, bins=30, density=True, alpha=0.3, color='gray',
+                edgecolor='black', label='Histogram')
+
+    # Create density plot using seaborn
+    if fill:
+        sns.kdeplot(data=scores, ax=ax, color=color, fill=True, alpha=0.6,
+                    label='Density', bw_adjust=kde_bandwidth if kde_bandwidth else 1.0)
+    else:
+        sns.kdeplot(data=scores, ax=ax, color=color, linewidth=2,
+                    label='Density', bw_adjust=kde_bandwidth if kde_bandwidth else 1.0)
+
+    # Add statistics lines if requested
+    if show_stats:
+        mean_val = scores.mean()
+        median_val = scores.median()
+        mode_val = scores.mode()[0] if len(scores.mode()) > 0 else None
+
+        ax.axvline(mean_val, color='red', linestyle='--', linewidth=2,
+                   label=f'Mean: {mean_val:.3f}')
+        ax.axvline(median_val, color='green', linestyle='--', linewidth=2,
+                   label=f'Median: {median_val:.3f}')
+        if mode_val is not None:
+            ax.axvline(mode_val, color='orange', linestyle='--', linewidth=2,
+                       label=f'Mode: {mode_val:.3f}')
+
+    # Set labels and title
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight='bold')
+
+    # Set x-axis limits to [0, 1] for confidence scores
+    ax.set_xlim(0, 1)
+
+    # Add grid
+    ax.grid(True, alpha=0.3)
+
+    # Add legend
+    ax.legend(loc='best')
+
+    # Add text box with statistics
+    stats_text = f'Count: {len(scores)}\n'
+    stats_text += f'Mean: {scores.mean():.3f}\n'
+    stats_text += f'Std: {scores.std():.3f}\n'
+    stats_text += f'Min: {scores.min():.3f}\n'
+    stats_text += f'Max: {scores.max():.3f}'
+
+    ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+            fontsize=10, verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+    plt.tight_layout()
+
+    return fig, ax
 
 
-    def get_precision_recall_f1(self, df_detections):
 
-        df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
-            df_detections=df_detections,
-            df_ground_truth=self.df_ground_truth,
-            radius=self.radius
-        )
-
-        precision = self.precision(df_true_positives, df_false_positives)
-        recall = self.recall(df_true_positives, df_false_negatives)
-        f1 = self.f1(precision, recall)
-
-        return precision, recall, f1
-
-
-    def get_precition_recall_curve(self, values: typing.List[float] = None, range_start=0, range_end=1.0, step=0.05):
-        results = []
-        all_errors = []
-
-        for confidence_threshold in values:
-            df_detections = self.df_detections[self.df_detections.scores >= confidence_threshold]
-
-            df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
-                df_detections=df_detections,
-                df_ground_truth=self.df_ground_truth,
-                radius=self.radius
-            )
-
-            precision = self.precision(df_true_positives, df_false_positives)
-            recall = self.recall(df_true_positives, df_false_negatives)
-            f1 = self.f1(precision, recall)
-
-            errors = self.calculate_error_metrics(df_true_positives, df_false_positives, df_false_negatives)
-
-            all_errors.append(errors)
-            d=[confidence_threshold, precision, recall, f1]
-            results.append(d)
-
-        df_results = pd.DataFrame(results, columns=["confidence_threshold", "precision", "recall", "f1"])
-        df_errors = pd.DataFrame(all_errors)
-
-
-        return pd.concat([df_results, df_errors], axis=1)
-
-    def calculate_error_metrics(self, df_true_positives: pd.DataFrame,
-                                df_false_positives: pd.DataFrame,
-                                df_false_negatives: pd.DataFrame):
-
-        # Get the counting errors (your existing function)
-        diffs = self.get_counting_errors(df_true_positives, df_false_positives, df_false_negatives)
-        errors = np.array(diffs)
-
-        # Calculate all error metrics with numpy
-        mean_error = np.mean(errors)  # Mean Error (ME)
-        mean_absolute_error = np.mean(np.abs(errors))  # Mean Absolute Error (MAE)
-        mean_squared_error = np.mean(errors ** 2)  # Mean Squared Error (MSE)
-        root_mean_squared_error = np.sqrt(mean_squared_error)  # RMSE (bonus)
-
-        return {
-            'mean_error': mean_error,
-            'mean_absolute_error': mean_absolute_error,
-            'mean_squared_error': mean_squared_error,
-            'root_mean_squared_error': root_mean_squared_error,
-            'total_images': len(errors)
-        }
-
-    def get_counting_errors(self, df_true_positives: pd.DataFrame,
-                            df_false_positives: pd.DataFrame, df_false_negatives: pd.DataFrame):
-
-        image_list = self.df_ground_truth['images'].unique()
-
-        tp_counts = df_true_positives['images'].value_counts().reindex(image_list, fill_value=0).values
-        fp_counts = df_false_positives['images'].value_counts().reindex(image_list, fill_value=0).values
-        fn_counts = df_false_negatives['images'].value_counts().reindex(image_list, fill_value=0).values
-        gt_counts = self.df_ground_truth['images'].value_counts().reindex(image_list, fill_value=0).values
-
-        total_counts = tp_counts + fp_counts + fn_counts
-        mismatched = total_counts != gt_counts
-
-        if np.any(mismatched):
-            # Only loop for warnings (much fewer iterations)
-            mismatched_images = image_list[mismatched]
-            for i, image in enumerate(mismatched_images):
-                idx = np.where(image_list == image)[0][0]
-                # logger.warning(f"Counting error in image {image}: "
-                #                f"TP: {tp_counts[idx]}, FP: {fp_counts[idx]}, FN: {fn_counts[idx]}, "
-                #                f"GT: {gt_counts[idx]}")
-
-            # Vectorized calculation of diffs
-        diffs = tp_counts + fp_counts - fn_counts
-
-        return diffs.tolist()
 
 
 
@@ -258,6 +234,7 @@ def plot_single_metric_curve(df_recall_curve,
     plt.show()
 
 
+
 def plot_comprehensive_curves(df_recall_curve, save_path=None):
     """
     Create a comprehensive 2x2 plot showing all metrics.
@@ -302,15 +279,18 @@ if __name__ == "__main__":
     num = 56
     type = "points"
 
-
-    base_path = Path(f'/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_07_10_final_point_detection_edge_blackout')
+    # Path of the base directory where the images and annotations are stored which we want to correct
+    base_path = Path(f'/Users/christian/data/training_data/2025_07_10_refined/Floreana_detection_corrected/train')
 
     ## On full size original images
-    df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/tools/outputs/inference_2025-07-15_fullsize/08-19-14/detections.csv')
+    df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/data/label_correction/floreana_train_inference/detections.csv')
     hasty_annotation_name = 'hasty_format_full_size.json'
-    herdnet_annotation_name = 'herdnet_format.csv'
+    herdnet_annotation_name = 'herdnet_format_points.csv'
     images_path = base_path / "Default"
     suffix = "JPG"
+
+    hA_ground_truth_path = base_path / hasty_annotation_name
+    hA_ground_truth = hA_from_file(hA_ground_truth_path)
 
     # ## On cropped images
     # df_detections = pd.read_csv('/Users/christian/PycharmProjects/hnee/HerdNet/data/inference_21-58-47/detections.csv')
@@ -324,9 +304,8 @@ if __name__ == "__main__":
 
     visualisations_path = base_path / "visualisations"
     visualisations_path.mkdir(exist_ok=True, parents=True)
-    # IL_detections = herdnet_prediction_to_hasty(df_detections, images_path)
-    hA_ground_truth_path = base_path / hasty_annotation_name
-    hA_ground_truth = hA_from_file(hA_ground_truth_path)
+    IL_detections = herdnet_prediction_to_hasty(df_detections, images_path)
+
 
     df_ground_truth = pd.read_csv(base_path / herdnet_annotation_name)
 
@@ -334,6 +313,7 @@ if __name__ == "__main__":
     if len(images) == 0:
         raise FileNotFoundError("No images found in: " + images_path)
 
+    df_detections = df_detections[df_detections.scores > 0.30]
 
     df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
         df_detections=df_detections,
@@ -341,7 +321,13 @@ if __name__ == "__main__":
         radius=radius
     )
 
+    fig, ax = plot_confidence_density(df_false_positives, title="Confidence Score Density Distribution of False Positves")
+    plt.show()
 
+    fig, ax = plot_confidence_density(df_true_positives, title="Confidence Score Density Distribution of True Positves")
+    plt.show()
+
+    # raise ValueError("Stop here to check the density plot of false positives")
 
     df_concat = pd.concat([df_false_positives, df_true_positives, df_false_negatives])
 
@@ -359,13 +345,15 @@ if __name__ == "__main__":
     # TODO draw a curve: x: confidence, y: precision, recall, f1, MAE, MSE
     ev = Evaluator(df_detections=df_detections, df_ground_truth=df_ground_truth, radius=radius)
     df_recall_curve = ev.get_precition_recall_curve(values=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
-                                                            0.95,
-                                                            0.96, 0.97, 0.98, 0.99,
-                                                            0.991, 0.992, 0.993, 0.994, 0.995, 0.996, 0.997, 0.998, 0.999,
+                                                            #0.95,
+                                                            #0.96, 0.97, 0.98, 0.99,
+                                                            #0.991, 0.992, 0.993, 0.994, 0.995, 0.996, 0.997, 0.998, 0.999,
                                                             0.9999, 1.0])
 
     # Plot comprehensive view
     plot_error_curve(df_recall_curve, title="Performance Analysis")
+
+    # TODO plot that QQ Plot here to see if there is a bias depending on animals in the images
 
     # Plot single metric
     plot_single_metric_curve(df_recall_curve, y_label='mean_error', title="Mean Error Analysis")
@@ -386,8 +374,9 @@ if __name__ == "__main__":
         df_fn = df_false_negatives[df_false_negatives.images == i.name]
 
         draw_thumbnail(df_fp[df_fp.scores > 0.9], i, suffix="fp_hc", images_path=visualisations_path, box_size=box_size)
-
-        draw_thumbnail(df_fp[df_fp.scores <= 0.9], i, suffix="fp_lc", images_path=visualisations_path, box_size=box_size)
+        draw_thumbnail(df_fp[(df_fp.scores > 0.8) & (df_fp.scores < 0.9)], i, suffix="fp_hmc",
+                       images_path=visualisations_path, box_size=box_size)
+        # draw_thumbnail(df_fp[df_fp.scores <= 0.9], i, suffix="fp_lc", images_path=visualisations_path, box_size=box_size)
         draw_thumbnail(df_fn, i, suffix="fn", images_path=visualisations_path, box_size=box_size)
         # draw_thumbnail(df_tp, i, suffix="tp", images_path=visualisations_path, box_size=box_size)
 

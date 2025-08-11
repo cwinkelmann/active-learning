@@ -124,7 +124,7 @@ def set_seed(seed):
 
 def train_one_epoch(model, train_loader, criterion, optimizer, device, epoch, amp_autocast, loss_scaler):
     """Train for one epoch."""
-    model.train()
+    model.michigan_train()
 
     losses = AverageMeter()
     top1 = AverageMeter()
