@@ -161,7 +161,7 @@ def get_geotransform(orthomsoaic_path: Path):
     """
     if not Path.is_file(orthomsoaic_path):
         raise FileNotFoundError(f"File {orthomsoaic_path} does not exist")
-    orthophoto_raster = gdal.Open(orthomsoaic_path)
+    orthophoto_raster = gdal.Open(str(orthomsoaic_path))
     geo_transform = orthophoto_raster.GetGeoTransform()
     return geo_transform
 

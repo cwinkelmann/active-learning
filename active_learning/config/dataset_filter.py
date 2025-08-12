@@ -184,7 +184,6 @@ class DatasetCorrectionConfig(BasicConfig):
 
     # Analysis metadata
     analysis_date: str = Field(..., description="Analysis date in YYYY_MM_DD format")
-    num: int = Field(..., description="Number identifier for the dataset")
     type: str = Field(default="points", description="Detection type")
 
     # Base paths
@@ -204,7 +203,7 @@ class DatasetCorrectionConfig(BasicConfig):
         default=...,
         description="Name of the herdnet annotation file"
     )
-    detections_path: str = Field(
+    detections_path: Path = Field(
         default=...,
         description="Path to detections of the model"
     )

@@ -96,7 +96,7 @@ def main(dataset_name,
         attributes=[],
         launch_editor=True,
         organization="IguanasFromAbove",
-        project_name="Orthomosaic_quality_control",
+        project_name="Orthomosaic_label_correction",
         task_size=50
     )
 

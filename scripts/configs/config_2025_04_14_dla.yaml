@@ -19,7 +19,7 @@ model:
     down_ratio: 2 # was two before
     head_conv: 64
 
-dataset:
+datasets:
   img_size: [512, 512]
   anno_type: 'point'
   num_classes: 8

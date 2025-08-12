@@ -14,10 +14,13 @@ from pathlib import Path
 from rtree import index
 from shapely.geometry import Polygon
 from tqdm import tqdm
+import concurrent.futures
 
 from active_learning.types.Exceptions import ProjectionError, NoLabelsError
 from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal
+from active_learning.util.image_manipulation import convert_tiles_to
 from active_learning.util.projection import world_to_pixel
+from com.biospheredata.converter.HastyConverter import ImageFormat
 
 
 class ImageGrid(object):
@@ -833,8 +836,8 @@ class GeoSlicer():
             raise FileNotFoundError(f"File {full_image_path} does not exist")
         image_size = os.path.getsize(
             full_image_path)  ## gdal.Open is not realizing when the file is missing. So do this before
-        logger.info(f"size of the image: {image_size}")
-        orthophoto_raster = gdal.Open(full_image_path)
+        logger.info(f"size of the image: {image_size // 1024}MB at {full_image_path}")
+        orthophoto_raster = gdal.Open(str(full_image_path))
         self.geo_transform = orthophoto_raster.GetGeoTransform()
         self.orthophoto_raster = orthophoto_raster
 
@@ -993,8 +996,8 @@ class GeoSlicer():
         """
 
         # Determine number of workers
-        if num_workers is None:
-            num_workers = max(1, multiprocessing.cpu_count() - 1)  # Leave one CPU free
+        if num_workers is None or num_workers > 32:
+            num_workers = min(32, max(1, multiprocessing.cpu_count() - 1))  # Leave one CPU free and on big machines don't overdo it
 
         # Make sure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1023,8 +1026,7 @@ class GeoSlicer():
                 gdf_slices = _process_grid_chunk(args)
                 all_slices.extend(gdf_slices)
         else:
-            # Use concurrent.futures which handles pickling better than multiprocessing.Pool
-            import concurrent.futures
+
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
                 # Process chunks in parallel and collect results
@@ -1058,3 +1060,58 @@ def get_geospatial_sliced_path(base_path, x_size, y_size):
     else:
         sliced_path = base_path.joinpath(f"sliced")
     return sliced_path
+
+
+
+def get_tiles(orthomosaic_path,
+              output_dir,
+              tile_size=1250):
+    """
+    Helper to to create a grid of tiles from an orthomosaic and slice it into smaller images.
+    :param orthomosaic_path:
+    :param output_dir:
+    :param tile_size:
+    :return:
+    """
+    logger.info(f"Tiling {orthomosaic_path} into {tile_size}x{tile_size} tiles")
+    output_dir_metadata = output_dir / 'metadata'
+    output_dir_jpg = output_dir / 'jpg'
+    output_dir_metadata.mkdir(parents=True, exist_ok=True)
+    output_dir_jpg.mkdir(parents=True, exist_ok=True)
+
+    filename = Path(f'grid_{orthomosaic_path.with_suffix(".geojson").name}')
+    if not output_dir_metadata.joinpath(filename).exists():
+        grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
+
+        grid_gdf = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0)
+        grid_gdf.to_file(output_dir_metadata / filename, driver='GeoJSON')
+        grid_manager.gdf_raster_mask.to_file(
+            output_dir_metadata / Path(f'raster_mask_{orthomosaic_path.with_suffix(".geojson").name}'),
+            driver='GeoJSON')
+
+    else:
+        logger.info(f"Grid file {filename} already exists, skipping grid creation")
+        grid_gdf = gpd.read_file(output_dir_metadata / filename)
+
+    slicer = GeoSlicer(base_path=orthomosaic_path.parent,
+                       image_name=orthomosaic_path.name,
+                       grid=grid_gdf,
+                       output_dir=output_dir)
+
+    gdf_tiles = slicer.slice_very_big_raster()
+
+    converted_tiles = convert_tiles_to(tiles=list(slicer.gdf_slices.slice_path),
+                                       format=ImageFormat.JPG,
+                                       output_dir=output_dir_jpg)
+    converted_tiles = [a for a in converted_tiles]
+    logger.info(f"created {len(converted_tiles)} tiles in {output_dir_jpg}")
+
+    def insert_jpg_folder(path_str):
+        p = Path(path_str)
+        new_dir = p.parent / "jpg"
+        new_filename = p.stem + ".jpg"
+        return str(new_dir / new_filename)
+
+    gdf_tiles["jpg"] = gdf_tiles["slice_path"].apply(insert_jpg_folder)
+
+    return gdf_tiles, output_dir_jpg

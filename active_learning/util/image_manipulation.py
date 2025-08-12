@@ -26,10 +26,9 @@ from com.biospheredata.converter.Annotation import add_offset_to_box
 from com.biospheredata.converter.HastyConverter import ImageFormat, AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabelCollection, PredictedImageLabel, Keypoint
-from com.biospheredata.visualization.visualize_result import blackout_bbox
+from com.biospheredata.visualization.visualize_result import blackout_bbox, visualise_image, visualise_polygons
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel
 
-from image_template_search.util.util import visualise_image, visualise_polygons
 
 DATA_SET_NAME = "train_augmented"
 
@@ -283,7 +282,7 @@ def crop_by_regular_grid_two_stage(
 
     if visualisation_path is not None:
         axi = visualise_image(image_path=padded_image_path, show=False, title=f"grid_{i.image_name}", )
-
+        # TODO This was image_template search before
         axi = visualise_polygons(cropper_boxes.empty_rasters, show=False, title=f"grid_{i.image_name}", max_x=new_width,
                                  max_y=new_height, ax=axi, color="red")
         axi = visualise_polygons(cropper_boxes.occupied_rasters.values(), show=False, title=f"grid_{i.image_name}", max_x=new_width,

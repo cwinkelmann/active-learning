@@ -2,11 +2,11 @@ import geopandas as gpd
 import json
 import numpy as np
 import osgeo.gdal as gdal
+
 gdal.UseExceptions()
 
 import rasterio
 from loguru import logger
-from pathlib import Path
 from rasterio.mask import mask
 from shapely.geometry import Polygon
 from typing import List
@@ -66,7 +66,7 @@ def safe_world_file(raster_path: Path) -> Path:
             f"{transform.d:.8f}\n",  # Rotation (usually 0)
             f"{transform.e:.8f}\n",  # Pixel size in Y direction (negative for North-up)
             f"{transform.xoff:.8f}\n",  # X coordinate of the upper-left corner
-            f"{transform.yoff:.8f}\n"   # Y coordinate of the upper-left corner
+            f"{transform.yoff:.8f}\n"  # Y coordinate of the upper-left corner
         ]
 
     # Write world file
@@ -75,8 +75,6 @@ def safe_world_file(raster_path: Path) -> Path:
 
     print(f"World file created: {world_file_path}")
     return world_file_path
-
-
 
 
 def save_world_file_json(raster_path: Path) -> Path:
@@ -102,14 +100,14 @@ def save_world_file_json(raster_path: Path) -> Path:
         transform = src.transform  # Affine transformation
         metadata = {
             "pixel_size_x": transform.a,  # Pixel size in X direction
-            "rotation_x": transform.b,    # Rotation (usually 0)
-            "rotation_y": transform.d,    # Rotation (usually 0)
+            "rotation_x": transform.b,  # Rotation (usually 0)
+            "rotation_y": transform.d,  # Rotation (usually 0)
             "pixel_size_y": transform.e,  # Pixel size in Y direction (negative for North-up)
-            "top_left_x": transform.xoff, # X coordinate of the upper-left corner
-            "top_left_y": transform.yoff, # Y coordinate of the upper-left corner
+            "top_left_x": transform.xoff,  # X coordinate of the upper-left corner
+            "top_left_y": transform.yoff,  # Y coordinate of the upper-left corner
             "crs": src.crs.to_string() if src.crs else None,  # Coordinate Reference System
             "width": src.width,  # Raster width (in pixels)
-            "height": src.height # Raster height (in pixels)
+            "height": src.height  # Raster height (in pixels)
         }
 
     # Write to JSON file
@@ -118,8 +116,6 @@ def save_world_file_json(raster_path: Path) -> Path:
 
     print(f"JSON world file created: {json_file_path}")
     return json_file_path
-
-
 
 
 def create_regular_geospatial_raster_grid(full_image_path: Path,
@@ -211,9 +207,6 @@ def create_regular_geospatial_raster_grid(full_image_path: Path,
     return grid_gdf
 
 
-
-
-
 def save_grid(grid_gdf: gpd.GeoDataFrame, output_path: Path):
     """
     Save a grid to a file in Shapefile, GeoJSON, or GPKG format.
@@ -242,7 +235,6 @@ def save_grid(grid_gdf: gpd.GeoDataFrame, output_path: Path):
 
     print(f"Grid saved successfully: {output_path}")
     return output_path
-
 
 
 def cut_geospatial_raster_with_grid(raster_path: Path,
@@ -276,7 +268,6 @@ def cut_geospatial_raster_with_grid(raster_path: Path,
 
                 # Update metadata
                 out_meta = src.meta.copy()
-
 
                 if compression == "JP2":
                     out_meta.update({
@@ -315,7 +306,6 @@ def cut_geospatial_raster_with_grid(raster_path: Path,
                 print(f"Failed to cut tile {idx}: {e}")
 
     return saved_tiles
-
 
 
 def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDataFrame, output_dir: Path,
@@ -378,7 +368,7 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
                 y_size = y_offset_end - y_offset
 
                 return_value = gdal.Translate(destName=str(tile_filename),
-                                              srcDS=raster_path,
+                                              srcDS=str(raster_path),
                                               projWin=(x_min, y_max, x_max, y_min),
                                               format='GTiff',
                                               creationOptions=[
@@ -392,8 +382,6 @@ def cut_geospatial_raster_with_grid_gdal(raster_path: Path, grid_gdf: gpd.GeoDat
                                               xRes=res,
                                               yRes=-res,
                                               )
-
-
             else:
                 # Tile already exists
                 pass
