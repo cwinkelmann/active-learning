@@ -1779,7 +1779,9 @@ def convert_tiles_to(tiles: typing.List[Path], format: ImageFormat, output_dir: 
             out_path = output_dir / output_filename
 
             if out_path.exists():
-                logger.warning(f"Output file already exists, skipping: {out_path}")
+                logger.info(f"Output file already exists, skipping: {out_path}")
+                output_tiles.append(out_path)
+                yield out_path
                 continue
 
             # Open the image tile

@@ -594,7 +594,7 @@ def get_flat_df(project: HastyAnnotationV2) -> pd.DataFrame:
             unique_ID = label.attributes.get("ID", None)
             # [["image_name", "class_name", "ID", "centroid", "bbox", "bbox_polygon"]]
             label_data.append({
-                "dataset_name": image.dataset_name,
+                "dataset_name": image.dataset_name if isinstance(image, AnnotatedImage) else None,
                 "image_name": image.image_name,
                 "image_id": image.image_id,
 

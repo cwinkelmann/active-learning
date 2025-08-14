@@ -21,7 +21,7 @@ from active_learning.util.converter import herdnet_prediction_to_hasty
 from active_learning.util.evaluation.evaluation import submit_for_cvat_evaluation
 from active_learning.util.image_manipulation import crop_out_individual_object
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, HastyAnnotationV2, hA_from_file
-from examples.review_annotations import debug_hasty_fiftyone_v2
+
 import fiftyone as fo
 from loguru import logger
 

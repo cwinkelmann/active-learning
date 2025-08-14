@@ -1,12 +1,11 @@
-import typing
 import json
+import typing
 from pathlib import Path
-from typing import List, Union
 from pydantic import BaseModel, Field
+from typing import List
 
-from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, Attribute
+from com.biospheredata.types.HastyAnnotationV2 import Attribute
 
 
 class DatasetFilterConfig(BaseModel):
@@ -225,6 +224,59 @@ class DatasetCorrectionConfig(BasicConfig):
         None,
         description="Name of the dataset (auto-generated if not provided)"
     )
+    output_path: typing.Optional[Path] = Field(
+        None,
+        description="Output path for object crops (derived from base_path if not provided)"
+    )
+    corrected_path: typing.Optional[Path] = Field(
+        None,
+        description="Path for all labels"
+    )
+
+class GeospatialDatasetCorrectionConfig(BasicConfig):
+
+    """Configuration model for dataset analysis and processing."""
+    dataset_name: typing.Optional[str] = Field(
+        None,
+        description="Name of the dataset"
+    )
+
+    type: str = Field(default="points", description="Detection type")
+
+    geojson_prediction_path: Path = Field(
+        ...,
+        description="Path to the GeoJSON file containing predictions of eiter a model or a human annotator"
+    )
+    geojson_reference_annotation_path: typing.Optional[Path] = Field(
+        None,
+        description="Path to the GeoJSON file containing reference annotations from at least one Person"
+    )
+
+    image_path: Path = Field(
+        default=...,
+        description="Path to the image file (orthomosaic or single image) to be processed"
+    )
+    image_tiles_path: typing.Optional[Path] = Field(
+        default=None,
+        description="Path to the image tiles directory (if applicable)"
+    )
+    hasty_reference_annotation_path: Path = Field(
+        ...,
+        description="path of the hasty reference annotation file"
+    )
+    hasty_intermediate_annotation_path: typing.Optional[Path] = Field(
+        None,
+        description="path of the hasty reference annotation file"
+    )
+
+
+    # Processing parameters
+    correct_fp_gt: bool = Field(default=True, description="Whether to correct false positive ground truth")
+    box_size: int = Field(default=350, description="Size of bounding boxes")
+    radius: int = Field(default=150, description="Radius for point detection")
+
+    # Output configuration
+
     output_path: typing.Optional[Path] = Field(
         None,
         description="Output path for object crops (derived from base_path if not provided)"

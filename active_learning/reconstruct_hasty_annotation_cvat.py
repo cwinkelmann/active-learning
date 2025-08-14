@@ -446,7 +446,7 @@ def determine_changes(
 
             updated_image.labels
 
-
+        logger.warning(f"Continue the implementation of this")
 
 
 

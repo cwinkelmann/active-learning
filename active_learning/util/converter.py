@@ -9,11 +9,12 @@ import pandas as pd
 import shapely
 from loguru import logger
 from shapely.geometry.point import Point
-from ultralytics.data.converter import convert_coco
+# from ultralytics.data.converter import convert_coco
 
 from active_learning.config.mapping import keypoint_id_mapping
 from active_learning.util.image import get_image_id
-from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords
+from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords, get_geotransform, \
+    get_orthomosaic_crs, pixel_to_world_point
 from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage, \
@@ -433,6 +434,44 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, 
         ILC_list.append( ilC )
 
     return ILC_list
+
+def hasty_to_shp(tif_path: Path, hA_reference: HastyAnnotationV2, suffix=".tif"):
+    """
+    Convert Hasty Annotation to a GeoDataFrame with geometries in geospatial coordinates.
+    :param tif_path: 
+    :param hA_reference: 
+    :param suffix: 
+    :return: 
+    """
+    # TODO look at this: convert_jpeg_to_geotiff_coords from playground/052_shp2other.py
+    # convert_jpeg_to_geotiff_coords()
+
+    assert tif_path is not None, "tif_path is None"
+
+    data = []
+    if len(hA_reference.images) == 0:
+        raise ValueError("No images in Hasty Annotation")
+
+    for img in hA_reference.images:
+        img_name = Path(img.image_name).with_suffix(suffix=suffix)
+        geo_transform = get_geotransform(tif_path / img_name)
+        crs = get_orthomosaic_crs(tif_path / img_name)
+
+        for label in img.labels:
+
+            # get the pixel coordinates
+            x, y = label.incenter_centroid.x, label.incenter_centroid.y
+            # get the world coordinates
+            p = pixel_to_world_point(geo_transform, x, y)
+            # set the new coordinates
+            # TODO add some more metadata
+            if isinstance(label, PredictedImageLabel):
+                score = label.score
+            else:
+                score = None
+            data.append({"img_name": img_name, "label": label.class_name ,"score": score, "geometry": p})
+
+    return gpd.GeoDataFrame(data, crs=crs)
 
 def ifa_point_shapefile_to_hasty(gdf: gpd.GeoDataFrame, images_path: Path,
                        labels=1, species="iguana") -> ImageLabelCollection:

@@ -1,6 +1,0 @@
-[core]
-    remote = mylocalremote2
-['remote "mylocalremote"']
-    url = /Volumes/u235425.your-storagebox.de/dvc_experiments
-['remote "mylocalremote2"']
-    url = /Volumes/u235425.your-storagebox.de/dvc_experiments

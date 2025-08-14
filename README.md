@@ -3,14 +3,20 @@
 
 ## Setup
 ```shell
+# delete the old environment if it exists
+conda env remove -n carrot_active_learning
 
+# conda create -n active_learning python=3.11
 
-conda create -n active_learning python=3.11
+conda env create -n carrot_active_learning -f environment.yml
 
-conda install gdal
+#conda install gdal==3.6.2
 
-pip install -r requirements.txt
+#pip install -r requirements.txt
 
+# Now install the herdnet package
+in the root of the herdnet package
+conda env update -f environment.yml --dry-run
 ```
 
 ## Workflow of loading data, preparing the annotations and correct them the first time

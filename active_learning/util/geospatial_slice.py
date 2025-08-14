@@ -18,9 +18,10 @@ import concurrent.futures
 
 from active_learning.types.Exceptions import ProjectionError, NoLabelsError
 from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal
-from active_learning.util.image_manipulation import convert_tiles_to
+from active_learning.util.image import get_image_id
+
 from active_learning.util.projection import world_to_pixel
-from com.biospheredata.converter.HastyConverter import ImageFormat
+
 
 
 class ImageGrid(object):
@@ -710,6 +711,63 @@ class GeoSpatialRasterGrid(ImageGrid):
 
         return object_grid, empty_regions
 
+
+    def create_filtered_grid(self, points_gdf: gpd.GeoDataFrame,
+                                      box_size_x: int, box_size_y: int,
+                                      num_empty_samples=None,
+                                      min_distance_pixels=400, random_seed=42,
+                                      object_centered=True,
+                                      overlap_ratio=0.0):
+        """
+        Create grids cell usable for Human in the loop Annotations
+
+        Parameters:
+            points_gdf (gpd.GeoDataFrame): GeoDataFrame containing point geometries.
+            box_size_x (float): Width of each grid cell in pixels.
+            box_size_y (float): Height of each grid cell in pixels.
+            num_empty_samples (int, optional): Number of empty samples to select. If None, will match the number of points.
+            min_distance_pixels (float): Minimum distance in pixels from any point to consider a region empty.
+            random_seed (int): Random seed for reproducible sampling of empty regions.
+
+        Returns:
+            tuple: (object_centered_grid, empty_regions_grid) - Two GeoDataFrames
+        """
+        # Get the object-centered grid
+
+        if object_centered:
+            logger.info(f"cutting objects centered grid with box size {box_size_x}x{box_size_y}")
+            object_grid = self.object_centered_grid(points_gdf, box_size_x, box_size_y)
+        else:
+            logger.info(f"cutting objects with a regular grid {box_size_x}x{box_size_y}")
+            object_grid = self.create_regular_grid(x_size=box_size_x, y_size=box_size_y, overlap_ratio=overlap_ratio)
+
+        logger.info(f"start empty cutout")
+        # Get the empty regions grid
+        all_empty_regions = self.create_empty_regions_grid(points_gdf=points_gdf, box_size_x=box_size_x,
+                                                           box_size_y=box_size_y,
+                                                           min_distance_pixels=min_distance_pixels,
+                                                           max_boxes=num_empty_samples,
+                                                           min_area_ratio=0.7, random_seed=random_seed)
+
+        # Determine how many empty samples to select
+        if num_empty_samples is None:
+            num_empty_samples = len(object_grid)
+
+        # If we need to sample from the empty regions
+        if len(all_empty_regions) > num_empty_samples:
+            # Randomly select the required number of empty regions
+            empty_regions = all_empty_regions.sample(n=num_empty_samples, random_state=random_seed)
+        else:
+            # If we don't have enough empty regions, use all available
+            empty_regions = all_empty_regions
+
+        # Add a label column to distinguish between the two sets
+        object_grid['has_object'] = True
+        empty_regions['has_object'] = False
+
+        return object_grid, empty_regions
+
+
     def filter_by_points(self, points_gdf):
         """
         Filter the grid to include only cells that contain at least one point.
@@ -810,7 +868,6 @@ def _process_grid_chunk(args) -> gpd.GeoDataFrame:
     )
 
     grid_chunk["slice_path"] = slice
-
     return grid_chunk
 
 
@@ -1063,55 +1120,3 @@ def get_geospatial_sliced_path(base_path, x_size, y_size):
 
 
 
-def get_tiles(orthomosaic_path,
-              output_dir,
-              tile_size=1250):
-    """
-    Helper to to create a grid of tiles from an orthomosaic and slice it into smaller images.
-    :param orthomosaic_path:
-    :param output_dir:
-    :param tile_size:
-    :return:
-    """
-    logger.info(f"Tiling {orthomosaic_path} into {tile_size}x{tile_size} tiles")
-    output_dir_metadata = output_dir / 'metadata'
-    output_dir_jpg = output_dir / 'jpg'
-    output_dir_metadata.mkdir(parents=True, exist_ok=True)
-    output_dir_jpg.mkdir(parents=True, exist_ok=True)
-
-    filename = Path(f'grid_{orthomosaic_path.with_suffix(".geojson").name}')
-    if not output_dir_metadata.joinpath(filename).exists():
-        grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
-
-        grid_gdf = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0)
-        grid_gdf.to_file(output_dir_metadata / filename, driver='GeoJSON')
-        grid_manager.gdf_raster_mask.to_file(
-            output_dir_metadata / Path(f'raster_mask_{orthomosaic_path.with_suffix(".geojson").name}'),
-            driver='GeoJSON')
-
-    else:
-        logger.info(f"Grid file {filename} already exists, skipping grid creation")
-        grid_gdf = gpd.read_file(output_dir_metadata / filename)
-
-    slicer = GeoSlicer(base_path=orthomosaic_path.parent,
-                       image_name=orthomosaic_path.name,
-                       grid=grid_gdf,
-                       output_dir=output_dir)
-
-    gdf_tiles = slicer.slice_very_big_raster()
-
-    converted_tiles = convert_tiles_to(tiles=list(slicer.gdf_slices.slice_path),
-                                       format=ImageFormat.JPG,
-                                       output_dir=output_dir_jpg)
-    converted_tiles = [a for a in converted_tiles]
-    logger.info(f"created {len(converted_tiles)} tiles in {output_dir_jpg}")
-
-    def insert_jpg_folder(path_str):
-        p = Path(path_str)
-        new_dir = p.parent / "jpg"
-        new_filename = p.stem + ".jpg"
-        return str(new_dir / new_filename)
-
-    gdf_tiles["jpg"] = gdf_tiles["slice_path"].apply(insert_jpg_folder)
-
-    return gdf_tiles, output_dir_jpg
