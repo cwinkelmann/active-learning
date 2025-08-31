@@ -11,34 +11,6 @@ from active_learning.util.projection import get_geotransform, pixel_to_world_poi
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, hA_from_file, PredictedImageLabel
 import geopandas as gpd
 
-# def hasty_to_shp(base_path: Path, hA_reference: HastyAnnotationV2, suffix=".tif"):
-#     # TODO look at this: convert_jpeg_to_geotiff_coords from playground/052_shp2other.py
-#     # convert_jpeg_to_geotiff_coords()
-#     data = []
-#     if len(hA_reference.images) == 0:
-#         raise ValueError("No images in Hasty Annotation")
-#
-#     for img in hA_reference.images:
-#         img_name = Path(img.image_name).with_suffix(suffix=suffix)
-#         geo_transform = get_geotransform(base_path / img_name)
-#         crs = get_orthomosaic_crs(base_path / img_name)
-#
-#         for label in img.labels:
-#
-#             # get the pixel coordinates
-#             x, y = label.incenter_centroid.x, label.incenter_centroid.y
-#             # get the world coordinates
-#             p = pixel_to_world_point(geo_transform, x, y)
-#             # set the new coordinates
-#             # TODO add some more metadata
-#             if isinstance(label, PredictedImageLabel):
-#                 score = label.score
-#             else:
-#                 score = None
-#             data.append({"img_name": img_name, "label": label.class_name ,"score": score, "geometry": p})
-#
-#     return gpd.GeoDataFrame(data, crs=crs)
-
 
 
 

@@ -19,28 +19,44 @@ geojson_base_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Ge
 output_dir = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations")
 orthomosaic_drone_deploy_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog/")
 orthomosaic_metashape_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Agisoft orthomosaics/")
-progress_report_file = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/iguanacounts_progress.xlsx - raw counts.csv')
+# progress_report_file = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/iguanacounts_progress.xlsx - raw counts.csv')
+progress_report_file = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/iguanacounts_progress.xlsx - raw counts_2025_08_30.csv')
 
 # Get all relevant files
 shapefiles = [f for f in shapefile_base_path.glob('**/*counts.shp') if not f.name.startswith('.')]
 geojson_files = [f for f in geojson_base_path.glob('**/*counts.geojson') if not f.name.startswith('.')]
 
-## Convert the shapefiles to geojson
-# if len(shapefiles) != len(geojson_files):
-#     logger.error(f"Number of shapefiles ({len(shapefiles)}) does not match number of geojson files ({len(geojson_files)})")
-#     for shp in shapefiles:
-#         if not any(shp.stem in str(geojson) for geojson in geojson_files):
-#             logger.error(f"Shapefile {shp.stem} has no matching geojson file")
-#             gdf = gpd.read_file(shp)
-#
-#             island_code = shp.stem.split('_')[0]
-#             geojson_file_dir = output_dir / island_code
-#             geojson_file_dir.mkdir(exist_ok=True, parents=True)
-#             geojson_file = geojson_file_dir / f"{shp.stem}.geojson"
-#             if not geojson_file.exists():
-#                 gdf.to_file(geojson_file, driver='GeoJSON')
-#             else:
-#                 logger.warning(f"Geojson file {geojson_file} already exists")
+# Convert the shapefiles to geojson
+if len(shapefiles) != len(geojson_files):
+    logger.error(f"Number of shapefiles ({len(shapefiles)}) does not match number of geojson files ({len(geojson_files)})")
+    for shp in shapefiles:
+        if not any(shp.stem in str(geojson) for geojson in geojson_files):
+            logger.info(f"Shapefile {shp.stem} has no matching geojson file")
+            gdf = gpd.read_file(shp)
+
+            island_code = shp.stem.split('_')[0]
+            geojson_file_dir = output_dir / island_code
+            geojson_file_dir.mkdir(exist_ok=True, parents=True)
+            geojson_file = geojson_file_dir / f"{shp.stem}.geojson"
+            if not geojson_file.exists():
+                logger.info(f"Converting {shp} to {geojson_file}")
+                gdf.to_file(geojson_file, driver='GeoJSON')
+            else:
+                logger.warning(f"Geojson file {geojson_file} already exists")
+
+            # shapefile_orthomosaic_mapping.append({
+            #     "images_path": orthomosaic_path,
+            #     "shp_file_path": matching_shapefile,
+            #     "shp_name": shp_name,
+            #     "geojson_path": output_file,
+            #     "expert": row['Expert'] if pd.notna(row['Expert']) else None,
+            #     "island_code": island_code,
+            #     "island": row['Island'] if pd.notna(row['Island']) else None,
+            #     "panorama_type": panorama_type,
+            #     "number_of_iguanas": row['Number of iguanas']
+            # })
+        else:
+            logger.info(f"Shapefile {shp.stem} has matching geojson file")
 
 
 agisoft_orthomosaics = [f for f in orthomosaic_metashape_path.glob('**/*.tif') if not f.name.startswith('.')]
@@ -54,16 +70,16 @@ df_progress = df_progress[
     (df_progress["Count Method"] == "Expert(GIS)")
 ]
 
-progress_report_file = Path(
-    '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/iguanacounts_progress.xlsx - raw counts.csv')
-
-df_progress_report = pd.read_csv(progress_report_file)
+# progress_report_file = Path(
+#     '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/iguanacounts_progress.xlsx - raw counts.csv')
+#
+# df_progress_report = pd.read_csv(progress_report_file)
 
 # TODO map the shapefile to progress report
 # Function to check if files exist for a given row
 def check_files_exist(row):
     # Get identifiers from row
-    orthophoto_name = str(row["Orthophoto/Panorama name"]) if pd.notna(row["Orthophoto/Panorama name"]) else ""
+    orthophoto_name = str(row["Orthophoto/Panorama/3Dmodel name"]) if pd.notna(row["Orthophoto/Panorama/3Dmodel name"]) else ""
     site_code = str(row["Site code"]) if pd.notna(row["Site code"]) else ""
     flight_code = str(row["flight code"]) if pd.notna(row["flight code"]) else ""
     date_str = str(row["Date"]).replace(".", "") if pd.notna(row["Date"]) else ""
@@ -112,8 +128,8 @@ df_enriched = pd.concat([df_enriched, boolean_columns], axis=1)
 df_enriched
 
 # Save the enriched progress report
-output_file = output_dir / 'enriched_GIS_progress_report.csv'
-stats_output_file = output_dir / 'enriched_GIS_progress_report_with_stats.csv'
+output_file = output_dir / 'enriched_GIS_progress_report_2025_08_30.csv'
+stats_output_file = output_dir / 'enriched_GIS_progress_report_with_stats_2025_08_30.csv'
 df_enriched.to_csv(output_file, index=False)
 
 print(f"Progress report enriched and saved to {output_file}")
@@ -149,14 +165,14 @@ sum_of_iguanas = df_enriched.loc[condition, 'Number of iguanas'].sum()
 print(f"Total number of iguanas: {sum_of_iguanas}")
 
 
-missing_report_entries: typing.List[str] = []
+# missing_report_entries: typing.List[str] = []
 missing_orthomosaics_entries: typing.List[str] = []
 shapefile_orthomosaic_mapping = []
 missing_shapefile_entries: typing.List[str] = []
 
 # Iterate through the enriched dataframe and analyse the annotations
 def check_analyse_content(row):
-    orthophoto_name = str(row["Orthophoto/Panorama name"]) if pd.notna(row["Orthophoto/Panorama name"]) else ""
+    orthophoto_name = str(row["Orthophoto/Panorama/3Dmodel name"]) if pd.notna(row["Orthophoto/Panorama/3Dmodel name"]) else ""
     panorama_type = str(row["Orthophoto/Panorama"]) if pd.notna(row["Orthophoto/Panorama"]) else ""
     site_code = str(row["Site code"]) if pd.notna(row["Site code"]) else ""
     flight_code = str(row["flight code"]) if pd.notna(row["flight code"]) else ""
@@ -238,3 +254,26 @@ df_enriched['number_of_iguanas_shp'].sum()
 df_enriched['Number of iguanas'].sum()
 
 print(f"Progress report enriched and saved to {stats_output_file}")
+
+
+
+# Add entries for missing orthomosaics (either Agisoft or DroneDeploy)
+df_missing_orthomosaics_entries = df_enriched[(df_enriched['HasAgisoftOrthomosaic'] == False) & (df_enriched['HasDroneDeployOrthomosaic'] == False)]
+
+# Save mappings and missing entries
+# logger.info(f"Missing report entries: {missing_report_entries}")
+logger.info(f"Missing orthomosaics: {missing_orthomosaics_entries}")
+logger.info(f"Missing shapefiles: {missing_shapefile_entries}")
+
+pd.DataFrame(shapefile_orthomosaic_mapping).to_csv(output_dir / 'shapefile_orthomosaic_mapping.csv')
+
+# with open(output_dir / 'missing_shapefile_report_entries.txt', 'w') as f:
+#     for item in missing_report_entries:
+#         f.write(f"{item}\n")
+
+df_missing_orthomosaics_entries.to_csv("missing_orthomosaics_entries.csv", index=False)
+
+with open(output_dir / 'missing_shapefile_entries.txt', 'w') as f:
+    for item in missing_shapefile_entries:
+        f.write(f"{item}\n")
+

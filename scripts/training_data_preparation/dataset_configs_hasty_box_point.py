@@ -1,19 +1,7 @@
-import gc
-import json
-import shutil
-import yaml
-from loguru import logger
-from matplotlib import pyplot as plt
 from pathlib import Path
 
-from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
-from active_learning.filter import ImageFilterConstantNum
-from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from active_learning.util.visualisation.annotation_vis import visualise_points_only, create_simple_histograms, \
-    visualise_hasty_annotation_statistics, plot_bbox_sizes
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
-from com.biospheredata.converter.HastyConverter import HastyConverter
-from image_template_search.util.util import (visualise_image, visualise_polygons)
 
 labels_path = Path(f"/Users/christian/data/training_data/2025_08_10_endgame")
 hasty_annotations_labels_zipped = "full_label_correction_floreana_2025_07_10_train_correction_hasty_corrected_1.json.zip"

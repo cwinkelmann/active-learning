@@ -214,6 +214,7 @@ class DataprepPipeline(object):
     num_labels: int = 0
 
     def __init__(self,
+                 config: DatasetFilterConfig,
                  annotations_labels: HastyAnnotationV2,
                  images_path: Path,
                  output_path: Path,
@@ -225,7 +226,7 @@ class DataprepPipeline(object):
                  annotation_types=None,
                  empty_fraction= False,
                  num_labels=None,
-                 config: typing.Optional[DatasetFilterConfig] = None):
+                 ):
         """
 
         :param annotations_labels:
@@ -305,7 +306,7 @@ class DataprepPipeline(object):
             annotation_types=self.annotation_types,
             num_images=self.num,
             sample_strategy=self.sample_strategy
-        ) # TODO implement this with the images_filter_func
+        )
 
 
         if len(self.images_filter_func) != 0:
@@ -314,10 +315,10 @@ class DataprepPipeline(object):
 
         if flatten:
             # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
-            ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training.md & copying so many images here is a waste of time
-            # TODO readd this
+
+
             default_dataset_name = "Default"
-            flat_images_path = self.output_path.joinpath(default_dataset_name)
+            flat_images_path = self.output_path / default_dataset_name
             hA_flat = HastyConverter.copy_images_to_flat_structure(hA=hA,
                                                                    base_bath=self.images_path,
                                                                    folder_path=flat_images_path)
@@ -326,7 +327,7 @@ class DataprepPipeline(object):
             for v in hA_flat.images:
                 v.dataset_name = default_dataset_name
                 v.image_name = f"{v.ds_image_name}"
-
+            self.flat_images_path = flat_images_path
             self.hA_filtered = copy.deepcopy(hA_flat)
         else:
             self.hA_filtered = copy.deepcopy(hA)

@@ -14,7 +14,7 @@ from typing import Optional
 from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig
 from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty, download_cvat_annotations, foDataset2Hasty, \
     determine_changes
-from active_learning.types.Exceptions import TooManyLabelsError
+from active_learning.types.Exceptions import TooManyLabelsError, NoLabelsError
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.converter import hasty_to_shp
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, Keypoint, HastyAnnotationV2, \
@@ -73,6 +73,8 @@ def main(config: GeospatialDatasetCorrectionConfig):
 
 
     hA_prediction_path = config.hasty_intermediate_annotation_path
+    if hA_prediction_path is None:
+        raise NoLabelsError("hA_prediction_path is None")
     hA_prediction = HastyAnnotationV2.from_file(file_path=hA_prediction_path)
     #
     # # the 256px crops
@@ -94,9 +96,12 @@ def main(config: GeospatialDatasetCorrectionConfig):
     # TODO NOW two things need to happen:
     # analyse the changes. On the other hand that could happen later
     # create a new annotations from the changes and save everything
-
+    hA_updated.save(config.output_path / f"{config.dataset_name}_corrected_intermediate_hasty.json")
     gdf_annoation = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_updated)
-    gdf_annoation.to_file(filename=config.output_path / f"{config.dataset_name}_corrected_annotation.geojson", driver="GeoJSON")
+
+    corrected_path = config.output_path / f"{config.dataset_name}_corrected_annotation.geojson"
+    gdf_annoation.to_file(filename=corrected_path, driver="GeoJSON")
+    logger.info(f"corrected file saved to : {corrected_path}")
 
     # Now we can project every annotation to the original orthomosaic coordinates
     for i, annotated_image in enumerate(hA_updated.images):
@@ -118,7 +123,23 @@ def main(config: GeospatialDatasetCorrectionConfig):
     # logger.info(f"Saved report config to {report_path}")
 
 if __name__ == "__main__":
-    report_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/FLPC03_correction_config.json")
+    # report_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/FLPC03_correction_config.json")
+    # report_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/Fer_FNA01_02_20122021_ds_correction_config.json")
+    # dataset_correction_config = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/flo_flbb01_28012023_counts_config.json")
+    # dataset_correction_config = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/flo_flpc06_22012021_counts_config.json")
+    #
+    # config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
+    # r = main(config)
+    #
+    # logger.info(f"Processed {r} config")
 
-    config = GeospatialDatasetCorrectionConfig.load(report_path)
-    main(config)
+    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
+
+    for dataset_correction_config in (f for f in configs_path.glob("*_config.json") if not f.name.startswith("._")):
+        try:
+            config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
+            r = main(config)
+    
+            logger.info(f"Processed {r} config")
+        except NoLabelsError as e:
+            logger.warning(f"No labels found for {dataset_correction_config}, {e} skipping")

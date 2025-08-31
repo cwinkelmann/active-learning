@@ -1,3 +1,6 @@
+import typing
+from loguru import logger
+
 from time import sleep
 
 import shapely
@@ -17,15 +20,33 @@ import matplotlib.axis as axis
 import matplotlib.patches as patches
 import matplotlib.axes as axes
 from shapely import Polygon
-
+from PIL import Image as PILImage
+PILImage.Image.MAX_IMAGE_PIXELS = 5223651122
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, HastyAnnotationV2
 from com.biospheredata.types.annotationbox import Annotation
+from contextlib import contextmanager
 
-def visualise_polygons(polygons: List[shapely.Polygon] = (), points: List[shapely.Point] = (),
-                       filename=None, show=False, title = None,
-                       max_x=None, max_y=None, color="blue", ax:axes.Axes =None) -> axes.Axes:
+
+def visualise_polygons(polygons: List[shapely.Polygon] = (),
+                       points: List[shapely.Point] = (),
+                       filename=None, show=False, title=None,
+                       max_x=None, max_y=None, color="blue",
+                       ax: axes.Axes = None, linewidth=0.5, markersize=0.5, fontsize=22,
+                       labels: List[str] = None, label_position="next_to") -> axes.Axes:
     """
     Visualize a list of polygons
+    :param labels:
+    :param fontsize:
+    :param markersize:
+    :param linewidth:
+    :param ax:
+    :param color:
+    :param max_y:
+    :param max_x:
+    :param title:
+    :param show:
+    :param filename:
+    :param points:
     :param polygons:
     :return:
     """
@@ -39,16 +60,41 @@ def visualise_polygons(polygons: List[shapely.Polygon] = (), points: List[shapel
         plt.ylim(0, max_y)
     if title:
         plt.title(title)
-    for polygon in polygons:
+    for i, polygon in enumerate(polygons):
         x, y = polygon.exterior.xy
-        ax.plot(x, y, color=color, linewidth=0.5)
+        ax.plot(x, y, color=color, linewidth=linewidth)
+
+
+        # Add label for each polygon if labels are provided
+        if labels and i < len(labels):
+            bounds = polygon.bounds  # (minx, miny, maxx, maxy)
+            centroid = polygon.centroid
+            if label_position == "center":
+                label_x, label_y = centroid.x, centroid.y
+                ha, va = 'center', 'center'
+            elif label_position == "next_to":
+                # Place label to the right of the polygon
+                label_x = bounds[2] + (bounds[2] - bounds[0]) * 0.05  # 5% of width to the right
+                label_y = centroid.y
+                ha, va = 'left', 'center'
+            else:
+                raise ValueError(f"Unknown label position: {label_position}. Use 'center' or 'next_to'.")
+
+            # Get the centroid of the polygon for labeling
+            centroid = polygon.centroid
+            # ax.text(centroid.x, centroid.y, labels[i], fontsize=fontsize, ha='center', color='red')
+            ax.text(label_x, label_y, labels[i], fontsize=fontsize,
+                    ha=ha, va=va, color='red')
+
     for point in points:
         x, y = point.xy
-        ax.plot(x, y, marker='o', color=color, linewidth=0.5, markersize=0.5)
+        ax.plot(x, y, marker='o', color=color, linewidth=linewidth, markersize=markersize)
+    plt.tight_layout()
     if filename:
         plt.savefig(filename)
     if show:
         plt.show()
+        plt.close()
 
     return ax
 
@@ -157,9 +203,20 @@ def visualize_bounding_box_v2(imname,
 
     return output_file_name
 
+@contextmanager
+def large_image_context():
+    """Context manager to temporarily allow large images"""
+    original_limit = PILImage.MAX_IMAGE_PIXELS
+    # logger.info(f"Reset PILImage.MAX_IMAGE_PIXELS from {original_limit} to None to allow large images")
+    try:
+
+        PILImage.MAX_IMAGE_PIXELS = None  # Remove limit
+        yield
+    finally:
+        PILImage.MAX_IMAGE_PIXELS = original_limit  # Restore original limit
 
 def visualise_image(image_path: Path = None,
-                    image: Image = None,
+                    image: typing.Union[PILImage, np.ndarray] = None,
                     output_file_name: Path = None,
                     show: bool = False,
                     title: str = "original image",
@@ -175,11 +232,18 @@ def visualise_image(image_path: Path = None,
     :return:
     """
 
+    if image is not None and isinstance(image, np.ndarray):
+        image = PILImage.fromarray(image)
 
     if ax is None:
         fig, ax = plt.subplots(1, figsize=figsize, dpi=dpi)  # TODO use the shape of imr to get the right ration
     if image_path is not None:
-        image = Image.open(image_path)
+
+        with large_image_context():
+            image = PILImage.open(image_path)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+
     imr = np.array(image, dtype=np.uint8)
     ax.imshow(imr)
     ax.set_title(title)
@@ -189,7 +253,7 @@ def visualise_image(image_path: Path = None,
 
     if show:
         plt.show()
-        # sleep(0.1)
+        return ax
     else:
         return ax
 
@@ -231,7 +295,6 @@ def blackout_bbox(im: PIL.Image, bbox_x1y1x2y2: List[int]) -> PIL.Image:
 def visualise_hasty_annotations(hA: HastyAnnotationV2, images_path: Path, output_path: Path):
     """
 
-    FIXME: This is not working yet because the visualise points of course needs the "iguana_point" class to be present but the polygon and the box are in the "iguana" class
     :param hA_train:
     :param output_path_train:
     :return:
@@ -262,11 +325,4 @@ def visualise_hasty_annotations(hA: HastyAnnotationV2, images_path: Path, output
             ax = visualise_polygons(points=[il.incenter_centroid for il in labels if il.incenter_centroid is not None], max_x=i_width, max_y=i_height, color="green",
                                     ax=ax, show=False, filename=output_path / f"{image_name}_all_annotations.jpg")
 
-            pass
 
-if __name__ == '__main__':
-    yolo_base_path = Path("/tmp/train/images")
-
-    visualize_bounding_boxes(imname="ESCG02-2_44",
-                             basepath=yolo_base_path,
-                             output=True)  ## TODO implement this properly

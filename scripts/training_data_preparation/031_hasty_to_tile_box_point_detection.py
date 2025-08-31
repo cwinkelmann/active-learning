@@ -1,5 +1,6 @@
 """
-This becomes cool now
+Takes Boxes of Iguanas blacks them out if they are on the edge of an image.
+Then keep only the points outside that area
 """
 
 # from dataset_configs_hasty_box_point import *
@@ -21,10 +22,7 @@ from active_learning.util.visualisation.annotation_vis import visualise_points_o
     visualise_hasty_annotation_statistics, plot_bbox_sizes
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
 from com.biospheredata.converter.HastyConverter import HastyConverter
-from image_template_search.util.util import (visualise_image, visualise_polygons)
-
-
-
+from com.biospheredata.visualization.visualize_result import visualise_image
 
 if __name__ == "__main__":
 
@@ -79,14 +77,12 @@ if __name__ == "__main__":
         dp.use_multiprocessing = dataset_configs.multiprocessing
         dp.edge_black_out = dataset.edge_black_out
 
-        # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
 
         # create_simple_histograms(hA.images)
         visualise_hasty_annotation_statistics(hA_filtered.images)
-        # TODO these axes should be normalised so the diagrams become comparable
         bbox_statistics = plot_bbox_sizes(hA_filtered.images,
                         suffix=f"{dataset.dataset_name}_{dset}",
                         plot_name=vis_path / f"box_sizes_{dataset.dataset_name}_{dataset.dset}.png")

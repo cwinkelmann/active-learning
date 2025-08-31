@@ -1,5 +1,5 @@
 """
-HUMAN IN THE LOOP correction of existing annotations
+HUMAN IN THE LOOP correction of existing annotations in Hasty format and not geospatial format.
 
 Mainly correct for false positives in the prediction which could be false_negatives in the ground truth in point detection annotations.
 

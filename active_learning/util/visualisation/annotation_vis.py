@@ -13,7 +13,7 @@ from matplotlib import axes
 from shapely import Point
 from typing import List, Optional
 
-from image_template_search.util.HastyAnnotationV2 import AnnotatedImage
+from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 
 
 def plot_frequency_distribution(df, columns=None, figsize=(15, 10), bins=30, kde=True):

@@ -20,7 +20,9 @@ from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel
 from loguru import logger
 from pathlib import Path
 
-base_path = Path("/Volumes/G-DRIVE/Datasets/africa_elephants_uliege/general_dataset/")
+from scripts.dataset_conversion.sanity_check import get_dataset_stats
+
+base_path = Path("/raid/cwinkelmann/training_data/africa_elephants_uliege/general_dataset")
 destination_base_path = base_path / "hasty_style"
 annotations_path = base_path / "groundtruth/json/big_size/"
 
@@ -139,8 +141,12 @@ hA = HastyAnnotationV2(
 
 
 # create plots for the dataset
-create_simple_histograms(annotated_images)
+create_simple_histograms(annotated_images, dataset_name="Delplanque General Dataset")
 visualise_hasty_annotation_statistics(annotated_images)
 
+dataset_path = destination_base_path / "delplanque_hasty.json"
+hA.save(dataset_path)
 
-hA.save(destination_base_path / "delplanque_hasty.json")
+logger.info(f"Saved Hasty Annotation to {dataset_path}")
+
+logger.info(get_dataset_stats(dataset_path))

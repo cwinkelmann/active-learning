@@ -25,6 +25,36 @@ from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 import fiftyone as fo
 from loguru import logger
 
+
+def verfify_points(gdf_points, config: GeospatialDatasetCorrectionConfig):
+    gdf_points.drop(columns=["images", "x", "y" ], inplace=True, errors='ignore')
+    gdf_points = project_gdfcrs(gdf_points, config.image_path)
+    # project the global coordinates to the local coordinates of the orthomosaic
+
+    if "scores" not in gdf_points.columns:
+        gdf_points["scores"] = None
+    if "species" not in gdf_points.columns:
+        gdf_points["species"] = "iguana_point"
+    if "labels" not in gdf_points.columns:
+        gdf_points["labels"] = 1
+
+    # TODO clean this up or make very ordinary hasty annotations out of it. This way the rest of the code would be kind of unnecessary
+    gdf_local = convert_gdf_to_jpeg_coords(gdf_points, config.image_path)
+    # create an ImageCollection of the annotations
+
+    # Then I could use the standard way of slicing the orthomosaic into tiles and save the tiles to a CSV file
+    cog_compression = get_geotiff_compression(config.image_path)
+    logger.info(f"COG compression: {cog_compression}")
+    gsd_x, gsd_y = get_gsd(config.image_path)
+    if round(gsd_x, 4) == 0.0093:
+        logger.warning(
+            "You are either a precise pilot or you wasted quality by using 'DroneDeploy', which caps Orthophoto GSD at about 0.93cm/px, compresses images a lot and throws away details")
+
+    logger.info(f"Ground Sampling Distance (GSD): {100 * gsd_x:.3f} x {100 * gsd_y:.3f} cm/px")
+    # Run the function
+
+    return gdf_points
+
 def main(config: GeospatialDatasetCorrectionConfig,
          output_dir: Path,
          vis_output_dir: Path,
@@ -50,23 +80,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
     if geospatial_flag:
         gdf_points = gpd.read_file(config.geojson_prediction_path)
 
-        gdf_points = project_gdfcrs(gdf_points, config.image_path)
-        # project the global coordinates to the local coordinates of the orthomosaic
-        gdf_points.drop(columns=["images", "x", "y" ], inplace=True)
-        # TODO clean this up or make very ordinary hasty annotations out of it. This way the rest of the code would be kind of unnecessary
-        gdf_local = convert_gdf_to_jpeg_coords(gdf_points, config.image_path)
-        # create an ImageCollection of the annotations
-
-        # Then I could use the standard way of slicing the orthomosaic into tiles and save the tiles to a CSV file
-        cog_compression = get_geotiff_compression(config.image_path)
-        logger.info(f"COG compression: {cog_compression}")
-        gsd_x, gsd_y = get_gsd(config.image_path)
-        if round(gsd_x, 4) == 0.0093:
-            logger.warning(
-                "You are either a precise pilot or you wasted quality by using 'DroneDeploy', which caps Orthophoto GSD at about 0.93cm/px, compresses images a lot and throws away details")
-
-        logger.info(f"Ground Sampling Distance (GSD): {100 * gsd_x:.3f} x {100 * gsd_y:.3f} cm/px")
-        # Run the function
+        gdf_points = verfify_points(gdf_points, config)
 
         grid_manager = GeoSpatialRasterGrid(Path(config.image_path))
 
@@ -74,9 +88,9 @@ def main(config: GeospatialDatasetCorrectionConfig,
                                              driver='GeoJSON')
         logger.info(f"Raster mask saved to {vis_output_dir / f'raster_mask_{config.image_path.stem}.geojson'}")
 
-        grid_gdf, gdf_empty_cells = grid_manager.create_filtered_grid(points_gdf=gdf_points,
-                                                                      box_size_x=1250,
-                                                                      box_size_y=1250,
+        grid_gdf = grid_manager.create_filtered_grid(points_gdf=gdf_points,
+                                                                      box_size_x=config.box_size_x,
+                                                                      box_size_y=config.box_size_y,
                                                                       num_empty_samples=len(gdf_points) * 0.0,
                                                                       object_centered=False,
                                                                       min_distance_pixels=0,
@@ -133,7 +147,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
             attributes=[],
             launch_editor=True,
             organization="IguanasFromAbove",
-            project_name="Single_Image_FP_correction"
+            project_name="geospatial_model_prediction_correction"
         )
 
         return config
@@ -144,14 +158,29 @@ def main(config: GeospatialDatasetCorrectionConfig,
 
 
 if __name__ == "__main__":
-    base_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021")
+
+    # correct a model annotation
+    # base_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021")
+    # config = GeospatialDatasetCorrectionConfig(
+    #     dataset_name=f"FLPC03_correction",
+    #     type="points",
+    #     geojson_prediction_path="/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/detections_Flo_FLPC03_22012021.geojson",
+    #     output_path=base_path,
+    #     image_path=Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/cog/Flo_FLPC03_22012021.tif"),
+    #     hasty_reference_annotation_path=Path("/raid/cwinkelmann/Manual_Counting/2025_08_13_iguana_reference.json")
+    # )
+
+    # correct a human annotation
+    base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/Fer/Fer_FNA01-02_20122021")
     config = GeospatialDatasetCorrectionConfig(
-        dataset_name=f"FLPC03_correction",
+        dataset_name=f"Fer_FNA01_02_20122021_dd_corr_evalu",
         type="points",
-        geojson_prediction_path="/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/detections_Flo_FLPC03_22012021.geojson",
+        geojson_prediction_path="/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/Fer/Fer_FNA01-02_20122021 counts.geojson",
         output_path=base_path,
-        image_path=Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/cog/Flo_FLPC03_22012021.tif"),
-        hasty_reference_annotation_path=Path("/raid/cwinkelmann/Manual_Counting/2025_08_13_iguana_reference.json")
+        image_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog/Fer/Fer_FNA01-02_20122021.tif"),
+        hasty_reference_annotation_path=Path("/Users/christian/data/training_data/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json"),
+        box_size_x=800,
+        box_size_y = 800,
     )
 
     config.output_path.mkdir(exist_ok=True)

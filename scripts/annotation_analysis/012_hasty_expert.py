@@ -1,3 +1,7 @@
+"""
+This script performs a analysis of expert annotations using Hasty data on the phase 4 goldstandard dataset which was labeled by four experts
+"""
+
 import numpy as np
 from pathlib import Path
 import pandas as pd

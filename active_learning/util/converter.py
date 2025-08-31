@@ -390,26 +390,37 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, 
         image_name = str(image_name)
         w, h = get_image_dimensions(image_path= images_path / image_name)
 
-        annotations: typing.List[PredictedImageLabel] = []
+        annotations: typing.List[PredictedImageLabel, ImageLabel] = []
         # Iterate over DataFrame rows
         for _, row in df_group.iterrows():
+            try:
+                annotation = PredictedImageLabel(
+                    score=float(row["scores"]),
+                    class_name=row["species"],  # use species as the label/class_name
+                    bbox=None,   # if not available, keep as None
+                    polygon=None,
+                    mask=[],     # or adjust if you have mask data
+                    keypoints = [Keypoint(
+                        x=int(row.x),
+                        y=int(row.y),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species, None),
+                    )],  # you can store extra information if needed
+                    kind=row.get("kind", None)
+                )
+            except Exception as e:
+                # logger.info(f"Error creating PredictedImageLabel image {image_name}, {e}")
+                annotation = ImageLabel(
+                    class_name=row["species"],  # use species as the label/class_name
+                    bbox=None,  # if not available, keep as None
+                    polygon=None,
+                    mask=[],  # or adjust if you have mask data
+                    keypoints=[Keypoint(
+                        x=int(row.x),
+                        y=int(row.y),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species, None),
+                    )],  # you can store extra information if needed
 
-            if row["scores"] is None or pd.isna(row["scores"]):
-                continue
-
-            annotation = PredictedImageLabel(
-                score=float(row["scores"]),
-                class_name=row["species"],  # use species as the label/class_name
-                bbox=None,   # if not available, keep as None
-                polygon=None,
-                mask=[],     # or adjust if you have mask data
-                keypoints = [Keypoint(
-                    x=int(row.x),
-                    y=int(row.y),
-                    keypoint_class_id=keypoint_id_mapping.get(row.species, None),
-                )],  # you can store extra information if needed
-                kind=row.get("kind", None)
-            )
+                )
             annotations.append(annotation)
 
         if hA_reference is not None:
@@ -435,7 +446,13 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, 
 
     return ILC_list
 
-def hasty_to_shp(tif_path: Path, hA_reference: HastyAnnotationV2, suffix=".tif"):
+def _is_with_edge(x: int, y: int, width: int, height: int, edge_threshold: int = 40):
+    return x < edge_threshold or x > (width - edge_threshold) or y < edge_threshold or y > (height - edge_threshold)
+
+def hasty_to_shp(tif_path: Path,
+                 hA_reference: HastyAnnotationV2,
+                 edge_threshold: int = 100,
+                 suffix=".tif"):
     """
     Convert Hasty Annotation to a GeoDataFrame with geometries in geospatial coordinates.
     :param tif_path: 
@@ -452,6 +469,7 @@ def hasty_to_shp(tif_path: Path, hA_reference: HastyAnnotationV2, suffix=".tif")
     if len(hA_reference.images) == 0:
         raise ValueError("No images in Hasty Annotation")
 
+    # Mark objects on the edge
     for img in hA_reference.images:
         img_name = Path(img.image_name).with_suffix(suffix=suffix)
         geo_transform = get_geotransform(tif_path / img_name)
@@ -469,7 +487,13 @@ def hasty_to_shp(tif_path: Path, hA_reference: HastyAnnotationV2, suffix=".tif")
                 score = label.score
             else:
                 score = None
-            data.append({"img_name": img_name, "label": label.class_name ,"score": score, "geometry": p})
+            data.append({
+                "img_name": img_name,
+                "label": label.class_name ,
+                "score": score,
+                "geometry": p,
+                "on_edge": _is_with_edge(x, y, img.width, img.height, edge_threshold=edge_threshold)
+            })
 
     return gpd.GeoDataFrame(data, crs=crs)
 

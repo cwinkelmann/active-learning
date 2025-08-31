@@ -11,7 +11,6 @@ labels_name = "/Users/christian/data/training_data/2025_07_10_final_point_detect
 images_path = base_path / "unzipped_images"
 
 annotation_types = [AnnotationType.BOUNDING_BOX]
-# class_filter = ["iguana"]
 class_filter = ["iguana"]
 
 crop_size = 512
@@ -20,6 +19,8 @@ overlap = 0
 VISUALISE_FLAG = False
 use_multiprocessing = False
 edge_black_out = True
+
+unpack = True
 
 
 datasets = {
@@ -67,7 +68,7 @@ datasets = {
 
 # dataset_filter = datasets[island]
 
-labels_path = base_path / f"labels_{crop_size}_overlap_{overlap}"
+labels_path = base_path / f"iguanas_{crop_size}_overlap_{overlap}"
 
 train_floreana_sample = DatasetFilterConfig(**{
     "dset": "train",

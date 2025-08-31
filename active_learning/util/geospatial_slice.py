@@ -16,12 +16,11 @@ from shapely.geometry import Polygon
 from tqdm import tqdm
 import concurrent.futures
 
-from active_learning.types.Exceptions import ProjectionError, NoLabelsError
+from active_learning.types.Exceptions import ProjectionError, NoLabelsError, NullRow
 from active_learning.util.geospatial_image_manipulation import cut_geospatial_raster_with_grid_gdal
 from active_learning.util.image import get_image_id
 
 from active_learning.util.projection import world_to_pixel
-
 
 
 class ImageGrid(object):
@@ -741,31 +740,31 @@ class GeoSpatialRasterGrid(ImageGrid):
             logger.info(f"cutting objects with a regular grid {box_size_x}x{box_size_y}")
             object_grid = self.create_regular_grid(x_size=box_size_x, y_size=box_size_y, overlap_ratio=overlap_ratio)
 
-        logger.info(f"start empty cutout")
-        # Get the empty regions grid
-        all_empty_regions = self.create_empty_regions_grid(points_gdf=points_gdf, box_size_x=box_size_x,
-                                                           box_size_y=box_size_y,
-                                                           min_distance_pixels=min_distance_pixels,
-                                                           max_boxes=num_empty_samples,
-                                                           min_area_ratio=0.7, random_seed=random_seed)
-
-        # Determine how many empty samples to select
-        if num_empty_samples is None:
-            num_empty_samples = len(object_grid)
-
-        # If we need to sample from the empty regions
-        if len(all_empty_regions) > num_empty_samples:
-            # Randomly select the required number of empty regions
-            empty_regions = all_empty_regions.sample(n=num_empty_samples, random_state=random_seed)
-        else:
-            # If we don't have enough empty regions, use all available
-            empty_regions = all_empty_regions
+        # logger.info(f"start empty cutout")
+        # # Get the empty regions grid
+        # all_empty_regions = self.create_empty_regions_grid(points_gdf=points_gdf, box_size_x=box_size_x,
+        #                                                    box_size_y=box_size_y,
+        #                                                    min_distance_pixels=min_distance_pixels,
+        #                                                    max_boxes=num_empty_samples,
+        #                                                    min_area_ratio=0.7, random_seed=random_seed)
+        # 
+        # # Determine how many empty samples to select
+        # if num_empty_samples is None:
+        #     num_empty_samples = len(object_grid)
+        # 
+        # # If we need to sample from the empty regions
+        # if len(all_empty_regions) > num_empty_samples:
+        #     # Randomly select the required number of empty regions
+        #     empty_regions = all_empty_regions.sample(n=num_empty_samples, random_state=random_seed)
+        # else:
+        #     # If we don't have enough empty regions, use all available
+        #     empty_regions = all_empty_regions
 
         # Add a label column to distinguish between the two sets
         object_grid['has_object'] = True
-        empty_regions['has_object'] = False
+        # empty_regions['has_object'] = False
 
-        return object_grid, empty_regions
+        return object_grid #, empty_regions
 
 
     def filter_by_points(self, points_gdf):
@@ -983,11 +982,17 @@ class GeoSlicer():
         # This will match each point to the grid cell that contains it
         points_in_grid = gpd.sjoin(points_gdf, grid_gdf, how="left", predicate="within")
 
-        # TODO check if any row "image_name_right" is None
         if "image_name_right" in points_in_grid.columns and points_in_grid["image_name_right"].isnull().any():
             logger.error(
                 f"some points could not be assigned to a grid cell: {points_in_grid['image_name_right'].isnull().sum()}, THIS IS DUE TO THE fact someone messed up the shapefile or orhtomosaic projections")
             raise ProjectionError("There is a problem with the projection")
+
+        if points_in_grid["index_right"].isnull().any():
+            logger.warning(f"some points could not be assigned to a grid cell: {points_in_grid['index_right'].isnull().sum()}, Could be a projection problem. It affects {len(points_in_grid[points_in_grid['index_right'].isnull()])} ")
+            # remove these
+            points_in_grid = points_in_grid[~points_in_grid["index_right"].isnull()]
+        if points_in_grid["index_right"].isnull().all():
+            raise NullRow(f"points_in_grid may not contain None/NaN because every point should be within a grid cell, but found {points_in_grid['index_right'].isnull().sum()} points without a grid cell")
 
         points_in_grid.rename(columns={"index_right": grid_index_col}, inplace=True)
 

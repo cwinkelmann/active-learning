@@ -97,9 +97,9 @@ class ImageLabel(BaseModel):
     bbox: Optional[List[typing.Union[int, float]]] = Field(default=None)
     polygon: Optional[List[typing.Tuple[typing.Union[int, float], typing.Union[int, float]]]] = Field(default=None)  # A list of points=[x,y] that make up the polygon
     mask: Optional[List[typing.Union[int, float]]] = Field(default=None)
-    z_index: Optional[int] = 0
+    z_index: Optional[int] = Field(default=0)
     attributes: dict = Field(default_factory=dict)
-    keypoints: Optional[List[Keypoint]] = None
+    keypoints: Optional[List[Keypoint]] = Field(default=None)
 
     # incenter: Optional[List[int]] = None # The point which is either the centroid or the nearest point to the centroid that is withing the shape
 
@@ -324,7 +324,7 @@ class HastyAnnotationV2(BaseModel):
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, 'w') as json_file:
             # Serialize the list of Pydantic objects to a list of dictionaries
-            json_file.write(self.model_dump_json())
+            json_file.write(self.model_dump_json(indent=2))
 
     def name2id(self):
         """

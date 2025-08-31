@@ -86,7 +86,7 @@ class DatasetFilterConfig(BaseModel):
         description="Whether to apply edge blackout to images."
     )
     remove_default_folder: bool = Field(
-        default=True,
+        default=False,
         description="Whether to remove the 'Default' images folder should be removed, which contains all images from the subsets."
     )
     remove_padding_folder: bool = Field(
@@ -116,6 +116,14 @@ class DataPrepReport(DatasetFilterConfig):
     num_labels_filtered: int = Field(
         default=0,
         description="Number of labels that were filtered out based on the provided filters."
+    )
+    label_statistics: typing.Optional[dict] = Field(
+        default=None,
+        description="Statistics about labels in the dataset, such as class distribution, number of labels per"
+    )
+    label_mapping: typing.Optional[dict] = Field(
+        default=None,
+        description="Label Mapping of class id to class name"
     )
     num_point_labels_filtered: int = Field(
         default=0,
@@ -268,7 +276,8 @@ class GeospatialDatasetCorrectionConfig(BasicConfig):
         None,
         description="path of the hasty reference annotation file"
     )
-
+    box_size_x: int = Field(default=640, description="Size of a tile in x direction")
+    box_size_y: int = Field(default=640, description="Size of a tile in y direction")
 
     # Processing parameters
     correct_fp_gt: bool = Field(default=True, description="Whether to correct false positive ground truth")
@@ -286,6 +295,33 @@ class GeospatialDatasetCorrectionConfig(BasicConfig):
         description="Path for all labels"
     )
 
+class GeospatialDatasetCorrectionConfigCollection(BasicConfig):
+
+    """Configuration model for dataset analysis and processing."""
+    dataset_name: typing.Optional[str] = Field(
+        None,
+        description="Name of the dataset"
+    )
+    organization: str = Field(
+        ...,
+        description="Organization name in CVAT"
+    )
+    project_name: str = Field(
+        ...,
+        description="Project name in CVAT"
+    )
+
+    configs: typing.List[GeospatialDatasetCorrectionConfig] = Field(..., description="List of geospatial dataset correction configurations")
+
+
+    output_path: typing.Optional[Path] = Field(
+        None,
+        description="Output path for object crops (derived from base_path if not provided)"
+    )
+    corrected_path: typing.Optional[Path] = Field(
+        None,
+        description="Path for all labels"
+    )
 
 class DatasetCorrectionReportConfig(DatasetCorrectionConfig):
     report_path: typing.Optional[Path] = Field(

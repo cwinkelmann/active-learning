@@ -15,7 +15,7 @@ from active_learning.util.visualisation.annotation_vis import visualise_points_o
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
-from image_template_search.util.util import (visualise_image, visualise_polygons)
+from com.biospheredata.visualization.visualize_result import (visualise_image, visualise_polygons)
 
 base_path = Path("/Volumes/G-DRIVE/Datasets/deep_forest_birds/hasty_style")
 labels_name = base_path / Path("weinstein_birds_hasty.json")

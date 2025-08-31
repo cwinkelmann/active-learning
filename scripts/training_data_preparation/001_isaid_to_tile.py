@@ -1,4 +1,5 @@
 """
+TODO repair this
 Create patches from images and labels from hasty to be used in CVAT
 convert the iSAID data in coco format to usable patches of px size 1024x1024
 """
@@ -16,7 +17,7 @@ from active_learning.filter import ImageFilterConstantNum, SampleStrategy, sampl
 from active_learning.pipelines.data_prep import DataprepPipeline, AnnotationsIntermediary
 from active_learning.util.converter import coco2yolo
 from com.biospheredata.converter.HastyConverter import HastyConverter, AnnotationType
-from util.util import visualise_image, visualise_polygons
+from com.biospheredata.visualization.visualize_result import visualise_image, visualise_polygons
 
 
 # from com.biospheredata.types.serialisation import save_model_to_file

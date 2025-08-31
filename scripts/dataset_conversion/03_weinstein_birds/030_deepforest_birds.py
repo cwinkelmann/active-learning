@@ -12,8 +12,10 @@ from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel
 
 from loguru import logger
 
-base_path = Path('/Volumes/G-DRIVE/Datasets/deep_forest_birds')
-destination_base_path = Path('/Volumes/G-DRIVE/Datasets/deep_forest_birds/hasty_style')
+from scripts.dataset_conversion.sanity_check import get_dataset_stats
+
+base_path = Path('/raid/cwinkelmann/training_data/deep_forest_birds')
+destination_base_path = base_path /'hasty_style'
 
 everglades_subset = base_path / 'everglades'
 everlades_train_annotations = everglades_subset / "everglades_train.csv"
@@ -156,19 +158,23 @@ for split_name, df_annotations_group in df_all_annotations.groupby("split"):
 
     df_annotations_group.to_csv(destination_base_path / f"{split_name}_annotations.csv", index=False)
 
-
-hA.save(destination_base_path / "weinstein_birds_hasty.json")
+dataset_path = destination_base_path / "weinstein_birds_hasty.json"
+hA.save(dataset_path)
 
 
 
 dataset_names = set(ai.dataset_name for ai in annotated_images)
 
-# for split in dataset_names:
-#
-#     annotated_images_split = [ai for ai in annotated_images if ai.dataset_name == split]
-#     # create_simple_histograms(annotated_images_split)
-#     plot_bbox_sizes(annotated_images_split, dataset_name=split, plot_name = f"box_sizes_{split}.png")
-#
-#     # create plots for the dataset
-#     create_simple_histograms(annotated_images_split, dataset_name=split)
-#     visualise_hasty_annotation_statistics(annotated_images_split)
+for split in dataset_names:
+
+    annotated_images_split = [ai for ai in annotated_images if ai.dataset_name == split]
+    # create_simple_histograms(annotated_images_split)
+    plot_bbox_sizes(annotated_images_split, suffix=f"Birds: {split}", plot_name = f"box_sizes_{split}.png")
+
+    # create plots for the dataset
+    create_simple_histograms(annotated_images_split, dataset_name=split)
+    visualise_hasty_annotation_statistics(annotated_images_split)
+
+logger.info(f"Saved Hasty Annotation to {dataset_path}")
+
+logger.info(get_dataset_stats(dataset_path))

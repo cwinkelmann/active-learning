@@ -1,5 +1,7 @@
 """
-A marked iguana is not consistent in size an sharpness etc
+A marked iguana is not consistent in size and sharpness etc,
+This extracts individual objects from the images and labels and crops them to a fixed size.
+Some are labels with a visibility of 0 to 10 to asses the quality of the labels.
 
 
 """
@@ -26,7 +28,6 @@ from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotati
 from com.biospheredata.converter.HastyConverter import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 
-## TODO Download annotations from hasty
 
 
 
@@ -157,7 +158,6 @@ if __name__ == "__main__":
         dp.empty_fraction = dataset.empty_fraction
         dp.visualise_path = vis_path
 
-        # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
@@ -171,7 +171,7 @@ if __name__ == "__main__":
               "width": l.width,
               "area": l.width * l.height,
               "visibility": l.attributes.get("visibility", -99),
-              "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels] # TODO add the bounding box in here too
+              "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels]
 
         df_parameter = pd.DataFrame(l)
         df_parameter.to_csv(output_path_dset / "individual_object.csv")

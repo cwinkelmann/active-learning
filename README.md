@@ -22,7 +22,22 @@ conda env update -f environment.yml --dry-run
 ## Workflow of loading data, preparing the annotations and correct them the first time
 
 
-This repo
+### Preparation of reference data
+All other datasets are going to be converted into the same format, which is a format used by hasty.ai.
+
+See scripts/dataset_conversion for these
+```shell
+01_eikelboom
+03_weinstein_birds
+06_delplanque_general
+07_AED # African Elephant Dataset
+```
+
+These will result in a hasty.json file and some reformated folders.
+
+scripts/training_data_preparation
+
+
 
 002_review_annotations.py
 

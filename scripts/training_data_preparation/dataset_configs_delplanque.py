@@ -1,46 +1,29 @@
-import json
-
-import gc
-
-import shutil
-import yaml
-from loguru import logger
 from pathlib import Path
-from matplotlib import pyplot as plt
 
-from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
-from active_learning.filter import ImageFilterConstantNum
-from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from active_learning.util.visualisation.annotation_vis import visualise_points_only
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
-from com.biospheredata.converter.HastyConverter import HastyConverter
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
-from image_template_search.util.util import (visualise_image, visualise_polygons)
 
-## Meeting presentation
-base_path = Path("/Volumes/G-DRIVE/Datasets/africa_elephants_uliege/general_dataset/hasty_style")
-# hasty_annotations_labels_zipped = "delplanque_hasty.zip"
+base_path = Path("/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style")
 images_path = base_path
 labels_name = base_path / Path("delplanque_hasty.json")
 hasty_annotations_images_zipped = "hasty_style.zip"
 annotation_types = [AnnotationType.BOUNDING_BOX]
-class_filter = ["Alcelaphinae", "Buffalo", "Elephant", "Kob", "Warthog", "Waterbuck", "Elephant"]
+class_filter = ["Alcelaphinae", "Buffalo", "Kob", "Warthog", "Waterbuck", "Elephant"]
 
-crop_size = 518
+crop_size = 512
 empty_fraction = 0.0
 overlap = 0
 VISUALISE_FLAG = False
 use_multiprocessing = True
-edge_black_out = True
-num = None
+edge_black_out = False # each box which is on the edge will be marked black
+num = None # Amount of image to take
 
-labels_path = base_path / f"labels_{crop_size}_overlap_{overlap}"
+labels_path = base_path / f"Delplanque2022_{crop_size}_overlap_{overlap}"
 
 train_delplanque = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "delplanque_train",
     "dataset_filter": ["delplanque_train"],
-    #"images_filter": ["DJI_0514.JPG"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
