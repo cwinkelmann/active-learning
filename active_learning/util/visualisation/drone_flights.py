@@ -218,9 +218,6 @@ def visualise_flight_path(date: str,
         ax.text(scale_x + scale_length / 2, scale_y + y_range * 0.01,
                 f"{scale_length:.1f}m", ha='center', fontsize=8)
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 
@@ -385,9 +382,6 @@ def visualise_height_profile(date: str,
     fig.text(0.5, 0.02, flight_stats, ha='center', fontsize=12,
              bbox=dict(boxstyle="round,pad=0.5", fc="#f0f0f0", ec="#dddddd", alpha=0.9))
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.92, bottom=0.08, hspace=0.25)
@@ -888,10 +882,6 @@ def visualise_drone_model(gdf: gpd.GeoDataFrame,
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#dddddd", alpha=0.9))
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
-
     plt.tight_layout()
 
     # Save figure if path is provided
@@ -1128,9 +1118,6 @@ def visualize_height_distribution(gdf: gpd.GeoDataFrame,
             else:
                 ax_violin.set_visible(False)
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     # Adjust layout
     plt.tight_layout()
@@ -1231,9 +1218,6 @@ def visualize_height_boxplot(gdf: gpd.GeoDataFrame,
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#dddddd", alpha=0.9))
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 
@@ -1333,9 +1317,6 @@ def visualize_height_ridgeplot(gdf: gpd.GeoDataFrame,
     # Add x-label to the bottom axis
     axes[-1].set_xlabel(f"{height_col} ({unit})", fontsize=12, color='#555555')
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.92)

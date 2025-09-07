@@ -7,6 +7,9 @@ from active_learning.util.rename import get_site_code
 
 
 def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
+    """
+
+    """
     try:
         # drop
         gdf_all.drop(columns=['Unnamed: 0'], inplace=True)
@@ -49,6 +52,7 @@ def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
     gdf_all['gsd_rel_avg_cm'] = gdf_all["RelativeAltitude"].apply(
         lambda h: calculate_gsd(h)[2] if pd.notna(h) else None
     )
+
 
     return gdf_all
 
@@ -150,7 +154,6 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
         axis=1
     )
 
-
     # Calculate time difference in seconds between consecutive shots
     gdf_all['time_diff_seconds'] = gdf_all.apply(
         lambda row: (row['datetime_digitized'] - row['prev_datetime']).total_seconds()
@@ -224,6 +227,14 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
         axis=1
     )
 
+    # Is the flight a oblique flight or a nadir flight
+    gdf_all['is_oblique'] = gdf_all['GimbalPitchDegree'].apply(
+        lambda pitch: pitch >= -75
+    )
+    gdf_all['is_nadir'] = gdf_all['GimbalPitchDegree'].apply(
+        lambda pitch: pitch < -75
+    )
+
     # Clean up by dropping intermediate columns
     gdf_all = gdf_all.drop(columns=['prev_geometry', 'prev_datetime'])
 
@@ -270,18 +281,7 @@ def calculate_gsd(height,
 def find_anomalous_images(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Find images taken at a speed of 5 m/s or more with a shutter speed of 1/1500 or slower
-
-    Parameters:
-    -----------
-    csv_file_path : str
-        Path to the CSV file containing image metadata
-
-    Returns:
-    --------
-    pandas.DataFrame
-        DataFrame containing the filtered anomalous images
     """
-    # TODO add height and gsd to the data too
 
     # replace NaN with 0
     df['exposure_time'] = df['exposure_time'].fillna(0)

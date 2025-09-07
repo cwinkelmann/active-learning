@@ -6,6 +6,7 @@ import geopandas as gpd
 # Packages used by this tutorial
 import pandas as pd
 import pyproj
+import shapely
 from matplotlib.offsetbox import AnchoredText
 # Importing the main package
 from shapely.geometry import Polygon, MultiPolygon, box
@@ -449,11 +450,26 @@ def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
     :return: flight length in meters
     """
     # Get the geometry of the mission
-    mission_geometry = gdf_mission.geometry.values[0]
+    # sort by timestamp if available
+    gdf_mission = gdf_mission.sort_values(by=['datetime_digitized'], ascending=True)
+    mission_geometry = shapely.LineString(gdf_mission.geometry)
 
     # Calculate the length of the mission in meters
     flight_length = mission_geometry.length
 
     return flight_length
+
+def get_mission_type(gdf_mission: gpd.GeoDataFrame) -> str:
+    """
+    Determine if the mission is a oblique cliff or nadir flights
+    """
+    # Get the geometry of the mission
+    # when most of the images are oblique, the mission is oblique
+    oblique_percentage = gdf_mission['is_oblique'].mean()
+
+    if oblique_percentage > 0.5:
+        return "oblique"
+    else:
+        return "nadir"
 
 

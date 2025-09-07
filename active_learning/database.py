@@ -32,6 +32,8 @@ def images_data_extraction(images_path: Path):
     assert images_path.is_dir(), f"{images_path} is not a directory"
     images = list_images(images_path, extension="JPG", recursive=True)
     db_name = f"{images_path.name}_database.csv" # basic metadata like exif and xmp
+
+    # extract the image metadata
     image_metadata = get_image_metadata(images)
 
     lst_image_metadata = [x.to_series() for x in image_metadata]
@@ -86,13 +88,3 @@ def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame) -> gpd.GeoData
 
     return gdf_all
 
-
-if __name__ == '__main__':
-    island_folder = Path("/Volumes/G-DRIVE/Iguanas_From_Above/fake_data/Ruegen")
-    # res = images_data_extraction(island_folder)
-
-    gdf_image_metadata_2 = gpd.read_parquet(island_folder / "Ruegen_database.parquet")
-    gdf_image_metadata_2.to_crs(epsg="32715", inplace=True)
-    gdf_all = derive_image_metadata(gdf_image_metadata_2)
-
-    gdf_all

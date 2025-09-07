@@ -16,7 +16,8 @@ from shapely.geometry import Point
 from typing import Tuple, Optional
 import hashlib
 
-from active_learning.util.image import get_image_id
+from active_learning.types.Exceptions import ImageNotValidException
+from active_learning.util.image import get_image_id, get_image_dimensions
 
 
 class ColorSpace(Enum):
@@ -129,7 +130,7 @@ class WhiteBalance(Enum):
 class ExifData(BaseModel):
     _exif_ifd_pointer: int
     _gps_ifd_pointer: int
-    bits_per_sample: int
+    bits_per_sample: Optional[int] = Field(default=None, alias="bits_per_sample")
     body_serial_number: str
     color_space: ColorSpace
     compression: int
@@ -166,6 +167,7 @@ class ExifData(BaseModel):
     longitude: float
     make: str
     max_aperture_value: float
+
     metering_mode: MeteringMode
     model: str
     orientation: Orientation
@@ -173,11 +175,12 @@ class ExifData(BaseModel):
     pixel_x_dimension: int
     pixel_y_dimension: int
     resolution_unit: ResolutionUnit
-    samples_per_pixel: int
+    samples_per_pixel: Optional[int] = Field(default=None, alias="samples_per_pixel")
     saturation: Saturation
     scene_capture_type: SceneCaptureType
     sharpness: Sharpness
     software: str
+    subject_distance: Optional[float] = Field(default=None, alias="subject_distance i.e. measured distance by a range finder availabe in M4E payload")
     white_balance: WhiteBalance
     x_resolution: float
     xp_keywords: str
@@ -194,11 +197,32 @@ class XMPMetaData(BaseModel):
     GimbalYawDegree: float = Field(alias="GimbalYawDegree")
     GimbalRollDegree: float = Field(alias="GimbalRollDegree")
     GimbalPitchDegree: float = Field(alias="GimbalPitchDegree")
+
     AbsoluteAltitude: float = Field(alias="AbsoluteAltitude")
     RelativeAltitude: float = Field(alias="RelativeAltitude")
+
     FlightRollDegree: float = Field(alias="FlightRollDegree")
     FlightYawDegree: float = Field(alias="FlightYawDegree")
     FlightPitchDegree: float = Field(alias="FlightPitchDegree")
+
+    FlightXSpeed: Optional[float] = Field(default=None, alias="FlightXSpeed")
+    FlightYSpeed: Optional[float] = Field(default=None, alias="FlightYSpeed")
+    FlightZSpeed: Optional[float] = Field(default=None, alias="FlightZSpeed")
+
+    # Laser Range Finder data (M4E specific, often optional)
+    LRFTargetDistance: Optional[float] = Field(default=None, alias="LRFTargetDistance")
+    LRFTargetLat: Optional[float] = Field(default=None, alias="LRFTargetLat")
+    LRFTargetLon: Optional[float] = Field(default=None, alias="LRFTargetLon")
+    LRFTargetAbsAlt: Optional[float] = Field(default=None, alias="LRFTargetAbsAlt")
+    LRFTargetAlt: Optional[float] = Field(default=None, alias="LRFTargetAlt")
+
+    # Environmental sensors
+    SensorTemperature: Optional[float] = Field(default=None, alias="SensorTemperature")
+    LensTemperature: Optional[float] = Field(default=None, alias="LensTemperature")
+
+    # Device information
+    ImageSource: Optional[str] = Field(default=None, alias="ImageSource")
+    ProductName: Optional[str] = Field(default=None, alias="ProductName")
 
     class Config:
         populate_by_name = True
@@ -221,7 +245,7 @@ class CompositeMetaData(BaseModel):
 
     _exif_ifd_pointer: int
     _gps_ifd_pointer: int
-    bits_per_sample: int
+    bits_per_sample: int | None = Field(None, alias="bits_per_sample")
     body_serial_number: str
     color_space: ColorSpace
     compression: int
@@ -266,27 +290,50 @@ class CompositeMetaData(BaseModel):
     pixel_x_dimension: int
     pixel_y_dimension: int
     resolution_unit: ResolutionUnit
-    samples_per_pixel: int
+    samples_per_pixel: int | None =  Field(None, alias="samples_per_pixel")
     saturation: Saturation
     scene_capture_type: SceneCaptureType
     sharpness: Sharpness
     software: str
+    subject_distance: Optional[float] = Field(default=None, alias="subject_distance i.e. measured distance by a range finder availabe in M4E payload")
     white_balance: WhiteBalance
     x_resolution: float
     xp_keywords: str
     y_and_c_positioning: int
     y_resolution: float
 
+    # Everything from XMP
     GpsLatitude: float = Field(alias="GpsLatitude")
-    GpsLongitude: float = Field(alias="GpsLongitude")
+    GpsLongitude: float = Field( alias="GpsLongitude")
     GimbalYawDegree: float = Field(alias="GimbalYawDegree")
     GimbalRollDegree: float = Field(alias="GimbalRollDegree")
     GimbalPitchDegree: float = Field(alias="GimbalPitchDegree")
+
     AbsoluteAltitude: float = Field(alias="AbsoluteAltitude")
     RelativeAltitude: float = Field(alias="RelativeAltitude")
+
     FlightRollDegree: float = Field(alias="FlightRollDegree")
     FlightYawDegree: float = Field(alias="FlightYawDegree")
     FlightPitchDegree: float = Field(alias="FlightPitchDegree")
+
+    FlightXSpeed: Optional[float] = Field(default=None, alias="FlightXSpeed")
+    FlightYSpeed: Optional[float] = Field(default=None, alias="FlightYSpeed")
+    FlightZSpeed: Optional[float] = Field(default=None, alias="FlightZSpeed")
+
+    # Laser Range Finder data (M4E specific, often optional)
+    LRFTargetDistance: Optional[float] = Field(default=None, alias="LRFTargetDistance")
+    LRFTargetLat: Optional[float] = Field(default=None, alias="LRFTargetLat")
+    LRFTargetLon: Optional[float] = Field(default=None, alias="LRFTargetLon")
+    LRFTargetAbsAlt: Optional[float] = Field(default=None, alias="LRFTargetAbsAlt")
+    LRFTargetAlt: Optional[float] = Field(default=None, alias="LRFTargetAlt")
+
+    # Environmental sensors
+    SensorTemperature: Optional[float] = Field(default=None, alias="SensorTemperature")
+    LensTemperature: Optional[float] = Field(default=None, alias="LensTemperature")
+
+    # Device information
+    ImageSource: Optional[str] = Field(default=None, alias="ImageSource")
+    ProductName: Optional[str] = Field(default=None, alias="ProductName")
 
     def to_series(self) -> pd.Series:
         data = self.model_dump()
@@ -417,11 +464,13 @@ def get_image_metadata(image_list: list[Path]) -> typing.List[CompositeMetaData]
                 f"Elapsed: {elapsed:.2f}s, Estimated remaining: {remaining_time:.2f}s"
             )
 
-        # Process image metadata
-        image_metadata.append(image_metadata_yaw_tilt(image_path))
-
-        # except Exception as e:
-        #     logger.error(f"Problem with {image_path}, {e}")
+        try:
+            # Process image metadata
+            image_metadata.append(image_metadata_yaw_tilt(image_path))
+        except ImageNotValidException as e:
+            logger.error(f"Image {image_path} is not a valid image, skipping, {e}")
+        except Exception as e:
+            logger.error(f"Problem with {image_path}, {e}")
 
         # Update tqdm progress bar
         pbar.update(1)
@@ -501,7 +550,25 @@ def xmp_metadata_PIL(img_path: Path):
             "RelativeAltitude",
             "FlightRollDegree",
             "FlightYawDegree",
-            "FlightPitchDegree"
+            "FlightPitchDegree",
+
+            # Laser Range Finder data, if available
+            'LRFTargetDistance', # available in M4E images
+            'LRFTargetLat', # available in M4E images
+            'LRFTargetLon', # available in M4E images
+            'LRFTargetAbsAlt', # available in M4E images
+            'LRFTargetAlt', # Altitude relative to the target, available in M4E images
+            'LRFTargetAlt', # Altitude relative to the target, available in M4E images
+
+            'SensorTemperature',
+            'LensTemperature',
+
+            'FlightXSpeed',
+            'FlightYSpeed',
+            'FlightZSpeed',
+
+            'ImageSource',
+            'ProductName',
         ]:
             try:
                 metadata[xmp_key] = float(xmp_data.get(xmp_key))
@@ -542,58 +609,75 @@ def image_metadata_yaw_tilt(img_path: Path) -> CompositeMetaData:
         try:
             latitude = decimal_coords(img.gps_latitude, img.gps_latitude_ref)
             longitude = decimal_coords(img.gps_longitude, img.gps_longitude_ref)
-
+            drone_model = img.get("model", "UnknownModel") # e.g., Mavic 2 Pro, M4E
+            drone_make = img.get("make", "UnknownMake") # e.g., DJI
             height = img.gps_altitude
 
             # print(f"Image {src.name}, OS Version:{img.get('software', 'Not Known')} ------")
             # print(f"Was taken: {img.datetime_original}, and has coordinates:{coords}")
-            exif_metadata = {"height": height, "latitude":
-                latitude, "longitude": longitude,
-                        "datetime_original": img.datetime_original,
+            exif_metadata = {"height": height,
+                             "latitude": latitude,
+                             "longitude": longitude,
+                             "datetime_original": img.datetime_original,
                              "filepath": str(img_path)}
 
-            supposedly_available_keys = ['image_width', 'image_height', 'bits_per_sample', 'image_description', 'make',
-                                         'model', 'orientation',
-                                         'samples_per_pixel', 'x_resolution', 'y_resolution', 'resolution_unit', 'software',
-                                         'datetime',
-                                         'y_and_c_positioning', '_exif_ifd_pointer', '_gps_ifd_pointer', 'xp_keywords',
-                                         'compression',
-                                         'jpeg_interchange_format', 'jpeg_interchange_format_length', 'exposure_time',
-                                         'f_number',
-                                         'exposure_program', 'photographic_sensitivity', 'exif_version',
-                                         'datetime_original',
-                                        'exposure_bias_value', 'max_aperture_value', 'metering_mode',
-                                         'light_source',
-                                         'focal_length', 'color_space', 'pixel_x_dimension', 'pixel_y_dimension',
-                                         'exposure_mode',
-                                         'white_balance', 'digital_zoom_ratio', 'focal_length_in_35mm_film',
-                                         'scene_capture_type',
-                                         'gain_control', 'contrast', 'saturation', 'sharpness', 'body_serial_number',
-                                         'lens_specification',
-                                         'gps_version_id', 'gps_latitude_ref', 'gps_latitude', 'gps_longitude_ref',
-                                         'gps_longitude',
-                                         'gps_altitude_ref', 'gps_altitude']
+            supposedly_available_keys = [
+                'image_width', 'image_height',
+                'bits_per_sample', 'image_description', 'make',
+                'model', 'orientation',
+                'samples_per_pixel', 'x_resolution', 'y_resolution', 'resolution_unit', 'software',
+                'datetime',
+                'y_and_c_positioning', '_exif_ifd_pointer', '_gps_ifd_pointer', 'xp_keywords',
+                'compression',
+                'jpeg_interchange_format', 'jpeg_interchange_format_length', 'exposure_time',
+                'f_number',
+                'exposure_program', 'photographic_sensitivity', 'exif_version',
+                'datetime_original',
+                'exposure_bias_value', 'max_aperture_value', 'metering_mode',
+                'light_source',
+                'focal_length', 'color_space', 'pixel_x_dimension', 'pixel_y_dimension',
+                'exposure_mode',
+                'white_balance', 'digital_zoom_ratio', 'focal_length_in_35mm_film',
+                'scene_capture_type',
+                'gain_control', 'contrast',
+                'saturation',
+                'sharpness',
+                'subject_distance',
+                'body_serial_number',
+                'lens_specification',
+                'gps_version_id', 'gps_latitude_ref', 'gps_latitude', 'gps_longitude_ref',
+                'gps_longitude',
+                'gps_altitude_ref',
+                'gps_altitude']
 
             # raw_exif = img.get_all()
             for key in supposedly_available_keys:
                 exif_metadata[key] = img.get(key)
-            img.get("datetime_digitized")
+
+                if exif_metadata.get("image_width") is None or exif_metadata.get("image_height") is None:
+                    # logger.warning(f"image_width or image_height metadata not available, read it from the image {img_path} directly")
+                    exif_metadata["image_width"], exif_metadata["image_height"] = get_image_dimensions(img_path)
+
+
 
             obj_exif_metadata = ExifData(**exif_metadata)
-
-
 
         except AttributeError as e:
             logger.error(f"No Coordinates, {e} with image {img_path}")
             image_metadata = {}
-            return {}
-        except pydantic_core._pydantic_core.ValidationError:
-            logger.error("Image has no complete Exif data, with image {img_path}")
+            raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
+        except pydantic_core._pydantic_core.ValidationError as e:
+            logger.error(f"Image has no complete Exif data, with image {img_path}, {e}")
+            raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
 
+        finally:
+            pass
+
+        # print(f"Processed image {img_path}, model {drone_model}, make {drone_make}")
     else:
         logger.warning(f"The Image {src} has no EXIF information")
-        raise Exception(f"No Exif Data Available of image name {src}")
-    # TODO use the XMPMetaData
+        raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}")
+
 
     dict_xmp_metadata = xmp_metadata_PIL(img_path)
     obj_xmp_metadata = XMPMetaData(**dict_xmp_metadata) # TODO check if this works
@@ -608,9 +692,14 @@ def image_metadata_yaw_tilt(img_path: Path) -> CompositeMetaData:
 
     # obj_img_metadata = ImageMetaData(**metadata)
     metadata = {**metadata, **exif_metadata, **dict_xmp_metadata}
-    cIMD = CompositeMetaData(**metadata)
-
-    # TODO create an object from this
+    try:
+        cIMD = CompositeMetaData(**metadata)
+    except TypeError as e:
+        logger.error(f"Problem with image {img_path}, {e}")
+        raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
+    except pydantic_core._pydantic_core.ValidationError as e:
+        logger.error(f"Problem with image {img_path}, {e}")
+        raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
 
     return cIMD
 
@@ -717,11 +806,11 @@ def get_exif_metadata(img_path) -> ExifData:
 
         except AttributeError:
             print('No Coordinates')
-            return {}
+            raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
 
     else:
         logger.warning(f"The Image {src} has no EXIF information")
-        raise Exception(f"No Exif Data Available of image name {src}")
+        raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}, {e}")
 
     exif_instance = ExifData(**exif_metadata)
 

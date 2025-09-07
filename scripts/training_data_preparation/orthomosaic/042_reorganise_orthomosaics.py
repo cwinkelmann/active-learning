@@ -7,7 +7,7 @@ from loguru import logger
 
 from pathlib import Path
 
-from geospatial_transformations import convert_to_cog, batch_convert_to_cog
+from active_learning.util.geospatial_transformations import batch_convert_to_cog
 
 # dd_cog_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog')
 # dd_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Drone Deploy orthomosaics')

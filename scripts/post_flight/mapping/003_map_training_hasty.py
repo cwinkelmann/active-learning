@@ -361,9 +361,6 @@ def visualise_flight_path_geospatial(mission_names_set: list,
                         edgecolor='#dddddd', alpha=0.9, zorder=9)
         ax.add_patch(circle)
 
-    # 11. Add watermark
-    fig.text(0.99, 0.01, "Generated with Python • Galápagos Marine Iguana Project",
-             ha='right', va='bottom', fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 

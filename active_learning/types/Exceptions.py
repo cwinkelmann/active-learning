@@ -54,7 +54,8 @@ class ProjectionError(ValueError):
 class NullRow(ValueError):
     pass
 
-
+class ImageNotValidException(ValueError):
+    pass
 
 class WrongSpatialSamplingStrategy(ValueError):
     """
