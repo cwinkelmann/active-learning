@@ -12,7 +12,7 @@ from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepR
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from active_learning.util.visualisation.annotation_vis import visualise_points_only
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import (visualise_image, visualise_polygons)

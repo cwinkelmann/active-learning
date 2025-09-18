@@ -15,6 +15,7 @@ from pathlib import Path
 from active_learning.util.image import get_image_id, get_image_dimensions
 from active_learning.util.visualisation.annotation_vis import create_simple_histograms, \
     visualise_hasty_annotation_statistics
+from com.biospheredata.types.status import LabelingStatus
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel, HastyAnnotationV2, LabelClass, \
     Keypoint
 
@@ -76,6 +77,12 @@ for item in data_splits:
     df_merged = df_annotations.merge(df_image_metadata, left_on='image_id', right_on='image_name', how='left')
 
     for image_id, df_image in df_merged.groupby("image_name"):
+        full_image_name = f"{image_id}.jpg"
+        image_path = base_path / full_image_name
+
+        width, height = row.image_width, row.image_height
+
+
 
         labels = []
         df_image
@@ -94,10 +101,7 @@ for item in data_splits:
             )
 
             labels.append(il)
-        full_image_name = f"{image_id}.jpg"
-        image_path = base_path / full_image_name
 
-        width, height = row.image_width, row.image_height
 
         annotated_image = AnnotatedImage(
             image_id=str(image_id),
@@ -106,7 +110,7 @@ for item in data_splits:
             ds_image_name=None,
             width=width,
             height=height,
-            image_status="COMPLETED",
+            image_status=LabelingStatus.COMPLETED,
             tags=[],
             image_mode=None,
             labels=labels

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from active_learning.pipelines.geospatial_data_gen import geospatial_data_to_detection_training_data
 from active_learning.types.Exceptions import ProjectionError, NoLabelsError
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 
 gdal.UseExceptions()
 

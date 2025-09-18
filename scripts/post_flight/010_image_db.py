@@ -29,51 +29,196 @@ Iguanas_From_Above/
             └── Island_C_FL02_DJI_0001_02022023.JPG
 
 """
+import numpy as np
 from loguru import logger
 from pathlib import Path
-from pyproj import CRS
 
-from active_learning.database import images_data_extraction
+
+from active_learning.database import images_data_extraction, create_image_db
 from active_learning.types.image_metadata import ExposureMode, ExposureProgram, CompositeMetaData, \
     convert_to_serialisable_dataframe
-
+from active_learning.types.image_metadata import list_images
 import geopandas as gpd
 
 from active_learning.database import derive_image_metadata
 
 
-def main(base_folder: Path = None, local_epsg = "32715") -> gpd.GeoDataFrame:
-    """
-    Main function to create the image database from a folder of images.
-    :param base_folder:
-    :return:
-    """
+def reorder_columns(df):
+    reordered_columns = [
+        # Dimensional/Categorical (Primary grouping variables)
+        'expedition_phase',
+        'YYYYMMDD',
+        'year_month',
+        'island',
+        'island_code',
+        'site_code',
+        'flight_code',
+        'mission_folder',
+        'drone_name',
 
 
-    # Generate the image metadata database
-    gdf_image_metadata_geojson = images_data_extraction(base_folder)
+        # Datetime
+        'datetime_digitized',
+        'datetime',
+        'datetime_original',
 
-    assert gdf_image_metadata_geojson is not None
-    assert gdf_image_metadata_geojson.shape[1] == 84, f"GeoDataFrame should have 84 columns, {gdf_image_metadata_geojson.shape}"
-    assert CRS(gdf_image_metadata_geojson.crs).to_epsg() == 4326, f"GeoDataFrame CRS {gdf_image_metadata_geojson.crs} is not equivalent to EPSG:4326"
+        # Core Image Identification
+        'image_name',
+        'folder_name',
+        'filepath',
+        'image_hash',
 
-    # gdf_image_metadata_geojson.to_crs(epsg="32715", inplace=True) # Galapagos UTM zone
-    gdf_image_metadata_geojson.to_crs(epsg=local_epsg, inplace=True) # ETRS89/UTM Zone 33N (EPSG:25833)
+        # Location/GPS
+        'latitude',
+        'longitude',
+        'GpsLatitude',
+        'GpsLongitude',
+        'geometry',
+        'gps_latitude',
+        'gps_latitude_ref',
+        'gps_longitude',
+        'gps_longitude_ref',
+        'gps_altitude',
+        'gps_altitude_ref',
 
-    get_analysis_ready_image_metadata = derive_image_metadata(gdf_image_metadata_geojson)
+        # Flight/Drone Position & Movement
+        'AbsoluteAltitude',
+        'RelativeAltitude',
+        'GimbalYawDegree',
+        'GimbalRollDegree',
+        'GimbalPitchDegree',
+        'FlightRollDegree',
+        'FlightYawDegree',
+        'FlightPitchDegree',
+        'FlightXSpeed',
+        'FlightYSpeed',
+        'FlightZSpeed',
+        'bearing_to_prev',
+        'flight_direction',
 
+        # Image Dimensions & Coverage
+        'image_height',
+        'image_width',
+        'pixel_x_dimension',
+        'pixel_y_dimension',
+        'ground_width_m',
+        'ground_height_m',
 
-    return get_analysis_ready_image_metadata
+        # Ground Sampling Distance
+        'gsd_abs_width_cm',
+        'gsd_abs_height_cm',
+        'gsd_abs_avg_cm',
+        'gsd_rel_width_cm',
+        'gsd_rel_height_cm',
+        'gsd_rel_avg_cm',
+
+        # Analysis/Quality Metrics
+        'distance_to_prev',
+        'time_diff_seconds',
+        'speed_m_per_s',
+        'risk_score',
+        'shift_mm',
+        'shift_pixels',
+        'forward_overlap_pct',
+        'is_oblique',
+        'is_nadir',
+
+        # Camera Settings (Most Important)
+        'make',
+        'model',
+        'exposure_time',
+        'f_number',
+        'focal_length',
+        'focal_length_in_35mm_film',
+        'photographic_sensitivity',
+
+        # Camera Settings (Extended)
+        'exposure_mode',
+        'exposure_program',
+        'exposure_bias_value',
+        'metering_mode',
+        'white_balance',
+        'digital_zoom_ratio',
+        'max_aperture_value',
+        'subject_distance',
+        'lens_specification',
+        'light_source',
+
+        # Technical Image Properties
+        'bits_per_sample',
+        'color_space',
+        'compression',
+        'contrast',
+        'saturation',
+        'scene_capture_type',
+        'sharpness',
+        'orientation',
+        'resolution_unit',
+        'samples_per_pixel',
+        'x_resolution',
+        'y_resolution',
+        'y_and_c_positioning',
+        'height',
+
+        # Equipment/System Info
+        'body_serial_number',
+        'software',
+        'exif_version',
+        'gps_version_id',
+        'gain_control',
+
+        # JPEG Technical
+        'jpeg_interchange_format',
+        'jpeg_interchange_format_length',
+        'image_description',
+        'xp_keywords',
+
+        # Specialized Equipment (LRF - Laser Range Finder)
+        'LRFTargetDistance',
+        'LRFTargetLat',
+        'LRFTargetLon',
+        'LRFTargetAbsAlt',
+        'LRFTargetAlt',
+        'SensorTemperature',
+        'LensTemperature',
+        'ImageSource',
+        'ProductName'
+    ]
+
+    # To reorder your DataFrame:
+    df_reordered = df[reordered_columns]
+
+    return df_reordered
 
 if __name__ == "__main__":
     island_folder_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024")
+    # island_folder_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024")
     # island_folder_path = Path("/Users/christian/data/missions/norway_db_test")
     # island_folder_path = Path("/Users/christian/data/missions/norway_db_test_2/")
 
     # get_analysis_ready_image_metadata = main(base_folder=island_folder_path, local_epsg="25833")
-    get_analysis_ready_image_metadata = main(base_folder=island_folder_path, local_epsg="32715")
+    database_path = island_folder_path / "database_analysis_ready.parquet"
+    gdf_db = gpd.read_parquet(database_path)
 
-    get_analysis_ready_image_metadata = convert_to_serialisable_dataframe(get_analysis_ready_image_metadata)
-    get_analysis_ready_image_metadata.to_parquet(island_folder_path / "database_analysis_ready.parquet")
+    # setting this to None will avoid re-processing existing images
+    island_folder_path = None
 
-    logger.info(f"Image metadata saved to {island_folder_path / 'database_analysis_ready.parquet'}")
+
+    gdf_analysis_ready_image_metadata = create_image_db(images_path=island_folder_path,
+                                                        local_epsg="32715",
+                                                        gdf_preexisting_database=gdf_db)
+
+    # reorder the columns
+    gdf_analysis_ready_image_metadata = reorder_columns(gdf_analysis_ready_image_metadata)
+
+    # remove infitiy points
+
+    gdf_analysis_ready_image_metadata = gdf_analysis_ready_image_metadata[
+        ~gdf_analysis_ready_image_metadata.geometry.apply(lambda geom: np.isinf(geom.x) or np.isinf(geom.y))
+    ]
+    # remove images which don't belong in there manually
+
+    gdf_analysis_ready_image_metadata = convert_to_serialisable_dataframe(gdf_analysis_ready_image_metadata)
+    gdf_analysis_ready_image_metadata.to_parquet(database_path)
+
+    logger.info(f"Image metadata saved to {database_path}")

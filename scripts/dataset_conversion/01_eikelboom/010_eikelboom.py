@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 from active_learning.util.image import get_image_id, get_image_dimensions
+from com.biospheredata.types.status import LabelingStatus
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel, HastyAnnotationV2, LabelClass
 
 from loguru import logger
@@ -66,7 +67,7 @@ for split, images in data_splits.items():
                     ds_image_name=None,
                     width=width,
                     height=height,
-                    image_status="Done",
+                    image_status=LabelingStatus.COMPLETED,
                     tags=[],
                     image_mode=None,
                     labels=labels

@@ -16,7 +16,8 @@ from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepR
 from active_learning.filter import ImageFilterConstantNum, SampleStrategy, sample_coco
 from active_learning.pipelines.data_prep import DataprepPipeline, AnnotationsIntermediary
 from active_learning.util.converter import coco2yolo
-from com.biospheredata.converter.HastyConverter import HastyConverter, AnnotationType
+from com.biospheredata.converter.HastyConverter import HastyConverter
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.visualization.visualize_result import visualise_image, visualise_polygons
 
 

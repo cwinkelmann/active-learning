@@ -25,7 +25,7 @@ from pathlib import Path
 from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilterConstantNum, ImageLabelFilterAttribute
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 
 

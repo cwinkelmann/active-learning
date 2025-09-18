@@ -4,7 +4,7 @@ from pathlib import Path
 
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid, GeoSlicer
 from active_learning.util.image_manipulation import convert_tiles_to
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 
 
 def get_tiles(orthomosaic_path,
@@ -49,3 +49,5 @@ def get_tiles(orthomosaic_path,
                                        output_dir=output_dir_jpg)
     converted_tiles = [a for a in converted_tiles]
     logger.info(f"created {len(converted_tiles)} tiles in {output_dir_jpg}")
+
+    return gdf_tiles, output_dir_jpg

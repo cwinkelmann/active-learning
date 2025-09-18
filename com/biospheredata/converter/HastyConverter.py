@@ -3,11 +3,12 @@ import typing
 
 import copy
 import shutil
-from enum import Enum
 from typing import Optional, List
 
 import PIL
 from PIL import Image
+
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 
 # Increase the decompression limit
 Image.MAX_IMAGE_PIXELS = None
@@ -21,48 +22,11 @@ from pycocotools.coco import COCO
 from collections import Counter
 
 from com.biospheredata.helper.filenames import (
-    get_dataset_image_merged_filesname,
-    get_dataset_image_merged_filesname_v2,
+    get_dataset_image_merged_filesname_v2
 )
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage, \
-    filter_by_class, filter_by_image_tags, ImageLabel
+    filter_by_class, filter_by_image_tags
 from com.biospheredata.types.ImageStatistics import ImageCounts
-
-
-class LabelingStatus(Enum):
-    """
-    Enumeration for labeling status of images.
-    """
-    NEW = "NEW"
-    IN_PROGRESS = "IN PROGRESS"
-    DONE = "DONE"
-    TO_REVIEW = "TO REVIEW"
-    COMPLETED = "COMPLETED"
-    SKIPPED = "SKIPPED"
-
-class AnnotationType(Enum):
-    """
-    Enumeration for different types of annotations.
-    """
-    BOUNDING_BOX = "box"
-    KEYPOINT = "keypoint"
-    POLYGON = "polygon"
-
-class ImageFormat(Enum):
-    JPG = "jpg"
-    PNG = "png"
-    JP2 = "jp2"
-    GeoTIFF = "tif"
-
-class ClassName(Enum):
-    iguana = "iguana"
-    iguana_point = "iguana_point"
-    crab = "crab"
-    turtle = "turtle"
-    seal = "seal"
-    hard_negative = "hard_negative"
-
-
 
 class HastyConverter(object):
     """
@@ -403,7 +367,7 @@ class HastyConverter(object):
         for image in hA.images:
             for l in image.labels:
                 # we have keypoints
-                if l.keypoints is not None and len(l.keypoints) > 0 and ( label_filter is None or AnnotationType.KEYPOINT in label_filter):
+                if l.keypoints is not None and len(l.keypoints) > 0 and (label_filter is None or AnnotationType.KEYPOINT in label_filter):
                     x = l.keypoints[0].x
                     y = l.keypoints[0].y
                     species = l.class_name
@@ -411,7 +375,7 @@ class HastyConverter(object):
 
                     records.append((image.image_name, x, y, species, labels))
 
-                elif l.polygon is not None and len(l.polygon) > 0 and l.incenter_centroid is not None and ( label_filter is None or AnnotationType.KEYPOINT in label_filter): # TODO check why a polygon can have no center
+                elif l.polygon is not None and len(l.polygon) > 0 and l.incenter_centroid is not None and (label_filter is None or AnnotationType.KEYPOINT in label_filter): # TODO check why a polygon can have no center
                     logger.warning(f"No keypoints found in {image.image_name} therefore creating it by getting the center of the polygon")
                     x, y = int(l.incenter_centroid.x), int(l.incenter_centroid.y)
                     species = l.class_name
@@ -419,7 +383,7 @@ class HastyConverter(object):
 
                     records.append((image.image_name, x, y, species, labels))
 
-                elif l.bbox is not None and len(l.bbox) > 0 and ( label_filter is None or AnnotationType.BOUNDING_BOX in label_filter):
+                elif l.bbox is not None and len(l.bbox) > 0 and (label_filter is None or AnnotationType.BOUNDING_BOX in label_filter):
                     logger.warning(f"No keypoints found in {image.image_name} therefore creating it by getting the center of the bbox, which will be inaccurate")
                     x, y = int(l.incenter_centroid.x), int(l.incenter_centroid.y)
                     species = l.class_name

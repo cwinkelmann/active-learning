@@ -1,5 +1,5 @@
 from active_learning.config.dataset_filter import DatasetFilterConfig
-from com.biospheredata.converter.HastyConverter import AnnotationType, ClassName
+from com.biospheredata.types.status import AnnotationType, ClassName
 
 test_fixes = DatasetFilterConfig(**{
         "dset": "test_fixed",

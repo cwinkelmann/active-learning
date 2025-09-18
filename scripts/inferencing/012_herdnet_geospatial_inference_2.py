@@ -36,7 +36,7 @@ from active_learning.util.projection import get_geotransform, pixel_to_world_poi
     get_orthomosaic_crs
 from animaloc.utils.useful_funcs import mkdir
 from animaloc.vizual import draw_points, draw_text
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 from tools.inference_test import inference
 
 Image.MAX_IMAGE_PIXELS = None  # Disable the limit of image size in PIL
@@ -311,6 +311,8 @@ if __name__ == '__main__':
     # find predictions
     already_finished_predictions = [l for l in prediction_output_dir.glob('*.geojson') if
                                     l.is_file() and not l.name.startswith('.')]
+
+    already_finished_predictions = []
 
     # remove already finished predictions from the list of orthomosaics
     orthomosaic_list = [o for o in orthomosaic_list_3 if not any(o.stem in p.stem for p in already_finished_predictions)]

@@ -12,7 +12,7 @@ from PIL import Image
 from loguru import logger
 
 from active_learning.types.Exceptions import ProjectionError
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import PredictedImageLabel
 
 def convert_gdf_to_jpeg_coords(gdf: gpd.GeoDataFrame, tiff_path: Path) -> gpd.GeoDataFrame:

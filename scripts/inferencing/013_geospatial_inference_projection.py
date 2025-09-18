@@ -34,7 +34,7 @@ from animaloc.utils.useful_funcs import mkdir
 from animaloc.vizual import draw_points, draw_text
 from datetime import date, datetime
 import animaloc
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 
 from tools.inference_test import _set_species_labels, _get_collate_fn, _build_model, _define_evaluator
 

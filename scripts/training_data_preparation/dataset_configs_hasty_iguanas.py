@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from active_learning.config.dataset_filter import DatasetFilterConfig
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 
 base_path = Path("/Users/christian/data/training_data/2025_07_10_refined")
 hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
@@ -17,7 +17,7 @@ crop_size = 512
 empty_fraction = 0.0
 overlap = 0
 VISUALISE_FLAG = False
-use_multiprocessing = False
+use_multiprocessing = True
 edge_black_out = True
 
 unpack = True

@@ -32,7 +32,8 @@ def process_image(args):
             empty_fraction=empty_fraction,
             edge_black_out=edge_black_out,
             visualisation_path=visualise_path,
-            annotated_types=annotated_types
+            annotated_types=annotated_types,
+            keep_cut_box=True,
         )
         return images, cropped_images_path
     except LabelInconsistenyError as e:
@@ -246,8 +247,8 @@ class DataprepPipeline(object):
         self.overlap = overlap
 
         self.hA = annotations_labels
-        self.hA_filtered = None
-        self.hA_crops = None
+        self.hA_filtered: HastyAnnotationV2 | None = None
+        self.hA_crops: HastyAnnotationV2 | None = None
         # self.images_path = None
         self.rename_dictionary = None
         self.output_path = output_path
@@ -275,9 +276,12 @@ class DataprepPipeline(object):
     def run(self, flatten=True):
         self.run_filter(flatten=flatten)
 
+        lables_before = len(self.hA_filtered.get_flat_df())
+        self.sanity_check(self.hA_filtered)
+
         if self.config.crop:
             hA_crop = self.run_crop()
-
+            self.sanity_check(hA_crop)
             return hA_crop
         else:
             return self.hA_filtered
@@ -486,3 +490,24 @@ class DataprepPipeline(object):
     def add_images_filter_func(self, ifcn_att: ImageFilter):
         assert isinstance(ifcn_att, ImageFilter)
         self.images_filter_func.append( ifcn_att )
+
+    def sanity_check(self, hA_filtered):
+        issues_found =  0
+
+        """ Check plausibility of the dataset """
+        for i in hA_filtered.images:
+            if i.width is None or i.height is None:
+                raise ValueError(f"Image {i.image_name} has no width or height")
+            valid_labels = []
+            for label in i.labels:
+
+                if label.incenter_centroid.x < 0 or label.incenter_centroid.y < 0 or label.incenter_centroid.x >= i.width or label.incenter_centroid.y >= i.height:
+                    logger.warning(f"Label {label.class_name} point ({label.incenter_centroid.x}, {label.incenter_centroid.y}) "
+                                   f"is out of bounds of image {i.image_name} ({i.width}x{i.height})")
+                    issues_found += 1
+                else:
+                    valid_labels.append(label)
+
+            i.labels = valid_labels
+
+

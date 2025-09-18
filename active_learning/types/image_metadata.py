@@ -131,7 +131,7 @@ class ExifData(BaseModel):
     _exif_ifd_pointer: int
     _gps_ifd_pointer: int
     bits_per_sample: Optional[int] = Field(default=None, alias="bits_per_sample")
-    body_serial_number: str
+    body_serial_number: Optional[str] = Field(default=None, alias="Serial Number of the Body")
     color_space: ColorSpace
     compression: int
     contrast: int
@@ -162,7 +162,7 @@ class ExifData(BaseModel):
     jpeg_interchange_format: int
     jpeg_interchange_format_length: int
     latitude: float
-    lens_specification: Tuple[float, float, float, float]
+    lens_specification: Tuple[float, float, float, float] | None = Field(default=None, alias="lens_specification")
     light_source: LightSource
     longitude: float
     make: str
@@ -246,12 +246,11 @@ class CompositeMetaData(BaseModel):
     _exif_ifd_pointer: int
     _gps_ifd_pointer: int
     bits_per_sample: int | None = Field(None, alias="bits_per_sample")
-    body_serial_number: str
+    body_serial_number: Optional[str] = Field(default=None, alias="Serial Number of the Body")
     color_space: ColorSpace
     compression: int
     contrast: int
     datetime: str
-    datetime_digitized: datetime
     datetime_original: str
     digital_zoom_ratio: float
     exif_version: str
@@ -278,7 +277,7 @@ class CompositeMetaData(BaseModel):
     jpeg_interchange_format: int
     jpeg_interchange_format_length: int
     latitude: float
-    lens_specification: Tuple[float, float, float, float]
+    lens_specification: Tuple[float, float, float, float] | None = Field(default=None, alias="lens_specification")
     light_source: LightSource
     longitude: float
     make: str
@@ -303,18 +302,18 @@ class CompositeMetaData(BaseModel):
     y_resolution: float
 
     # Everything from XMP
-    GpsLatitude: float = Field(alias="GpsLatitude")
-    GpsLongitude: float = Field( alias="GpsLongitude")
-    GimbalYawDegree: float = Field(alias="GimbalYawDegree")
-    GimbalRollDegree: float = Field(alias="GimbalRollDegree")
-    GimbalPitchDegree: float = Field(alias="GimbalPitchDegree")
+    GpsLatitude: Optional[float] = Field(default=None, alias="GpsLatitude")
+    GpsLongitude: Optional[float] = Field(default=None,  alias="GpsLongitude")
+    GimbalYawDegree: Optional[float] = Field(default=None, alias="GimbalYawDegree")
+    GimbalRollDegree: Optional[float] = Field(default=None, alias="GimbalRollDegree")
+    GimbalPitchDegree: Optional[float] = Field(default=None, alias="GimbalPitchDegree")
 
-    AbsoluteAltitude: float = Field(alias="AbsoluteAltitude")
-    RelativeAltitude: float = Field(alias="RelativeAltitude")
+    AbsoluteAltitude: Optional[float] = Field(default=None, alias="AbsoluteAltitude")
+    RelativeAltitude: Optional[float] = Field(default=None, alias="RelativeAltitude")
 
-    FlightRollDegree: float = Field(alias="FlightRollDegree")
-    FlightYawDegree: float = Field(alias="FlightYawDegree")
-    FlightPitchDegree: float = Field(alias="FlightPitchDegree")
+    FlightRollDegree: Optional[float] = Field(default=None, alias="FlightRollDegree")
+    FlightYawDegree: Optional[float] = Field(default=None, alias="FlightYawDegree")
+    FlightPitchDegree: Optional[float] = Field(default=None, alias="FlightPitchDegree")
 
     FlightXSpeed: Optional[float] = Field(default=None, alias="FlightXSpeed")
     FlightYSpeed: Optional[float] = Field(default=None, alias="FlightYSpeed")
@@ -575,7 +574,7 @@ def xmp_metadata_PIL(img_path: Path):
             except:
                 metadata[xmp_key] = None
     else:
-        print("No XMP metadata found")
+        logger.error("No XMP metadata found")
 
     return metadata
 
@@ -678,9 +677,13 @@ def image_metadata_yaw_tilt(img_path: Path) -> CompositeMetaData:
         logger.warning(f"The Image {src} has no EXIF information")
         raise ImageNotValidException(f"Image has no complete Exif data, with image {img_path}")
 
+    try:
+        dict_xmp_metadata = xmp_metadata_PIL(img_path)
+        obj_xmp_metadata = XMPMetaData(**dict_xmp_metadata) # TODO check if this works
+    except Exception as e:
+        logger.error(f"Problem with XMP metadata in image {img_path}, {e}")
+        dict_xmp_metadata = {}
 
-    dict_xmp_metadata = xmp_metadata_PIL(img_path)
-    obj_xmp_metadata = XMPMetaData(**dict_xmp_metadata) # TODO check if this works
 
     metadata = {}
     metadata["image_hash"] = get_image_id(img_path)

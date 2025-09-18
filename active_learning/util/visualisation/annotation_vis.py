@@ -237,7 +237,7 @@ def visualise_points_only(points: List[shapely.Point],
     Simplified function to visualize just points.
     """
     if ax is None:
-        fig, ax = plt.subplots(1, figsize=(10, 8))
+        fig, ax = plt.subplots(1, figsize=(5, 5))
 
     if not points:
         logger.warning("No points to visualize")
@@ -263,7 +263,7 @@ def visualise_points_only(points: List[shapely.Point],
             if i < len(labels):
                 if text_buffer:
                     # add a small box around the text in white is it is easier to read
-                    ax.text(x + 5, y + 5, labels[i], fontsize=font_size,
+                    ax.text(x + 35, y + 5, labels[i], fontsize=font_size,
                             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
 
 

@@ -7,11 +7,11 @@ from pathlib import Path
 
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
-labels_path = Path("/Users/christian/data/training_data/2025-07-02")
+labels_path = Path("/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
 
 # hacky way
 # get a list of images which are in a dataset
-labels_file_path = labels_path / "unzipped_hasty_annotation/labels_2025_07_03.json"
+labels_file_path = labels_path / "unzipped_hasty_annotation//raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/unzipped_hasty_annotation/fernandina_s_correction_hasty_corrected_1.json"
 df_flat = HastyAnnotationV2.from_file(labels_file_path).get_flat_df()
 
 # dataset_mask = df_flat['dataset_name'] == "Fer_FCD01-02-03_20122021_single_images"

@@ -15,7 +15,7 @@ from active_learning.util.geospatial_slice import GeoSpatialRasterGrid, GeoSlice
 from active_learning.util.geospatial_transformations import get_geotiff_compression, get_gsd
 from active_learning.util.image_manipulation import convert_tiles_to
 from active_learning.util.projection import project_gdfcrs
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
 

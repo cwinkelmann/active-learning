@@ -56,7 +56,7 @@ for index, row in df_progress.iterrows():
 
     # Find matching geojson
     matching_shapefile = None
-    for shp in geojson_files:
+    for shp in shapefiles:
         if orthophoto_name in str(shp):
             matching_shapefile = shp
             break

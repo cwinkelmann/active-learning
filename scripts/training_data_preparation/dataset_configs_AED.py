@@ -12,7 +12,7 @@ from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepR
 from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from active_learning.util.visualisation.annotation_vis import visualise_points_only
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import (visualise_image, visualise_polygons)
@@ -37,6 +37,7 @@ num = None # Amount of image to take
 labels_path = base_path / f"AED_{crop_size}_overlap_{overlap}"
 flatten = True
 unpack = False
+crop = True
 
 train_aed = DatasetFilterConfig(**{
     "dset": "train",
@@ -50,6 +51,7 @@ train_aed = DatasetFilterConfig(**{
     "annotation_types": annotation_types,
     "class_filter": class_filter,
     "crop_size": crop_size,
+    "crop": crop,
 })
 test_aed = DatasetFilterConfig(**{
     "dset": "test",
@@ -62,6 +64,7 @@ test_aed = DatasetFilterConfig(**{
     "annotation_types": annotation_types,
     "class_filter": class_filter,
     "crop_size": crop_size,
+"crop": crop,
 })
 
 datasets = [train_aed, test_aed]

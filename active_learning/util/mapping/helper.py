@@ -55,8 +55,11 @@ def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
 
 
 def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
-                           length_km=100, segments=4, height_fraction=0.015,
-                           web_mercator_projection_epsg=3857, WSG84_projection_epsg=4326):
+                           length_km=100,
+                           segments=4,
+                           height_fraction=0.015,
+                           web_mercator_projection_epsg=3857,
+                           WSG84_projection_epsg=4326):
     """
     Draw a scalebar that accounts for the scale variation in Web Mercator projection
     by using the center latitude of the map.
@@ -125,8 +128,111 @@ def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
             bbox=dict(boxstyle="round,pad=0.3", facecolor='white',
                       edgecolor='gray', alpha=0.9))
 
+def draw_accurate_scalebar_v2(ax,
+                           location_relative=(0.05, 0.05),  # Use relative positioning
+                           length_km=100,
+                           segments=4,
+                           height_relative=0.02,  # Height as fraction of map height
+                           web_mercator_projection_epsg=3857,
+                           WSG84_projection_epsg=4326):
+    """
+    Draw a scalebar that accounts for the scale variation in Web Mercator projection.
 
-def draw_segmented_scalebar(ax, start=(0.1, 0.05), segments=4, segment_length=1000, height=200,
+    Parameters:
+    - location_relative: tuple, position as (x_fraction, y_fraction) of map extent
+    - height_relative: float, height as fraction of map height
+    """
+    import numpy as np
+    import pyproj
+    import matplotlib.pyplot as plt
+
+    # Get the current axis limits (what's actually displayed)
+    ax_xlim = ax.get_xlim()
+    ax_ylim = ax.get_ylim()
+
+    # Calculate map dimensions from current view
+    map_width = ax_xlim[1] - ax_xlim[0]
+    map_height = ax_ylim[1] - ax_ylim[0]
+
+    # Calculate scalebar position using relative coordinates
+    x0 = ax_xlim[0] + location_relative[0] * map_width
+    y0 = ax_ylim[0] + location_relative[1] * map_height
+
+    # Calculate scalebar height as fraction of visible map height
+    scalebar_height = map_height * height_relative
+
+    # Get center point of current view for latitude calculation
+    center_x = (ax_xlim[0] + ax_xlim[1]) / 2
+    center_y = (ax_ylim[0] + ax_ylim[1]) / 2
+
+    # Transform center point to geographic coordinates
+    transformer = pyproj.Transformer.from_crs(
+        web_mercator_projection_epsg,
+        WSG84_projection_epsg,
+        always_xy=True
+    )
+    _, center_lat = transformer.transform(center_x, center_y)
+
+    # Calculate scale factor for Web Mercator at this latitude
+    scale_factor = 1.0 / np.cos(np.radians(center_lat))
+
+    # Calculate scalebar length in map units (meters for Web Mercator)
+    length_meters = length_km * 1000
+    scalebar_length = length_meters * scale_factor
+
+    # Draw scalebar segments
+    segment_length = scalebar_length / segments
+
+    for i in range(segments):
+        x = x0 + i * segment_length
+
+        # Alternate black and white segments
+        color = 'black' if i % 2 == 0 else 'white'
+
+        # Create rectangle for this segment
+        rect = plt.Rectangle(
+            (x, y0),
+            segment_length,
+            scalebar_height,
+            facecolor=color,
+            edgecolor='black',
+            linewidth=0.5,
+            zorder=10
+        )
+        ax.add_patch(rect)
+
+    # Add distance labels
+    label_y = y0 - scalebar_height * 0.3
+
+    # Label at start
+    ax.text(x0, label_y, '0',
+            ha='center', va='top', fontsize=8, fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                     edgecolor='none', alpha=0.8))
+
+    # Label at end
+    ax.text(x0 + scalebar_length, label_y, f'{length_km} km',
+            ha='center', va='top', fontsize=8, fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                     edgecolor='none', alpha=0.8))
+
+    # Add intermediate labels if more than 2 segments
+    if segments > 2:
+        for i in range(1, segments):
+            if i % 2 == 0:  # Only label every other segment to avoid crowding
+                x_label = x0 + i * segment_length
+                distance_label = int(i * length_km / segments)
+                ax.text(x_label, label_y, f'{distance_label}',
+                        ha='center', va='top', fontsize=7,
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                                 edgecolor='none', alpha=0.8))
+
+
+
+def draw_segmented_scalebar(ax, start=(0.1, 0.05),
+                            segments=4,
+                            segment_length=1000,
+                            height=200,
                             crs_transform=None, units="m", label_step=2):
     """
     Draws a segmented scale bar directly on a matplotlib axis.
@@ -454,10 +560,12 @@ def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
     gdf_mission = gdf_mission.sort_values(by=['datetime_digitized'], ascending=True)
     mission_geometry = shapely.LineString(gdf_mission.geometry)
 
+    # TODO remove outliers where distance > 10
+
     # Calculate the length of the mission in meters
     flight_length = mission_geometry.length
 
-    return flight_length
+    return mission_geometry, flight_length
 
 def get_mission_type(gdf_mission: gpd.GeoDataFrame) -> str:
     """
@@ -473,3 +581,55 @@ def get_mission_type(gdf_mission: gpd.GeoDataFrame) -> str:
         return "nadir"
 
 
+def get_flight_route_type_old(df, reversal_threshold=120, min_reversals=15):
+    """
+    Classify based on number of significant bearing changes
+    """
+    # Calculate bearing differences
+    df['bearing_diff'] = df['bearing_to_prev'].diff().abs()
+
+    # Handle wrap-around (e.g., 350° to 10° should be 20°, not 340°)
+    df['bearing_diff'] = df['bearing_diff'].apply(lambda x: min(x, 360 - x) if pd.notna(x) else x)
+
+    # Count significant reversals (changes > threshold)
+    reversals = (df['bearing_diff'] > reversal_threshold).sum()
+
+    # Classify based on reversal frequency
+    reversal_rate = reversals / len(df) if len(df) > 0 else 0
+
+    if reversals > min_reversals:  # More than 10% of points show reversals
+        return 'zig_zag'
+    else:
+        return 'corridor'
+
+
+def get_flight_route_type(df):
+    """Simple flight pattern classification"""
+    if len(df) < 20:
+        return 'insufficient_data'
+
+    bearings = df['bearing_to_prev'].dropna()
+    if len(bearings) < 10:
+        return 'insufficient_data'
+
+    # Calculate bearing differences
+    bearing_diffs = bearings.diff().abs()
+    bearing_diffs = bearing_diffs.apply(lambda x: min(x, 360 - x) if pd.notna(x) else x)
+
+    # Key insight: True zig-zag has REGULAR large changes, irregular has RANDOM large changes
+    large_changes = bearing_diffs > 90
+
+    if large_changes.sum() < 5:  # Very few direction changes
+        return 'corridor'
+
+    # Check for systematic alternation (zig-zag indicator)
+    # Look at consecutive large changes - zig-zag should cluster them
+    large_change_positions = large_changes[large_changes].index
+    if len(large_change_positions) > 3:
+        gaps = np.diff(large_change_positions)
+        gap_consistency = gaps.std() / max(gaps.mean(), 1)  # Low = regular pattern
+
+        if gap_consistency < 0.8:  # Regular spacing between direction changes
+            return 'zig_zag'
+
+    return 'irregular'

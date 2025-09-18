@@ -20,7 +20,7 @@ from active_learning.filter import ImageFilterConstantNum
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
 from active_learning.util.visualisation.annotation_vis import visualise_points_only, create_simple_histograms, \
     visualise_hasty_annotation_statistics, plot_bbox_sizes
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.visualization.visualize_result import visualise_image
 

@@ -2,7 +2,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-from active_learning.config.mapping import get_island_code, drone_mapping
+from active_learning.config.mapping import get_island_code, drone_mapping, expedition_mapping
 from active_learning.util.rename import get_site_code
 
 
@@ -29,7 +29,13 @@ def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
         lambda x: x.split('_')[0] if isinstance(x, str) and '_' in x else x)
 
     gdf_all['YYYYMMDD'] = gdf_all['datetime_digitized'].dt.strftime('%Y-%m-%d')
-    gdf_all["drone_name"] = gdf_all["body_serial_number"].apply(lambda x: drone_mapping.get(x, "falcon"))
+    # Add expedition phase mapping
+    gdf_all['year_month'] = gdf_all['datetime_digitized'].dt.strftime('%Y_%m')
+
+    # Map the expedition phases
+    gdf_all['expedition_phase'] = gdf_all['year_month'].map(expedition_mapping)
+
+    gdf_all["drone_name"] = gdf_all["body_serial_number"].apply(lambda x: drone_mapping.get(x, "Falcon"))
 
     # Use absolute height value
     gdf_all['gsd_abs_width_cm'] = gdf_all["height"].apply(
@@ -228,11 +234,13 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
     )
 
     # Is the flight a oblique flight or a nadir flight
-    gdf_all['is_oblique'] = gdf_all['GimbalPitchDegree'].apply(
-        lambda pitch: pitch >= -75
-    )
-    gdf_all['is_nadir'] = gdf_all['GimbalPitchDegree'].apply(
-        lambda pitch: pitch < -75
+    def classify_flight_type(pitch):
+        if pitch is None or pd.isna(pitch):
+            return False, True  # oblique=False, nadir=True
+        return pitch >= -75, pitch < -75  # oblique, nadir
+
+    gdf_all[['is_oblique', 'is_nadir']] = gdf_all['GimbalPitchDegree'].apply(
+        lambda pitch: pd.Series(classify_flight_type(pitch))
     )
 
     # Clean up by dropping intermediate columns

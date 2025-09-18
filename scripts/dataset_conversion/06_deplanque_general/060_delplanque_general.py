@@ -15,6 +15,7 @@ from pathlib import Path
 from active_learning.util.image import get_image_id, get_image_dimensions
 from active_learning.util.visualisation.annotation_vis import create_simple_histograms, \
     visualise_hasty_annotation_statistics
+from com.biospheredata.types.status import LabelingStatus
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage, ImageLabel, HastyAnnotationV2, LabelClass
 
 from loguru import logger
@@ -22,7 +23,7 @@ from pathlib import Path
 
 from scripts.dataset_conversion.sanity_check import get_dataset_stats
 
-base_path = Path("/raid/cwinkelmann/training_data/africa_elephants_uliege/general_dataset")
+base_path = Path("/raid/cwinkelmann/training_data/delplanque/general_dataset")
 destination_base_path = base_path / "hasty_style"
 annotations_path = base_path / "groundtruth/json/big_size/"
 
@@ -110,7 +111,7 @@ for item in data_splits:
                     ds_image_name=None,
                     width=width,
                     height=height,
-                    image_status="Done",
+                    image_status=LabelingStatus.COMPLETED,
                     tags=[],
                     image_mode=None,
                     labels=labels

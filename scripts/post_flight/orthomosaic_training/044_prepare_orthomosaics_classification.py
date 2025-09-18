@@ -20,7 +20,7 @@ from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGri
 from active_learning.util.image_manipulation import convert_tiles_to, remove_empty_tiles
 from active_learning.util.projection import convert_gdf_to_jpeg_coords, project_gdfcrs
 from active_learning.util.super_resolution import super_resolve, SuperResolution
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 from geospatial_transformations import get_gsd, get_geotiff_compression
 from util.util import visualise_image, visualise_polygons
 

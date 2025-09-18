@@ -1,10 +1,17 @@
+"""
+very similar to dataset_configs_hasty_point_iguanas but keep boxes and points to to remove points which are too close to the edge
+"""
+
 from pathlib import Path
 
 from active_learning.config.dataset_filter import DatasetFilterConfig
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 
 labels_path = Path(f"/Users/christian/data/training_data/2025_08_10_endgame")
+labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_08_10_boxes")
+
 hasty_annotations_labels_zipped = "full_label_correction_floreana_2025_07_10_train_correction_hasty_corrected_1.json.zip"
+hasty_annotations_labels_zipped = "fernandina_s_correction_hasty_corrected_1.json.zip"
 # hasty_annotations_labels_zipped = "label_correction_floreana_2025_07_10_review_hasty_corrected.json.zip"
 hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
 

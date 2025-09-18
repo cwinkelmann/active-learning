@@ -16,15 +16,18 @@ import pandas as pd
 from loguru import logger
 
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks, find_closest_island
+    draw_accurate_scalebar, get_geographic_ticks, find_closest_island, draw_accurate_scalebar_v2
 
 web_mercator_projection_epsg = 3857
 
 def create_galapagos_expedition_map(
         gpkg_path="/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
-        flight_database_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet",
+        flight_database_path="/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/database_analysis_ready.parquet",
+
         output_path="galapagos_expedition_map.png",
-        dpi=300):
+        dpi=300,
+        draw_inset_map=True,
+label_fontsize=11):
     """
     Creates a map of the Galápagos Islands showing expedition data locations with different colors for each phase.
     """
@@ -109,20 +112,21 @@ def create_galapagos_expedition_map(
                           label=f"{expedition_labels[phase]} ({len(phase_data)} photos)")
 
     # Dictionary of label offsets (dx, dy) in map units
+    # dy small -> it is up, dy negative -> down
     label_offsets = {
         "Santiago": (30000, 10000),
-        "Wolf": (1000, 5000),
-        "Darwin": (1000, 5000),
+        "Wolf": (1000, 6500),
+        "Darwin": (1000, 5500),
         "Santa Fé": (0, -9000),
-        "Española": (10000, 9000),
-        "Isabela": (-10000, 0),
+        "Española": (10000, 10000),
+        "Isabela": (-10000, -40000),
         "Fernandina": (-15000, -21000),
         "Floreana": (0, -14000),
-        "Santa Cruz": (35000, 10000),
+        "Santa Cruz": (35000, 12000),
         "San Cristóbal": (70000, -10000),
         "Genovesa": (10000, 10000),
         "San Cristobal": (10000, 23000),
-        "Marchena": (10000, 10000),
+        "Marchena": (10000, 13000),
         "Pinta": (10000, 10000),
     }
 
@@ -148,8 +152,9 @@ def create_galapagos_expedition_map(
 
         # Add the label with white background for better visibility
         ax.text(label_x, label_y, island_name,
-                fontsize=11, ha='center', va='center',
-                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black'))
+                fontsize=label_fontsize, ha='center', va='center',
+                # bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black')
+                 )
 
     # Title
     ax.set_title('Galápagos Islands - Marine Iguana Survey Expeditions (2020-2024)', fontsize=16, pad=20)
@@ -177,7 +182,7 @@ HNEE/Winkelmann, 2025"""
         ax,
         info_text,
         location='upper right',
-        fontsize=9,
+        fontsize=11,
         alpha=0.8,
         pad=0.5,
         # xy=(0.55, 0.84),  # Custom coordinates in axes fraction
@@ -202,27 +207,43 @@ HNEE/Winkelmann, 2025"""
 
     # Style the tick labels
     for tick in ax.get_xticklabels():
-        tick.set_fontsize(9)
+        tick.set_fontsize(11)
     for tick in ax.get_yticklabels():
-        tick.set_fontsize(9)
+        tick.set_fontsize(11)
+
+    if draw_inset_map:
+        # Adding an inset map to the plot
+        iax = inset_map(ax, location="upper right", size=2.5, pad=0.1, xticks=[], yticks=[])
+        # Add the label with white background for better visibility
+
+        # Plotting alaska in the inset map
+        south_america.plot(ax=iax, color='lightgrey', edgecolor='black', linewidth=0.5, alpha=0.7)
+        if not ecuador.empty:
+            ecuador.plot(ax=iax, color='#AAAAFF', edgecolor='black', linewidth=0.8)
+            iax.text(ecuador.centroid.x - 550000 , ecuador.centroid.y + 300000, "Mainland\n Ecuador",
+                     fontsize=11, ha='center', va='center',
+                     # bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black')
+                     )
+
+        # Creating the extent indicator, which appears by-default as a red square on the map
+        indicate_extent(iax, ax, web_mercator_projection_epsg, web_mercator_projection_epsg)
 
     # Add north arrow
     na = NorthArrow(location="center left", rotation={"degrees": 0}, scale=0.6)
     ax.add_artist(na.copy())
 
     # Add scale bar
-    draw_accurate_scalebar(ax, islands_wm,
-                           location=(islands_wm.total_bounds[0] + 100,
-                                     islands_wm.total_bounds[1] + 100),
-                           length_km=100,  # Total length in km
-                           segments=4,
-                           height=6500)
+    draw_accurate_scalebar_v2(ax,
+                              length_km=100,  # Total length in km
+                              segments=4, height_relative=0.015)
 
     # Add legend for expedition phases
-    legend = ax.legend(loc='upper right',
+    legend = ax.legend(
+        bbox_to_anchor=(0.38, 0.8),
+        loc='upper right',
                       title='Expedition Phases',
-                      fontsize=10,
-                      title_fontsize=11,
+                      fontsize=11,
+                      title_fontsize=12,
                       frameon=True,
                       fancybox=True,
                       shadow=True,
@@ -249,5 +270,6 @@ HNEE/Winkelmann, 2025"""
 
 if __name__ == "__main__":
     create_galapagos_expedition_map(
-        gpkg_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/sampling_issues.gpkg"
+        gpkg_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/sampling_issues.gpkg",
+        flight_database_path="/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/database_analysis_ready.parquet"
     )

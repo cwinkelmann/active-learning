@@ -2,27 +2,39 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.config.dataset_filter import DatasetFilterConfig
-from com.biospheredata.converter.HastyConverter import AnnotationType, LabelingStatus
+from com.biospheredata.types.status import LabelingStatus, AnnotationType
 
 crop_size = 512
-labels_path = Path(f"/Users/christian/data/training_data/2025_07_10_refined")
-hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
-#hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
-hasty_annotations_images_zipped = "label_correction_floreana_2025_07_10_review_hasty_corrected.json.zip"
+labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
+
+# labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_07_10_classic")
+# labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_08_10_boxes")
+
+# hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
+# hasty_annotations_labels_zipped = "fernandina_s_correction_hasty_corrected_1.json.zip"
+# hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
+
+hasty_annotations_labels_zipped = "full_label_correction_floreana_2025_07_10_train_correction_hasty_corrected_1.json.zip"
+hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
 
 
-labels_name = "/Users/christian/data/training_data/2025_07_10_final_point_detection/Floreana_detection/val/corrections/label_correction_floreana_2025_07_10_review_hasty_corrected.json"
+# labels_name = "/Users/christian/data/training_data/2025_07_10_final_point_detection/Floreana_detection/val/corrections/label_correction_floreana_2025_07_10_review_hasty_corrected.json"
+# labels_name = "/raid/cwinkelmann/training_data/iguana/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json"
 
 annotation_types = [AnnotationType.KEYPOINT]
 class_filter = ["iguana_point"]
-
 label_mapping = {"iguana_point": 1, "iguana": 2}
+
+# annotation_types = [AnnotationType.BOUNDING_BOX]
+# class_filter = ["iguana"]
 
 
 overlap = 0
 VISUALISE_FLAG = False
 empty_fraction = 0
-multiprocessing = False
+use_multiprocessing = False
+unpack = True
+flatten = True
 
 datasets_mapping = {
     "Floreana": ['Floreana_22.01.21_FPC07', 'Floreana_03.02.21_FMO06', 'FLMO02_28012023', 'FLBB01_28012023',
@@ -71,17 +83,16 @@ datasets_mapping = {
 train_floreana_sample = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "floreana_sample",
-    "dataset_filter": datasets_mapping["Fernandina_m"],
-    "images_filter": ["FCD01-02-03_20122021_Fernandina_m_3_8.jpg"],
-    "output_path": labels_path,
+    "dataset_filter": datasets_mapping["Floreana_1"],
+    # "images_filter": ["FCD01-02-03_20122021_Fernandina_m_3_8.jpg"],
+     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
     "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
     "class_filter": class_filter,
     "crop_size": crop_size,
-
-    # "num": 1
+    "num": 3
 })
 train_genovesa = DatasetFilterConfig(**{
     "dset": "train",
@@ -269,9 +280,10 @@ val_single_all = DatasetFilterConfig(**{
 train_all = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "All_detection",
-    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"] + datasets_mapping[
-        "Fernandina_s_2"] + datasets_mapping["Fernandina_s_1"] + datasets_mapping["Fernandina_m_fpm"] +
-                      datasets_mapping["Fernandina_m_fcd"] + datasets_mapping["Genovesa"],
+    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"]
+                      + datasets_mapping["Fernandina_s_2"] + datasets_mapping["Fernandina_s_1"]
+                      + datasets_mapping["Fernandina_m_fpm"] + datasets_mapping["Fernandina_m_fcd"]
+                       + datasets_mapping["Genovesa"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -281,11 +293,72 @@ train_all = DatasetFilterConfig(**{
     "crop_size": crop_size,
 })
 
+# the wining datasets_mapping combination
+train_winning = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "All_detection_winning",
+    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"]
+                      + datasets_mapping["Floreana_2"]
+                      + datasets_mapping["Fernandina_m_fpm"]
+                    + datasets_mapping["Fernandina_s_2"] # fpm and fpe
+                    + datasets_mapping["Genovesa"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    #"edge_black_out": edge_black_out,
+    # "num": num,
+    # "crop": False,
+"remove_default_folder": False,
+})
+
+
+# the wining datasets_mapping combination
+val_winning = DatasetFilterConfig(**{
+    "dset": "val",
+    "dataset_name": "All_detection_winning",
+    "dataset_filter": datasets_mapping["Fernandina_s_1"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    #"edge_black_out": edge_black_out,
+    # "num": num,
+    # "crop": False,
+"remove_default_folder": False,
+})
+
+# the wining datasets_mapping combination
+val_winning_fcd_m = DatasetFilterConfig(**{
+    "dset": "val_fcd_m",
+    "dataset_name": "All_detection_winning",
+    "dataset_filter": datasets_mapping["Fernandina_m_fcd"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    #"edge_black_out": edge_black_out,
+    # "num": num,
+    # "crop": False,
+"remove_default_folder": False,
+})
+
 datasets = [
-    #train_floreana_sample,
+    # train_floreana_sample,
     train_floreana, val_floreana,
+    # train_winning, val_winning,
+    # val_winning_fcd_m
     # train_fernandina_m, val_fernandina_m,
-    # train_fernandina_s1, val_fernandina_s2,
+    train_fernandina_s1, val_fernandina_s2,
     # train_genovesa, val_genovesa,
     # train_rest,
     # train_all,

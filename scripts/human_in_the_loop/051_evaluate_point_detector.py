@@ -23,7 +23,7 @@ from com.biospheredata.converter.Annotation import project_point_to_crop
 import shapely
 import fiftyone as fo
 
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file
 import matplotlib.pyplot as plt
 import pandas as pd

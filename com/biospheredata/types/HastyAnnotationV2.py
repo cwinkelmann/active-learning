@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from scipy.spatial import Voronoi
 from shapely import Polygon
 
+from com.biospheredata.types.status import LabelingStatus
 from com.biospheredata.types.decorators import deprecated_warning
 
 
@@ -266,7 +267,7 @@ class AnnotatedImage(ImageLabelCollection):
     dataset_name: Optional[str] = Field(default=None, alias='dataset_name')
     ds_image_name: Optional[str] = Field(default=None)
 
-    image_status: Optional[str] = "Done"
+    image_status: Optional[str | LabelingStatus] = "DONE"
     tags: Optional[List[str]] = Field(default=list(), alias='tags')
 
     image_mode: Optional[str] = None

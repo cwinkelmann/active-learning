@@ -23,7 +23,7 @@ from active_learning.util.image import get_image_id
 from active_learning.util.image_rasterization import generate_positions
 #
 from com.biospheredata.converter.Annotation import add_offset_to_box
-from com.biospheredata.converter.HastyConverter import ImageFormat, AnnotationType
+from com.biospheredata.types.status import AnnotationType, ImageFormat
 from com.biospheredata.types.HastyAnnotationV2 import AnnotatedImage
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabelCollection, PredictedImageLabel, Keypoint
 from com.biospheredata.visualization.visualize_result import blackout_bbox, visualise_image, visualise_polygons
@@ -325,7 +325,9 @@ def crop_by_regular_grid(
         edge_black_out: bool = True,
         visualisation_path: Path = None,
         annotated_types: typing.List[AnnotationType] = None,
-        grid_manager: typing.Callable = None):
+        grid_manager: typing.Callable = None,
+keep_cut_box = True
+):
     """
 
     :param crop_size:
@@ -810,9 +812,9 @@ class RasterCropperBoxes(RasterCropper):
 
     def __init__(self, hi: AnnotatedImage, rasters: List[shapely.Polygon], full_image_path: Path, output_path: Path,
                  dataset_name: str = DATA_SET_NAME, include_empty: float = 0.0, edge_blackout=True,
-                 sample_strategy=SpatialSampleStrategy.RANDOM):
+                 sample_strategy=SpatialSampleStrategy.RANDOM, keep_cut_box=True):
         self.masks = {}
-
+        self.keep_cut_box = keep_cut_box
         super().__init__(hi, rasters, full_image_path, output_path, dataset_name, include_empty, edge_blackout,
                          sample_strategy)
 
@@ -941,7 +943,10 @@ class RasterCropperBoxes(RasterCropper):
                             attributes=annotation.attributes,
                         )
                         il.attributes["edge_partial"] = True
+                        il.attributes["kept_box_size"] = intersection.area / annotation.bbox_polygon.area 
                         partial_slice_labels.append(il)
+                        if self.keep_cut_box:
+                            full_slice_labels.append(il)
 
 
                     else:

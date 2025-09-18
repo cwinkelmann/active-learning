@@ -24,6 +24,20 @@ prefix_mapping = {
 }
 
 
+
+expedition_mapping = {
+    "2020_01": 1,
+    "2021_01": 2,
+    "2021_02": 2,
+    "2021_12": 3,
+    "2023_01": 4,
+    "2023_02": 4,
+    "2024_01": 5,  # from the El Niño folder
+    "2024_04": 6,  # from the El Niño folder
+    "2024_05": 6,  # from the El Niño folder
+}
+
+
 def get_island_code():
     """
     Create a mapping dictionary that extracts the part before '_' from each value
@@ -47,15 +61,16 @@ def get_island_code():
     return mapping
 
 drone_mapping = {
-    '0K8TFAK0025193': 'Sula',
-    '0K8TH7Q0121445': 'Nazca',
-    '0K8TG920120534': 'Condor',
-    '0K8THB60120896': 'Mockingbird',
-    '0K8TG140020164': 'Owl',
-    '0K8TH9C0120310': 'Brujo',
-    '0K8TH7F0120402': 'Hawk',
-    '0K8THC20120846': 'Unknown_2',
-    '0K8THA50120194': 'Unknown_3',
+        '0K8TFAK0025193': 'Sula',
+        '0K8TH7Q0121445': 'Nazca',
+        '0K8TG920120534': 'Condor',
+        '0K8THB60120896': 'Mockingbird',
+        '0K8TG140020164': 'Owl',
+        '0K8TH9C0120310': 'Brujo',
+        '0K8TH7F0120402': 'Hawk',
+        '0K8THC20120846': 'Tropical bird',
+        '0K8THA50120194': 'Pelicano',
+    # The mavic Enterprise woud be Albatross
 }
 
 # TODO this has to become more flexible
