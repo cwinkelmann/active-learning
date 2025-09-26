@@ -21,8 +21,11 @@ import matplotlib.patches as patches
 import matplotlib.axes as axes
 from shapely import Polygon
 from PIL import Image as PILImage
+
+from active_learning.util.visualisation.annotation_vis import visualise_points_only
+
 PILImage.Image.MAX_IMAGE_PIXELS = 5223651122
-from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, HastyAnnotationV2
+from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, HastyAnnotationV2, ImageLabelCollection
 from com.biospheredata.types.annotationbox import Annotation
 from contextlib import contextmanager
 
@@ -326,3 +329,44 @@ def visualise_hasty_annotations(hA: HastyAnnotationV2, images_path: Path, output
                                     ax=ax, show=False, filename=output_path / f"{image_name}_all_annotations.jpg")
 
 
+def visualise_hasty_annotation(image: ImageLabelCollection, images_path: Path,
+                               output_path: Path | None = None, show: bool = False, title: str | None = None):
+    if output_path is not None:
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    labels = image.labels
+    if labels is None or len(labels) == 0:
+        logger.warning(f"Image {image.image_name} has no labels")
+    else:
+        image_name = image.image_name
+        i_width, i_height = image.width, image.height
+
+        ax_ig = visualise_image(image_path=images_path / image_name, show=False, title=title,
+                                figsize=(5, 5), dpi=150)
+
+        # segmentation masks
+        ax = visualise_polygons([il.polygon_s for il in labels if il.polygon is not None],
+                                filename=None,
+                                show=False, max_x=i_width, max_y=i_height, color="r", ax=ax_ig)
+
+        # bounding boxes
+        ax = visualise_polygons([il.bbox_polygon for il in labels if il.bbox_polygon is not None],
+                                filename=None,
+                                show=False,
+                                title=title,
+                                max_x=i_width,
+                                max_y=i_height,
+                                color="white",
+                                ax=ax)
+
+        # dots
+        ax = visualise_points_only(points=[il.incenter_centroid for il in labels if il.incenter_centroid is not None],
+                                   ax=ax, show=show,
+                                   markersize=4,
+                                   font_size=7,
+                                   filename=output_path / f"{image_name}_all_annotations.jpg",
+                                   title=title)
+
+        plt.tight_layout()
+
+        return ax

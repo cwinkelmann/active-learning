@@ -69,23 +69,36 @@ def shift_keypoint_label(corrected_label: ImageLabel, hA_prediction: HastyAnnota
 
 
 
-def main(config: GeospatialDatasetCorrectionConfig):
+def main(config: GeospatialDatasetCorrectionConfig, hA_to_update: Path):
+    """
 
+    :param config:
+    :return:
+    """
 
     hA_prediction_path = config.hasty_intermediate_annotation_path
     if hA_prediction_path is None:
-        raise NoLabelsError("hA_prediction_path is None")
+        hA_prediction_path = configs_path / f"{config.dataset_name}_intermediate_hasty.json" # in the current folder
+        if hA_prediction_path.exists():
+            logger.info(f"Guessing {hA_prediction_path} as hasty intermediate annotation path sucessful")
+        else:
+            raise NoLabelsError("hA_prediction_path is None")
     hA_prediction = HastyAnnotationV2.from_file(file_path=hA_prediction_path)
     #
     # # the 256px crops
     # hA_prediction_tiled_path = output_path / f"{dataset_name}_tiled_hasty.json"
     # hA_prediction_tiled = HastyAnnotationV2.from_file(file_path=config.hA_prediction_tiled_path)
 
-    hA_reference = HastyAnnotationV2.from_file(config.hasty_reference_annotation_path)
+    if hA_to_update is None:
+        hA_reference = HastyAnnotationV2.from_file(config.hasty_reference_annotation_path)
+    else:
+        hA_reference = HastyAnnotationV2.from_file(hA_to_update)
     hA_reference_updated = hA_reference.copy(deep=True)
     view, dataset = download_cvat_annotations(dataset_name=config.dataset_name)
 
     hA_updated = foDataset2Hasty(hA_template=hA_prediction, dataset=dataset, anno_field="iguana")
+    for image in hA_updated.images:
+        image.dataset_name = config.dataset_name
 
     new_boxes = 0
     new_points = 0
@@ -97,16 +110,16 @@ def main(config: GeospatialDatasetCorrectionConfig):
     # analyse the changes. On the other hand that could happen later
     # create a new annotations from the changes and save everything
     hA_updated.save(config.output_path / f"{config.dataset_name}_corrected_intermediate_hasty.json")
-    gdf_annoation = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_updated)
+    gdf_annotation = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_updated)
 
     corrected_path = config.output_path / f"{config.dataset_name}_corrected_annotation.geojson"
-    gdf_annoation.to_file(filename=corrected_path, driver="GeoJSON")
+    gdf_annotation.to_file(filename=corrected_path, driver="GeoJSON")
     logger.info(f"corrected file saved to : {corrected_path}")
 
     # Now we can project every annotation to the original orthomosaic coordinates
     for i, annotated_image in enumerate(hA_updated.images):
         point_existing = False
-
+        # TODO implement this changes part
         for j, corrected_label in enumerate(annotated_image.labels):
 
             pass
@@ -117,10 +130,10 @@ def main(config: GeospatialDatasetCorrectionConfig):
     # hA_reference_updated.save(corrected_full_path)
     # logger.info(f"Saved corrected hasty annotation to {corrected_full_path}")
     #
-    # config.corrected_path = corrected_full_path
-    #
-    # config.save(report_path)
-    # logger.info(f"Saved report config to {report_path}")
+    config.corrected_path = corrected_path
+    report_path = corrected_path.parent / f"{corrected_path.stem}_correction_config.json"
+    config.save(report_path)
+    logger.info(f"Saved report config to {report_path}")
 
 if __name__ == "__main__":
     # report_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/FLPC03_correction_config.json")
@@ -133,13 +146,31 @@ if __name__ == "__main__":
     #
     # logger.info(f"Processed {r} config")
 
-    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
+    prefixes_ready_to_analyse = [
+        # "flo_",
+        # "fer_fni03_04_19122021",
+        # "fer_fpe09_18122021",
+        # "fer_fnd02_19122021",
+        # "fer_fef01_02_20012023",
+        # "fer_fna01_02_20122021",
+        # "fer_fnj01_19122021",
+        "fer_fpm05_24012023",
+    ]
+
+    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected')
+    hA_to_update = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data/2025_09_19_orthomosaic_data_combined_corrections.json")
 
     for dataset_correction_config in (f for f in configs_path.glob("*_config.json") if not f.name.startswith("._")):
+        if not any(dataset_correction_config.name.lower().startswith(p) for p in prefixes_ready_to_analyse):
+            logger.info(f"Skipping {dataset_correction_config} as it does not match any of the prefixes")
+            continue
         try:
             config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
-            r = main(config)
+            r = main(config, hA_to_update=hA_to_update)
     
             logger.info(f"Processed {r} config")
         except NoLabelsError as e:
             logger.warning(f"No labels found for {dataset_correction_config}, {e} skipping")
+        except ValueError as e:
+            if e.__str__().startswith("Dataset has no annotation run key "):
+                logger.error(f"No annotation run found for {dataset_correction_config}, {e} . That should not happend if that was uploaded to cvat, skipping")

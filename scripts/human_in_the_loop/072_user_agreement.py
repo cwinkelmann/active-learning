@@ -4,6 +4,11 @@ Given the model is not perfect, we need to apply a correction factor to the mode
 THere is user bias, i.e. some is rather overcounting or undercounting. Usuually this can't be determined
 Then there is the bias of the model which would be determined.
 
+This will look for points
+a) the AI found and humans did not mark
+b) the humans marked and the AI did not find
+c) the points both marked
+
 """
 import typing
 

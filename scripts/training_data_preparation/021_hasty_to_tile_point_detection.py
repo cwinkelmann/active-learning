@@ -1,6 +1,8 @@
 """
 Create patches from images and labels from hasty annotation files to be used in CVAT/training
 """
+from pathlib import Path
+
 import gc
 import json
 import pandas as pd
@@ -19,7 +21,7 @@ from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import visualise_polygons, visualise_image
 
-iguana_special_stats = True
+iguana_special_stats = False
 import dataset_configs_hasty_point_iguanas as dataset_configs
 
 # import dataset_configs_AED as dataset_configs
@@ -30,6 +32,7 @@ import dataset_configs_hasty_point_iguanas as dataset_configs
 
 if __name__ == "__main__":
     if iguana_special_stats:
+        # this only works if there the data is georeferenced
         # pd.DataFrame(dataset_configs.datasets_mapping)
         rows = []
         for group, datasets in dataset_configs.datasets_mapping.items():
@@ -39,6 +42,13 @@ if __name__ == "__main__":
         df = pd.DataFrame(rows)
         df_grouped = df.groupby('Dataset_Group')['Dataset_ID'].agg(lambda x: ', '.join(x)).reset_index()
         df_grouped.to_latex("dataset_mapping.tex", index=False)
+        base_path = Path("/raid/cwinkelmann/work/active_learning/mapping/database/")
+        base_path_mapping = base_path / "mapping"
+        base_path_mapping.mkdir(parents=True, exist_ok=True)
+        flight_database_path = Path(base_path / "2020_2021_2022_2023_2024_database_analysis_ready.parquet")
+        CRS_utm_zone_15 = "32715"
+        import geopandas as gpd
+        flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=CRS_utm_zone_15)
 
 
     for dataset in dataset_configs.datasets:
@@ -189,7 +199,7 @@ if __name__ == "__main__":
 
         try:
             shutil.rmtree(destination_path)
-            logger.warning(f"Removed {destination_path}")
+            logger.warning(f"Removed {destination_path} prior to writing the new dataset. This is to avoid stale data to remain there.")
         except FileNotFoundError:
             pass
         shutil.move(output_path_dset / f"crops_{dataset_configs.crop_size}", destination_path)

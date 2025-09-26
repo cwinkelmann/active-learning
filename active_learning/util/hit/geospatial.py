@@ -66,7 +66,8 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
                  submit_to_CVAT=False,
                  include_reference=False,
                  delete_dataset_if_exists=False,
-                 radius=0.3
+                 radius=0.3,
+                    cvat_upload = False
                  ):
     """
     Main function for geospatial human in the loop correction of batches
@@ -86,23 +87,26 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
 
     for config in configs.configs:
         logger.info(f"Processing config: {config.image_path.name}")
-        try:
-            # TODO manage the datasets better!
-            if fo.dataset_exists(config.dataset_name) and delete_dataset_if_exists:
-                logger.warning(f"Deleting existing dataset {config.dataset_name}")
-                fo.delete_dataset(config.dataset_name)
-            else:
-                logger.warning(f"FiftyOne Dataset already exists: {config.dataset_name}")
-        except:
-            logger.warning(f"Dataset {config.dataset_name} does not exist")
+        if submit_to_CVAT:
+            try:
+                # TODO manage the datasets better!
+                if fo.dataset_exists(config.dataset_name) and delete_dataset_if_exists:
+                    logger.warning(f"Deleting existing dataset {config.dataset_name}")
+                    fo.delete_dataset(config.dataset_name)
+                else:
+                    logger.warning(f"FiftyOne Dataset already exists: {config.dataset_name}")
+            except:
+                logger.warning(f"Dataset {config.dataset_name} does not exist")
 
-        try:
-            # Create an empty dataset, TODO put this away so the dataset is just passed into this
-            dataset = fo.Dataset(name=config.dataset_name)
-            dataset.persistent = True
-        except:
-            logger.info(f"Dataet already exists, skipping thre rest")
-            continue
+            try:
+                # Create an empty dataset, TODO put this away so the dataset is just passed into this
+                dataset = fo.Dataset(name=config.dataset_name)
+                dataset.persistent = True
+            except:
+                logger.info(f"Dataet already exists, skipping thre rest")
+                continue
+        else:
+            logger.info("FiftyOne and CVAT submission disabled, working locally only")
 
         assert isinstance(config, GeospatialDatasetCorrectionConfig)
 
@@ -117,6 +121,10 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
                 gdf_prediction_points = verfify_points(gdf_prediction_points, config)
                 gdf_prediction_points["species"] = species  # TODO that is a bit of a hack, but whatever
 
+                gdf_prediction_points.to_file(
+                    filename=vis_output_dir / f"predictions_a_{config.image_path.stem}.geojson",
+                    driver='GeoJSON')
+
                 # There are two modes:
                 # 1. include the reference data into the evaluation, i.e. human vs ai or ai vs ai or even human vs human
                 # 2. just submit the first prediction to CVAT
@@ -124,6 +132,10 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
                     gdf_reference_points = gpd.read_file(config.geojson_reference_annotation_path)
                     gdf_reference_points = verfify_points(gdf_reference_points, config)
                     gdf_reference_points["species"] = species
+
+                    gdf_reference_points.to_file(
+                        filename=vis_output_dir / f"predictions_b_{config.image_path.stem}.geojson",
+                        driver='GeoJSON')
 
                     df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_geospatial_single_image(
                         gdf_detections=gdf_prediction_points,
@@ -165,6 +177,7 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
                     filename=vis_output_dir / f"occupied_grid_{config.image_path.stem}.geojson",
                     driver='GeoJSON')
 
+
                 gdf_sliced_points = slicer_occupied.slice_annotations_regular_grid(gdf_prediction_points,
                                                                                    grid_gdf_filtered)
                 gdf_sliced_points
@@ -177,8 +190,11 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
                                                    output_dir=converted_tile_output_dir, )
                 converted_tiles = [a for a in converted_tiles]
 
-                samples = [fo.Sample(filepath=path) for path in converted_tiles]
-                dataset.add_samples(samples)
+                if submit_to_CVAT:
+                    samples = [fo.Sample(filepath=path) for path in converted_tiles]
+                    dataset.add_samples(samples)
+                else:
+                    logger.info("FiftyOne and CVAT submission disabled, working locally only")
 
                 gdf_sliced_points["images"] = gdf_sliced_points["tile_name"].apply(
                     lambda x: f"{x}.{str(format.value)}"
@@ -195,17 +211,20 @@ def batched_main(configs: GeospatialDatasetCorrectionConfigCollection,
 
                 hA_intermediate_path = configs.output_path / f"{config.dataset_name}_intermediate_hasty.json"
                 config.hasty_intermediate_annotation_path = hA_intermediate_path
+
+                # raise ValueError("TODO, it seems this is not persisted")
+
                 hA_reference.images = predicted_images
                 hA_reference.save(hA_intermediate_path)
 
-                return predicted_images
+                return predicted_images, config
 
             else:
                 raise NotImplementedError(
                     "Non-geospatial correction not implemented yet. This should be easy to do though and is part of the of the other HIT_fp script")
 
         try:
-            predicted_images = preppare_online_checkup(config)
+            predicted_images, config = preppare_online_checkup(config)
 
             if submit_to_CVAT:
                 dataset = submit_for_cvat_evaluation(dataset=dataset,

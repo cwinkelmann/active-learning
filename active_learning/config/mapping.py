@@ -79,3 +79,55 @@ keypoint_id_mapping = {
     "iguana" : "ed18e0f9-095f-46ff-bc95-febf4a53f0ff"
 
 }
+
+mission_names_filter = [
+    # Floreana, clockwise order
+    {"island_name": "Floreana", "missions": ["FLMO04_03022021", "FLMO05_03022021", "FLMO06_03022021"]},
+    {"island_name": "Floreana", "missions": ["FLMO01_02022021", "FLMO02_02022021", "FLMO03_02022021"]},
+    {"island_name": "Floreana", "missions": ["FLMO02_28012023"]},
+    {"island_name": "Floreana", "missions": ["FLBB01_28012023"]},  # intersection with annotated raster
+    {"island_name": "Floreana", "missions": ["FLPC07_22012021"]},  # intersection with annotated raster
+    {"island_name": "Floreana", "missions": ["FLPA03_21012021"]},
+    {"island_name": "Floreana", "missions": ["FLSCA02_23012021"]},
+
+    # Genovesa, clockwise order
+    {"island_name": "Genovesa", "missions": ["GES06_04122021", "GES07_04122021"]},  # intersection with annotated raster
+    {"island_name": "Genovesa", "missions": ["GES13_05122021"]},  # intersection with annotated raster
+
+    # Santiago
+    {"island_name": "Santiago", "missions": ["STJB01_10012023"]},
+
+    # Fernandina
+    {"island_name": "Fernandina", "missions": ["FCD01_20122021", "FCD02_20122021", "FCD03_20122021"]},
+    {"island_name": "Fernandina", "missions": ["FPE01_18122021"]},
+    {"island_name": "Fernandina", "missions": ["FEA01_18122021"]},  # accidentally assigned to Floreana in Hasty
+]
+
+
+orthomosaic_training_mapping = [
+    {
+        "experiment": "HQ_body",
+        "orthomosaic": "FLPC01-07_22012021",
+        "programm": "Pix4D", "path": "/Volumes/G-DRIVE/Iguanas_From_Above_Orthomosaics/FLPC01-07_22012021/exports/FLPC01-07_22012021-orthomosaic.tiff",
+        "annotations": "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/FLPC01_07_22012021.gpkg"
+    },
+    {
+        "experiment": "LQ_body",
+        "orthomosaic": "FLPC01-07_22012021",
+        "programm": "Metashape",
+        "path": "/Volumes/G-DRIVE/Iguanas_From_Above_Orthomosaics/FLPC01-07_22012021/exports/FLPC01-07_22012021-orthomosaic.tiff",
+        "annotations_gpkg": "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/FLPC01_07_22012021.gpkg",
+        "layer_name": "Flo_FLPC01_22012021 counts"
+    },
+    {
+        "experiment": "LQ_body",
+        "orthomosaic": "FLPC01-07_22012021",
+        "programm": "Metashape",
+        "path": "/Volumes/G-DRIVE/Iguanas_From_Above_Orthomosaics/FLPC01-07_22012021/exports/FLPC01-07_22012021-orthomosaic.tiff",
+        "annotations_gpkg": "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/FLPC01_07_22012021.gpkg",
+        "layer_name": "Flo_FLPC01_22012021 counts"
+    }
+
+
+
+]

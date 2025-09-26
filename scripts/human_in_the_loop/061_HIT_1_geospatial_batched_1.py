@@ -19,12 +19,23 @@ from active_learning.util.hit.geospatial import batched_main
 def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
                                          # orthomosaics_base_path: Path,
 
-                                         predictions_base_path: Path,
-                                         human_prediction_base_path: Path,
+                                         predictions_a_base_path: None | Path,
+                                         prediction_B_base_path: None | Path,
                                          hasty_reference_annotation_path: Path,
                                          output_path: Path,
                                          box_size=800
                                          ):
+    """
+    helper script to generate config files for multiple orthomosaics
+    :param df_mapping:
+    :param predictions_base_path:
+    :param prediction_B_base_path:
+    :param hasty_reference_annotation_path:
+    :param output_path:
+    :param box_size:
+    :return:
+    """
+
     for i, row in df_mapping.iterrows():
         logger.info(f"Processing {i+1}/{len(df_mapping)}: {row['Orthophoto/Panorama/3Dmodel name']}")
 
@@ -38,25 +49,36 @@ def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
             logger.warning(f"Skipping {row['shp_file_path']} as no shapefile is available")
             continue
 
-        human_prediction_path = human_prediction_base_path / row['island_code'] / Path(
-            row['shp_file_path']).with_suffix(".geojson").name
+
         orthomosaic_path = Path(row["images_path"])
 
         # usually the prediction of ml model, could be of a person too
-        prediction_a_path = predictions_base_path / f"{Path(row['images_path']).stem}_detections.geojson"
 
+
+        prediction_a_path = predictions_a_base_path / row['island_code'] / Path(
+                row['shp_file_path']).with_suffix(".geojson").name
+        dataset_name = Path(row['images_path']).stem
+        
         if not prediction_a_path.exists():
             logger.warning(f"prediction_a_path {prediction_a_path} does not exist")
-            continue
 
-        if not human_prediction_path.exists():
-            logger.info(f"Human prediction path {human_prediction_path} does not exist, skipping")
+
+
+        if prediction_B_base_path is not None:
+            predicton_b = prediction_B_base_path / f"{Path(row['images_path']).stem}_detections.geojson"
+            
+            dataset_name = predicton_b.stem
+            
+            if not predicton_b.exists():
+                logger.info(f" prediction B path {predicton_b} does not exist")
+        else:
+            predicton_b = None
 
         if not orthomosaic_path.exists():
-            logger.warning(f"Prediction path {orthomosaic_path} does not exist, skipping")
+            logger.error(f"Prediction path {orthomosaic_path} does not exist, skipping")
             continue
 
-        dataset_name = human_prediction_path.stem
+
 
         # replace spaces and special characters with underscores
         dataset_name = dataset_name.replace(" ", "_").replace("-", "_").replace(".", "_")
@@ -67,7 +89,7 @@ def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
             dataset_name=dataset_name,
             type="points",
             geojson_prediction_path=prediction_a_path,
-            geojson_reference_annotation_path=human_prediction_path,
+            geojson_reference_annotation_path=predicton_b, # TODO this can be optional
             output_path=output_path,
             image_path=orthomosaic_path,
             hasty_reference_annotation_path=hasty_reference_annotation_path,
@@ -99,7 +121,7 @@ if __name__ == "__main__":
     # Name of the
     dataset_name = "main_dataset_correction_2025_08_28"
 
-    base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy")
+    base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected")
 
     base_path_corrected = Path(
         "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/corrected")
@@ -146,9 +168,9 @@ if __name__ == "__main__":
     #     '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/shapefile_orthomosaic_mapping.csv'))
     df_mapping_csv = pd.read_csv(Path(
         '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
-    # df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Fernandina']
+    df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Fernandina']
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Floreana']
-    df_mapping_csv = df_mapping_csv[~df_mapping_csv['island'].isin(['Fernandina', 'Floreana', 'Genovesa'])]
+    # df_mapping_csv = df_mapping_csv[~df_mapping_csv['island'].isin(['Fernandina', 'Floreana', 'Genovesa'])]
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Flo_FLBB01_28012023 counts.shp']
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Fer_FWK01_20122021 counts']
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Fer_FNA01-02_20122021 counts']
@@ -158,11 +180,12 @@ if __name__ == "__main__":
     cc = config_generator_human_ai_correction(
         df_mapping=df_mapping_csv,
 
-        predictions_base_path=Path('/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection'),
-        human_prediction_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations'),
+        # predictions_base_path=Path('/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection'),
+        predictions_a_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations'),
+        prediction_B_base_path=None,
         # prediction_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/Fer/Fer_FNA01-02_20122021 counts.geojson'),
         # orthomosaic_path=Path("/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog/Fer/Fer_FNA01-02_20122021.tif"),
-        output_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp"),
+        output_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp_2"),
         hasty_reference_annotation_path=hasty_reference_annotation_path
     )
 
@@ -173,7 +196,7 @@ if __name__ == "__main__":
                                                           output_path=base_path,
                                                           corrected_path=base_path_corrected,
                                                           organization="IguanasFromAbove",
-                                                          project_name="Geospatial_Dataset_Correction_Batched_2025_08_31"
+                                                          project_name="Geospatial_Dataset_Correction_Batched_2025_09_24"
                                                           )
 
     vis_output_dir = base_path / "visualisation"
@@ -182,10 +205,11 @@ if __name__ == "__main__":
     report_configs = batched_main(configs,
                                   output_dir=base_path,
                                   vis_output_dir=vis_output_dir,
-                                  submit_to_CVAT=True,
-                                  include_reference=True,
-                                  delete_dataset_if_exists=True,
-                                  radius=0.4
+                                  submit_to_CVAT=False,
+                                  include_reference=False,
+                                  delete_dataset_if_exists=False,
+                                  radius=0.4,
+                                  cvat_upload=False
                                   )
 
     logger.info(f"Report saved to {report_configs}")

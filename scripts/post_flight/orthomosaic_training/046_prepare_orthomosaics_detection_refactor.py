@@ -109,7 +109,7 @@ if __name__ == "__main__":
     resolution = 512
     scale_factor = 1
     visualise_crops = True
-    OBJECT_CENTERED = True  # If True, the crops are centered around the object, otherwise they are centered around the tile
+    OBJECT_CENTERED = False  # If True, the crops are centered around the object, otherwise they are centered around the tile
     problematic_data_pairs = []
     herdnet_annotations = defaultdict(list)
     format = ImageFormat.JPG
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # Expert export
     # expert = "Andrea"
     # base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_06_14_robin_{tile_size}_obcj_{OBJECT_CENTERED}")
-    base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_07_06_{tile_size}_objcenter_{OBJECT_CENTERED}")
+    base_path = Path(f"/Volumes/2TB/DD_MS_COG_Prepared_Training_2025_09_19_{tile_size}_objcenter_{OBJECT_CENTERED}")
 
     for index, row in gdf_mapping.iterrows():
         try:

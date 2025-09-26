@@ -343,6 +343,25 @@ class HastyAnnotationV2(BaseModel):
         """
         return sum(len(image.labels) for image in self.images)
 
+    def dataset_statistics(self):
+        """
+        Print statistics about the datasets in the project.
+        """
+        dataset_stats = {}
+        for image in self.images:
+            dataset_name = image.dataset_name if isinstance(image, AnnotatedImage) else "unknown"
+            if dataset_name not in dataset_stats:
+                dataset_stats[dataset_name] = {
+                    'num_images': 0,
+                    'num_labels': 0
+                }
+            dataset_stats[dataset_name]['num_images'] += 1
+            dataset_stats[dataset_name]['num_labels'] += len(image.labels)
+
+        for dataset, stats in dataset_stats.items():
+            logger.info(f"Dataset: {dataset}, Images: {stats['num_images']}, Labels: {stats['num_labels']}")
+
+        return dataset_stats
 
     def rename_label_class(self, k, v):
         """
@@ -645,3 +664,54 @@ def label_dist_edge_threshold(patch_size, source_image):
         f"After edge thresholding with distance {bd_th} in {len(source_image.labels)}, remove {n_labels - len(source_image.labels)} labels")
 
     return source_image.labels
+
+
+def delete_dataset(dataset_name: str, hA: HastyAnnotationV2):
+    """
+    delete a dataset within the project completely
+    :param dataset_name:
+    :param hA:
+    :return:
+    """
+    initial_count = len(hA.images)
+
+    # Filter out images from the specified dataset
+    hA.images = [image for image in hA.images if image.dataset_name != dataset_name]
+
+    deleted_count = initial_count - len(hA.images)
+    logger.info(f"Deleted {deleted_count} images from dataset '{dataset_name}'")
+    logger.info(f"Remaining images: {len(hA.images)}")
+
+    return hA
+
+
+def replace_image(updateimage: AnnotatedImage, hA: HastyAnnotationV2):
+    """
+    updateimage (AnnotatedImage): The new/updated image to replace or add
+    hA (HastyAnnotationV2): The annotation object containing the images list
+
+    Returns:
+        HastyAnnotationV2: The updated annotation object
+    """
+
+    # Search for existing image
+    update_image_id = updateimage.image_id
+    update_image_name = updateimage.image_name
+    update_dataset_name = updateimage.dataset_name
+
+    for i, existing_image in enumerate(hA.images):
+        existing_id = existing_image.image_id
+        existing_name = existing_image.image_name
+        existing_dataset_name = existing_image.dataset_name
+
+        # Match by image_id (primary) or image_name (secondary) and dataset_name as third
+        if (  # (existing_id == update_image_id) and
+                (existing_name == update_image_name) and
+                (existing_dataset_name == update_dataset_name)):
+            # Replace existing image
+            hA.images[i] = updateimage
+            return hA
+
+    # No match found, append new image
+    hA.images.append(updateimage)
+    return hA

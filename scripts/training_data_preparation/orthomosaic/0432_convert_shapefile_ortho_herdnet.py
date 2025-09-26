@@ -13,11 +13,14 @@ import typing
 from loguru import logger
 from pathlib import Path
 
+from active_learning.util.converter import herdnet_prediction_to_hasty
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid, GeoSlicer
 from active_learning.util.image_manipulation import convert_tiles_to
 from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords
 from active_learning.util.rename import get_site_code
 from com.biospheredata.types.status import ImageFormat
+
+
 
 if __name__ == "__main__":
 
@@ -30,6 +33,8 @@ if __name__ == "__main__":
 
     tile_output_dir = Path('/Users/christian/data/Manual Counting/temp/tiff_tiles')
     jpg_tile_output_dir = Path('/Users/christian/data/Manual Counting/temp/jpg_tiles')
+
+
     jpg_tile_output_dir.mkdir(parents=True, exist_ok=True)
     tile_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -70,6 +75,11 @@ if __name__ == "__main__":
                                            output_dir=jpg_tile_output_dir)
     converted_tiles = [a for a in converted_tiles]
     logger.info(f"created {len(converted_tiles)} tiles in {jpg_tile_output_dir}")
+
+    predicted_images = herdnet_prediction_to_hasty(gdf_sliced_points,
+                                                   hA_reference=None,
+                                                   images_path=jpg_tile_output_dir,
+                                                   )
 
     l_herdnet = []
     for tile_name, gdf_group in gdf_sliced_points.groupby(by="tile_name"):

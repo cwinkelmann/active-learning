@@ -232,7 +232,8 @@ def visualise_points_only(points: List[shapely.Point],
                           title: str = "Points Visualization",
                           filename: Optional[Path] = None,
                           show: bool = True, text_buffer=True, font_size=10,
-                          ax=None) -> axes:
+                          ax=None,
+                          show_grid=False) -> axes:
     """
     Simplified function to visualize just points.
     """
@@ -255,7 +256,7 @@ def visualise_points_only(points: List[shapely.Point],
     if colors and len(colors) == len(x_coords):
         ax.scatter(x_coords, y_coords, c=colors, s=markersize ** 2, alpha=0.8, edgecolors='black')
     else:
-        ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black')
+        ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black', color='red')
 
     # Add labels
     if labels:
@@ -268,7 +269,8 @@ def visualise_points_only(points: List[shapely.Point],
 
 
     ax.set_title(title)
-    ax.grid(True, alpha=0.3)
+    if show_grid:
+        ax.grid(True, alpha=0.3)
     ax.set_aspect('equal')
 
     if filename:

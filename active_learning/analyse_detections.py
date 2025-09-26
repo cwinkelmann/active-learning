@@ -91,6 +91,7 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
 
 def analyse_point_detections_greedy(df_detections: pd.DataFrame,
                                     df_ground_truth: pd.DataFrame,
+                                    image_list: typing.List[str],
                                     radius=150,
                                     confidence_threshold=0.5) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
@@ -130,7 +131,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
         geometry=gpd.points_from_xy(df_ground_truth.x, df_ground_truth.y)
     ).set_crs(crs)
 
-    image_list = df_ground_truth['images'].unique()
+    # image_list = df_ground_truth['images'].unique()
 
     # Containers for results
     l_fp = []  # false positives
@@ -140,7 +141,6 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
     for image in image_list:
         # Filter for the current image
-
 
         gdf_gt = gdf_ground_truth_all[gdf_ground_truth_all['images'] == image].copy()
         gdf_pred = gdf_detections_all[gdf_detections_all['images'] == image].copy()
@@ -156,10 +156,25 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
         pred_coords = gdf_pred.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
 
-        # If there are no predictions for the image, mark all ground truth as false negatives
+        if len(gt_coords) == 0 and len(pred_coords) == 0:
+            image_errors.append(
+                {"image_name": image, "err": 0, "num_gt": 0, "num_pred": 0})
+            continue
+
+
+        if len(gt_coords) == 0:
+            gdf_pred['kind'] = 'false_positive'
+            l_fp.append(gdf_pred)
+            image_errors.append(
+                {"image_name": image, "err": len(gdf_pred), "num_gt": 0, "num_pred": len(gdf_pred)})
+            continue
+
+        # If there are no predictions for the image, mark all as false negatives
         if len(pred_coords) == 0:
             gdf_gt['kind'] = 'false_negative'
             l_fn.append(gdf_gt)
+            image_errors.append(
+                {"image_name": image, "err": -1 * len(gdf_gt), "num_gt": len(gdf_gt), "num_pred": 0})
             continue
 
         # Build a KD-tree on the prediction points
@@ -218,6 +233,9 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
     logger.info(f"Aggregating results over {len(image_list)} images.")
     # Calculate mean error over all images.
+
+    assert len(image_errors) == len(image_list), f"Number of image errors {len(image_errors)} must equal number of images {len(image_list)}"
+
     df_image_errors = pd.DataFrame(image_errors)
     mean_error = df_image_errors.err.mean() if len(df_image_errors) > 0 else None
     logger.info(f"Mean Errors over all images : {mean_error}")

@@ -1,23 +1,86 @@
 """
 Look into the hasty dataset and analyze the data.
 """
+import pandas as pd
 import shapely
 from loguru import logger
 from pathlib import Path
 
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
+from com.biospheredata.types.status import LabelingStatus
+
+
+# Calculate bbox area from bbox_x1y1x2y2 format: [x1, y1, x2, y2]
+# Parse the bbox coordinates and calculate width, height, and area
+def parse_bbox_and_calculate_area(bbox: shapely.Polygon):
+    try:
+        area = bbox.area
+        width = bbox.bounds[2] - bbox.bounds[0]  # x2 - x1
+        height = bbox.bounds[3] - bbox.bounds[1]
+        return area, width, height
+    except Exception as e:
+        logger.error(f"Error parsing bbox {bbox}: {e}")
+        return 0, 0, 0
+
+
+def create_label_distribution_table(df_flat, group_by, target_labels = ['iguana', "iguana_point"]):
+    """
+    Create label distribution table grouped by dataset
+
+    Args:
+        df_flat: Flat dataframe from Hasty annotations
+
+    Returns:
+        pandas.DataFrame: Label distribution table
+    """
+
+    # Define the label categories we're interested in
+
+
+    # Create pivot table for label distribution
+    # Group by dataset and label, count occurrences
+    label_counts = df_flat.groupby([group_by, 'class_name']).size().reset_index(name='count')
+
+    # Pivot to get labels as columns
+    pivot_table = label_counts.pivot(index=group_by, columns='class_name', values='count').fillna(0)
+
+    # Ensure all target labels are present as columns
+    for label in target_labels:
+        if label not in pivot_table.columns:
+            pivot_table[label] = 0
+
+    # Reorder columns to match the original table
+    pivot_table = pivot_table[target_labels]
+
+
+
+    # Convert to int type
+    pivot_table = pivot_table.astype(int)
+
+    # Sort by total count (descending)
+    pivot_table['total'] = pivot_table.sum(axis=1)
+    pivot_table = pivot_table.sort_values('total', ascending=False)
+    pivot_table = pivot_table.drop('total', axis=1)
+
+    return pivot_table
 
 labels_path = Path("/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
+labels_path = Path("/Users/christian/data/training_data/2025_08_10_endgame")
 
 # hacky way
 # get a list of images which are in a dataset
-labels_file_path = labels_path / "unzipped_hasty_annotation//raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/unzipped_hasty_annotation/fernandina_s_correction_hasty_corrected_1.json"
-df_flat = HastyAnnotationV2.from_file(labels_file_path).get_flat_df()
+labels_file_path = labels_path / "unzipped_hasty_annotation/fernandina_s_correction_hasty_corrected_1.json"
+labels_file_path = labels_path / "unzipped_hasty_annotation/2025_07_10_labels_final.json"
+hA = HastyAnnotationV2.from_file(labels_file_path)
 
-# dataset_mask = df_flat['dataset_name'] == "Fer_FCD01-02-03_20122021_single_images"
-# dataset_mask = df_flat['dataset_name'] == "Fer_FCD01-02-03_20122021"
+# keep only completed
+hA.images = [img for img in hA.images if img.image_status == LabelingStatus.COMPLETED.value]
 
-#dataset_mask = df_flat['dataset_name'].isin( ["Fer_FCD01-02-03_20122021", "Fer_FCD01-02-03_20122021_single_images"] )
+
+df_flat = hA.get_flat_df()
+df_flat = df_flat[df_flat["class_name"].isin(["iguana"])]
+df_flat.groupby('dataset_name').size().sort_values(ascending=False)
+
 
 
 dataset_name_island_mapping = {
@@ -47,13 +110,12 @@ dataset_name_island_mapping = {
     "FMO04": "Floreana",  # FMO code pattern
     "FPA03 condor": "Floreana",  # FPA likely Floreana + location code
     "FSCA02": "Floreana",  # F prefix + SCA code
-    "floreana": "floreana_FPE01_FECA01",  # Explicit island name (lowercase)
+    "floreana_FPE01_FECA01": "Fernandina",  # This was named incorrectly, should be Fernandina
     "FPM01_24012023": "Fernandina",  # F prefix + PM code
     "Isabella": "Isabela",  # Explicit island name (corrected spelling)
     "Fer_FPE02_07052024": "Fernandina",  # Fer prefix
     "San_STJB01_10012023_DJI_0068": "Santiago"  # San prefix + STJ
 }
-
 
 
 
@@ -103,7 +165,7 @@ isabela_dataset_names = island_to_datasets.get("Isabela", [])
 mixed_dataset_names = island_to_datasets.get("Mixed", [])
 unknown_dataset_names = island_to_datasets.get("Unknown", [])
 
-df_flat = df_flat[df_flat["class_name"].isin(["iguana", "crab"])]
+
 
 df_flat["island"] = df_flat["dataset_name"].map(dataset_name_island_mapping)
 df_flat["source"] = df_flat["dataset_name"].map(ortho_single_images_mapping)
@@ -111,22 +173,20 @@ df_flat["source"] = df_flat["dataset_name"].map(ortho_single_images_mapping)
 df_flat['source'] = df_flat['source'].fillna('SingleImage')
 
 
+label_dataset_table = create_label_distribution_table(df_flat, group_by='dataset_name', target_labels = ['iguana'])
+label_island_table = create_label_distribution_table(df_flat, group_by='island', target_labels = ['iguana'])
+label_source_table = create_label_distribution_table(df_flat, group_by='source', target_labels = ['iguana'])
+
+
+
+
 dataset_mask = df_flat['island'].isin(["Floreana", "Fernandina", "Genovesa"])
 df_flat = df_flat[dataset_mask]
 dataset_mask = df_flat['source'].isin(["SingleImage"])
+
 df_flat = df_flat[dataset_mask]
 
-# Calculate bbox area from bbox_x1y1x2y2 format: [x1, y1, x2, y2]
-# Parse the bbox coordinates and calculate width, height, and area
-def parse_bbox_and_calculate_area(bbox: shapely.Polygon):
-    try:
-        area = bbox.area
-        width = bbox.bounds[2] - bbox.bounds[0]  # x2 - x1
-        height = bbox.bounds[3] - bbox.bounds[1]
-        return area, width, height
-    except Exception as e:
-        logger.error(f"Error parsing bbox {bbox}: {e}")
-        return 0, 0, 0
+
 
 
 
@@ -150,9 +210,9 @@ aggregation_stats.columns = ['_'.join(col).strip() for col in aggregation_stats.
 
 # Rename columns for clarity
 column_mapping = {
-    'image_id_count': 'total_annotations',
-    'image_id_nunique': 'unique_images',
-    'bbox_area_mean': 'avg_bbox_area',
+    'image_id_count': 'Annotations',
+    'image_id_nunique': 'Images',
+    'bbox_area_mean': 'avg. Box',
     'bbox_area_std': 'bbox_area_std',
     'bbox_area_min': 'min_bbox_area',
     'bbox_area_max': 'max_bbox_area',

@@ -13,9 +13,10 @@ import typing
 from loguru import logger
 from matplotlib_map_utils import inset_map, indicate_extent
 
+from active_learning.config.mapping import mission_names_filter
 from active_learning.types.image_metadata import list_images
 from active_learning.util.drone_flight_check import get_analysis_ready_image_metadata
-from active_learning.util.mapping.helper import get_islands
+from active_learning.util.mapping.helper import get_islands, find_closest_island
 from active_learning.util.visualisation.drone_flights import visualise_flights
 
 
@@ -53,7 +54,10 @@ def visualise_flight_path_geospatial(mission_names_set: list,
                                      flight_database_full: gpd.GeoDataFrame = None,
                                      islands_gdf: gpd.GeoDataFrame = None,
                                      orthomosaics: typing.Optional[typing.List[Path]] = None,
-                                     output_path: str = None):
+                                     output_path: str = None,
+                                     title: str = None,
+                                        inset_map: bool = True,
+                                     hA: HastyAnnotationV2 | None = None) -> typing.Tuple[plt.Figure, plt.Axes]:
     """
     Display the flight path, the coastline of the island and the hasty images
 
@@ -82,10 +86,13 @@ def visualise_flight_path_geospatial(mission_names_set: list,
     # Set modern style
     plt.style.use('seaborn-v0_8-whitegrid')
 
-    gdf_mission_polygons = gdf_mission_polygons.to_crs(epsg=islands_gdf.crs.to_epsg())
-    filtered_df = filtered_df.to_crs(epsg=islands_gdf.crs.to_epsg())
-    flight_database_full = flight_database_full.to_crs(epsg=islands_gdf.crs.to_epsg())
-
+    # gdf_mission_polygons = gdf_mission_polygons.to_crs(epsg=islands_gdf.crs.to_epsg())
+    # filtered_df = filtered_df.to_crs(epsg=islands_gdf.crs.to_epsg())
+    # flight_database_full = flight_database_full.to_crs(epsg=islands_gdf.crs.to_epsg())
+    
+    
+    islands_gdf = islands_gdf.to_crs(epsg=gdf_mission_polygons.crs.to_epsg())
+    
     # Filter data for the specified missions
     mission_polygons = gdf_mission_polygons[gdf_mission_polygons['mission_folder'].isin(mission_names_set)]
     mission_labeled_images = filtered_df[filtered_df['mission_folder'].isin(mission_names_set)]
@@ -112,8 +119,8 @@ def visualise_flight_path_geospatial(mission_names_set: list,
         maxy = max(bounds[3] for bounds in all_bounds)
 
         # Add buffer around the data
-        buffer_x = (maxx - minx) * 0.6
-        buffer_y = (maxy - miny) * 0.4
+        buffer_x = (maxx - minx) * 0.1
+        buffer_y = (maxy - miny) * 0.1
 
         # Calculate width and height of the bounding box
         width = (maxx + buffer_x) - (minx - buffer_x)
@@ -221,13 +228,13 @@ def visualise_flight_path_geospatial(mission_names_set: list,
                     lc.set_array(color_values)
                     line = ax.add_collection(lc)
 
-                    # Add start and end markers
-                    ax.scatter(x[0], y[0], s=200, marker='o',
-                               color='green', edgecolor='white', linewidth=3,
-                               label=f'Start: {mission_name}', zorder=7)
-                    ax.scatter(x[-1], y[-1], s=200, marker='s',
-                               color='red', edgecolor='white', linewidth=3,
-                               label=f'End: {mission_name}', zorder=7)
+                    # # Add start and end markers
+                    # ax.scatter(x[0], y[0], s=200, marker='o',
+                    #            color='green', edgecolor='white', linewidth=3,
+                    #            label=f'Start: {mission_name}', zorder=7)
+                    # ax.scatter(x[-1], y[-1], s=200, marker='s',
+                    #            color='red', edgecolor='white', linewidth=3,
+                    #            label=f'End: {mission_name}', zorder=7)
 
     # 5. Plot labeled/hasty images
     if not mission_labeled_images.empty:
@@ -235,7 +242,7 @@ def visualise_flight_path_geospatial(mission_names_set: list,
         mission_labeled_images.plot(ax=ax,
                                     marker='o',
                                     color='red',
-                                    markersize=50,
+                                    markersize=40,
                                     alpha=0.8,
                                     label=f'Labeled Images ({len(mission_labeled_images)})',
                                     zorder=8)
@@ -246,38 +253,39 @@ def visualise_flight_path_geospatial(mission_names_set: list,
             if not mission_images.empty:
                 # Get centroid of labeled images for this mission
                 centroid = mission_images.geometry.unary_union.centroid
-                ax.annotate(f'{len(mission_images)} images',
-                            (centroid.x, centroid.y),
+                ax.annotate(f'{mission_name}: images: {len(mission_images)}',
+                            (centroid.x + 20, centroid.y),
                             xytext=(10, 10),
                             textcoords='offset points',
                             bbox=dict(boxstyle="round,pad=0.3",
                                       facecolor='white',
                                       edgecolor='red',
                                       alpha=0.9),
-                            fontsize=10,
+                            fontsize=12,
                             fontweight='bold',
                             zorder=9)
     else:
         logger.warning("No labeled images found for the specified missions.")
 
-    # 6. Add colorbar for flight paths if there are any
-    if not mission_flight_data.empty and 'height' in mission_flight_data.columns:
-        # Create a dummy scatter for the colorbar
-        scatter = ax.scatter([], [], c=[], cmap='viridis', s=0)
-        scatter.set_array(mission_flight_data['height'])
-        cbar = plt.colorbar(scatter, ax=ax, pad=0.02, fraction=0.046, aspect=30)
-        cbar.set_label('Flight Height (m)', fontsize=12, color='#555555')
-        cbar.ax.tick_params(colors='#666666')
+    # # 6. Add colorbar for flight paths if there are any
+    # if not mission_flight_data.empty and 'height' in mission_flight_data.columns:
+    #     # Create a dummy scatter for the colorbar
+    #     scatter = ax.scatter([], [], c=[], cmap='viridis', s=0)
+    #     scatter.set_array(mission_flight_data['height'])
+    #     cbar = plt.colorbar(scatter, ax=ax, pad=0.02, fraction=0.046, aspect=30)
+    #     cbar.set_label('Flight Height (m)', fontsize=12, color='#555555')
+    #     cbar.ax.tick_params(colors='#666666')
 
-    # Adding an inset map to the plot
-    iax = inset_map(ax, location="upper right", size=2.5, pad=0.1, xticks=[], yticks=[])
-    # Plotting alaska in the inset map
-    islands_gdf.plot(ax=iax, color='lightgrey', edgecolor='black', linewidth=0.5, alpha=0.7)
-    # if not islands_gdf.empty:
-    #     islands_gdf.plot(ax=iax, color='#AAAAFF', edgecolor='black', linewidth=0.8)
+    if inset_map:
+        # Adding an inset map to the plot
+        iax = inset_map(ax, location="upper right", size=2.5, pad=0.1, xticks=[], yticks=[])
+        # Plotting alaska in the inset map
+        islands_gdf.plot(ax=iax, color='lightgrey', edgecolor='black', linewidth=0.5, alpha=0.7)
+        # if not islands_gdf.empty:
+        #     islands_gdf.plot(ax=iax, color='#AAAAFF', edgecolor='black', linewidth=0.8)
 
-    # Creating the extent indicator, which appears by-default as a red square on the map
-    indicate_extent(iax, ax, islands_gdf.crs.to_epsg(), islands_gdf.crs.to_epsg())
+        # Creating the extent indicator, which appears by-default as a red square on the map
+        indicate_extent(iax, ax, islands_gdf.crs.to_epsg(), islands_gdf.crs.to_epsg())
 
     # 7. Styling and annotations
     ax.set_facecolor('#f8f9fa')
@@ -293,11 +301,13 @@ def visualise_flight_path_geospatial(mission_names_set: list,
     if len(mission_names_str) > 50:
         mission_names_str = f"{len(mission_names_set)} missions"
 
-    ax.set_title(f"Flight Analysis: {island_name}",
+    if not title:
+        title = f"Flight Analysis: {island_name}"
+    ax.set_title(title,
                  fontsize=16, fontweight='bold', color='#333333', pad=20)
 
-    ax.set_xlabel('Longitude', fontsize=12, color='#666666')
-    ax.set_ylabel('Latitude', fontsize=12, color='#666666')
+    ax.set_xlabel('Easting', fontsize=12, color='#666666')
+    ax.set_ylabel('Northing', fontsize=12, color='#666666')
 
     # 8. Add statistics box
     stats_lines = []
@@ -321,7 +331,9 @@ def visualise_flight_path_geospatial(mission_names_set: list,
 
     if not mission_polygons.empty:
         total_area = mission_polygons.geometry.area.sum()
-        stats_lines.append(f"Coverage area: {total_area:.0f} m²")
+        stats_lines.append(f"Coverage area: {total_area / 100000:.5f} km²")
+
+    stats_lines.append(f"Data CRS: {gdf_mission_polygons.crs.to_string()}")
 
     stats_text = '\n'.join(stats_lines)
 
@@ -335,16 +347,16 @@ def visualise_flight_path_geospatial(mission_names_set: list,
             verticalalignment='bottom',
             zorder=10)
 
-    # 9. Add legend
-    handles, labels = ax.get_legend_handles_labels()
-    if handles:
-        ax.legend(handles=handles, labels=labels,
-                  loc='upper left',
-                  frameon=True,
-                  framealpha=0.9,
-                  facecolor='white',
-                  edgecolor='#dddddd',
-                  fontsize=10)
+    # # # 9. Add legend
+    # handles, labels = ax.get_legend_handles_labels()
+    # if handles:
+    #     ax.legend(handles=handles, labels=labels,
+    #               loc='upper left',
+    #               frameon=True,
+    #               framealpha=0.9,
+    #               facecolor='white',
+    #               edgecolor='#dddddd',
+    #               fontsize=10)
 
     # 10. Add north arrow if using geographic coordinates
     if (not mission_labeled_images.empty and
@@ -381,23 +393,36 @@ if __name__ == "__main__":
 
     # import dataset_configs_hasty_point_iguanas as dataset_configs
     import scripts.training_data_preparation.dataset_configs_hasty_point_iguanas as dataset_configs
+    base_path = Path("/raid/cwinkelmann/work/active_learning/mapping/database/")
+    base_path_mapping = base_path / "mapping"
+    base_path_mapping.mkdir(parents=True, exist_ok=True)
 
 
     for dataset in dataset_configs.datasets:
+        hasty_dataset_path = Path(
+            "/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset
+
         dataset_dict = dataset.model_dump()
 
         logger.info(f"Starting Dataset {dataset.dataset_name}, split: {dataset.dset}")
         CRS_utm_zone_15 = "32715"
         EPSG_WGS84 = "4326"
 
-        flight_database_path= Path("/raid/cwinkelmann/work/active_learning/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet")
-        flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=EPSG_WGS84)
+        flight_database_path= Path(base_path / "2020_2021_2022_2023_2024_database_analysis_ready.parquet")
+        flight_database = gpd.read_parquet(flight_database_path)
+        flight_database.to_file(base_path_mapping / f"full_flight_database_{dataset.dataset_name}_analysis_read.geojson",
+                                driver="GeoJSON")
+        flight_database = flight_database.to_crs(epsg=CRS_utm_zone_15)
         # read the right database
         #flight_database = get_analysis_ready_image_metadata(flight_database)
         #flight_database.to_parquet("/raid/cwinkelmann/work/active_learning/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet")
 
-        full_hasty_annotation_file_path = Path("/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset / "hasty_format_full_size.json"
-        hasty_images_path = Path("/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset / "Default"
+        full_hasty_annotation_file_path = hasty_dataset_path / "hasty_format_full_size.json"
+        hA = HastyAnnotationV2.from_file(full_hasty_annotation_file_path)
+
+
+
+        hasty_images_path = hasty_dataset_path / "Default"
         #images_list = list_images(hasty_images_path, extension="JPG", recursive=True)
         #gdf_hasty_image_metadata = images_data_extraction(images_list)
         
@@ -411,7 +436,18 @@ if __name__ == "__main__":
 
         # filter the flight_database for the images that are in the hasty images
         flight_database_filtered = flight_database[flight_database["image_hash"].isin(gdf_hasty_images["image_hash"])]
-        flight_database_filtered.to_file("labelled_hasty_images.geojson", driver="GeoJSON")
+
+        # # the the image_name mapping
+        # a = flight_database[["image_hash", "image_name", "geometry"]]
+        # b = gdf_hasty_images[["image_hash", "image_name"]]
+        # mapping = pd.merge(a, b, on="image_hash", suffixes=("_new", "_old")).to_dict(orient="records")
+        # gdf_mapping = gpd.GeoDataFrame(mapping, geometry="geometry")
+        # gdf_mapping.to_file(base_path_mapping / f"image_name_mapping_{dataset.dataset_name}.geojson", driver="GeoJSON")
+
+        gdf_mapping = gpd.read_file("/raid/cwinkelmann/work/active_learning/mapping/database/mapping/All_detection_mapping.geojson")
+
+
+        flight_database_filtered.to_file(hasty_dataset_path / "labelled_hasty_images_{dataset.dataset_name}.geojson", driver="GeoJSON")
         # get the full mission
         flight_database_full_missions_filtered = flight_database[flight_database["mission_folder"].isin(flight_database_filtered["mission_folder"])]
 
@@ -452,38 +488,51 @@ if __name__ == "__main__":
         gdf_mission_lines = gpd.GeoDataFrame(mission_lines, crs=flight_database_full_missions_filtered.crs)
         gdf_mission_polygons = gpd.GeoDataFrame(mission_polygons, crs=flight_database_full_missions_filtered.crs)
 
-        gdf_mission_polygons.to_file("labelled_hasty_mission_polygons.geojson", driver="GeoJSON")
+        gdf_mission_polygons.to_file(hasty_dataset_path / f"labelled_hasty_mission_polygons_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
+        gdf_mission_lines.to_file(hasty_dataset_path / f"labelled_hasty_mission_lines_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
 
-        islands_gdf = get_islands()
-        output_dir = "."
-        output_path = f"{output_dir}/hasty_single_image_training_data_overview.png"
+        islands_gdf = get_islands(gpkg_path=base_path / "sampling_issues.gpkg",
+                                  fligth_database_path=flight_database_path,)
+        output_dir = base_path_mapping / "figures"
+        output_dir.mkdir(parents=True, exist_ok=True)
 
 
-
-
-
-        # output_dir = "."
         # for i, mission_names_set in enumerate(mission_names_filter):
-        #     # Filter the DataFrame for the specific mission names
-        #     filtered_df = gdf_mission_polygons[gdf_mission_polygons["mission_folder"].isin(mission_names_set)]
-        #     island_name = mission_names_set["island_name"]
-        #     missions = mission_names_set["missions"]
-        #     # visualise the filtered DataFrame
-        #     # TODO implement the visualisation
-        #
-        #     output_path = f"{output_dir}/hasty_single_image_training_data_{island_name}_set_{i + 1}.png"
-        #
-        #     fig, ax = visualise_flight_path_geospatial(
-        #         mission_names_set=missions,
-        #         filtered_df=flight_database_filtered,
-        #         gdf_mission_polygons=gdf_mission_polygons,
-        #         flight_database_full=flight_database,
-        #         islands_gdf=islands_gdf[islands_gdf["nombre"] == island_name],
-        #         output_path=output_path
-        #     )
-        #
-        #     plt.show()
-        #     plt.close(fig)
+        missions = list(gdf_mission_polygons.mission_folder.unique())
+        # Filter the DataFrame for the specific mission names
+
+        # filtered_df = gdf_mission_polygons[gdf_mission_polygons["mission_folder"].isin(dataset.dataset_filter)]
+        filtered_df = gdf_mission_polygons
+
+        closest_island = find_closest_island(point_geometry=gdf_mission_polygons.centroid,
+                            islands_gdf=islands_gdf, name_col = 'nombre')
+
+        # island_name = mission_names_set["island_name"]
+        # missions = dataset.dataset_filter
+        # visualise the filtered DataFrame
+        # TODO implement the visualisation
+
+        island_name = list(flight_database_filtered.island.unique())[0]
+        if flight_database_filtered.island.nunique() > 1:
+            logger.warning(f"Multiple islands found in the filtered data: {island_name}, using the first one: {island_name[0]}")
+
+        output_path = f"{output_dir}/hasty_single_image_training_data_{island_name}_set_{dataset.dataset_name}_{dataset.dset}.png"
+
+        fig, ax = visualise_flight_path_geospatial(
+            mission_names_set=missions,
+            filtered_df=flight_database_filtered,
+            gdf_mission_polygons=gdf_mission_polygons,
+            flight_database_full=flight_database,
+            # islands_gdf=islands_gdf[islands_gdf["nombre"] == island_name],
+             islands_gdf=islands_gdf,
+            output_path=output_path,
+            title=f"Annotated images {dataset.dataset_name}, {dataset.dset}",
+            inset_map = False,
+            hA = hA
+        )
+
+        plt.show()
+        plt.close(fig)
 
 
 
