@@ -353,15 +353,51 @@ class HastyAnnotationV2(BaseModel):
             if dataset_name not in dataset_stats:
                 dataset_stats[dataset_name] = {
                     'num_images': 0,
-                    'num_labels': 0
+                    'num_labels': 0,
+                    'num_point_labels': 0,
+                    'num_box_labels': 0
                 }
             dataset_stats[dataset_name]['num_images'] += 1
-            dataset_stats[dataset_name]['num_labels'] += len(image.labels)
+
+            if len(image.labels) > 0:
+
+                num_boxes = sum(1 for label in image.labels if label.bbox_polygon is not None)
+                num_points = sum(1 for label in image.labels if label.keypoints is not None and len(label.keypoints) > 0)
+                dataset_stats[dataset_name]['num_box_labels'] += num_boxes
+                dataset_stats[dataset_name]['num_point_labels'] += num_points
+                dataset_stats[dataset_name]['num_labels'] += len(image.labels)
 
         for dataset, stats in dataset_stats.items():
             logger.info(f"Dataset: {dataset}, Images: {stats['num_images']}, Labels: {stats['num_labels']}")
 
         return dataset_stats
+
+    def delete_dataset(self, dataset_name: str):
+        """
+        delete a dataset within the project completely
+        :param dataset_name:
+        :return:
+        """
+        initial_count = len(self.images)
+
+        # Filter out images from the specified dataset
+        self.images = [image for image in self.images if image.dataset_name != dataset_name]
+
+        deleted_count = initial_count - len(self.images)
+        logger.info(f"Deleted {deleted_count} images from dataset '{dataset_name}'")
+
+    def rename_dataset(self, dataset_old: str, dataset_new: str):
+        """
+        delete a dataset within the project completely
+        :param dataset_name:
+        :return:
+        """
+        initial_count = len(self.images)
+
+        for i in range(len(self.images)):
+            if self.images[i].dataset_name == dataset_old:
+                self.images[i].dataset_name = dataset_new
+
 
     def rename_label_class(self, k, v):
         """
@@ -391,10 +427,11 @@ class HastyAnnotationV2(BaseModel):
     def get_flat_df(self):
         return get_flat_df(self)
 
-    def add_labels_to_image(self, image_id: str, label):
+    def add_labels_to_image(self, image_id: str, dataset_name: str, label: ImageLabel):
         """
         add a label to an image in the project
         :param image_id:
+        :param dataset_name:
         :param label:
         :return:
         """
@@ -404,7 +441,31 @@ class HastyAnnotationV2(BaseModel):
         # add the label to the
 
         for image in self.images:
-            if image.image_id == image_id:
+            if image.image_id == image_id and image.dataset_name == dataset_name:
+                if isinstance(image, AnnotatedImage):
+                    image.labels.append(label)
+                elif isinstance(image, ImageLabelCollection):
+                    image.labels.append(label)
+                else:
+                    raise ValueError("Image type not supported")
+                return
+        raise ValueError("image id not found in project")
+
+    def add_labels_to_image_by_image_name(self, image_name: str, dataset_name: str, label: ImageLabel):
+        """
+        add a label to an image in the project
+        :param image_id:
+        :param dataset_name:
+        :param label:
+        :return:
+        """
+
+        # find the image in queston
+
+        # add the label to the
+
+        for image in self.images:
+            if image.image_name == image_name and image.dataset_name == dataset_name:
                 if isinstance(image, AnnotatedImage):
                     image.labels.append(label)
                 elif isinstance(image, ImageLabelCollection):
@@ -484,7 +545,7 @@ class HastyAnnotationV2_flat(BaseModel):
         return self.bbox_polygon.centroid
 
 
-def filter_by_class(hA: HastyAnnotationV2, class_names: Optional[str] = None) -> HastyAnnotationV2:
+def filter_by_class(hA: HastyAnnotationV2, class_names: Optional[List[str]] = None) -> HastyAnnotationV2:
     """
     remove any labels that are not in the class_names list
     :param hA:

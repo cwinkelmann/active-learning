@@ -241,16 +241,28 @@ def submit_for_roboflow_evaluation(dataset_name: str, images_set: typing.List[Pa
 
 
 class Evaluator():
+    """
+    Evaluator Abstraction to calculate precision, recall and f1 score
+    """
 
     def __init__(self, df_detections, df_ground_truth, radius=150):
+        """
+
+        :param df_detections:
+        :param df_ground_truth:
+        :param radius: distance from point to another point
+        """
         self.df_detections = df_detections
         self.df_ground_truth = df_ground_truth
+        self.gdf_ground_truth = None
         self.radius = radius
+        self.image_list = self.df_ground_truth['images'].unique()
 
-        self.df_false_positives, self.df_true_positives, self.df_false_negatives = analyse_point_detections_greedy(
+        self.df_false_positives, self.df_true_positives, self.df_false_negatives, self.gdf_ground_truth = analyse_point_detections_greedy(
             df_detections=self.df_detections,
             df_ground_truth=self.df_ground_truth,
-            radius=self.radius
+            radius=self.radius,
+            image_list = self.image_list
         )
         self.precision_all = self.precision(self.df_true_positives, self.df_false_positives)
         self.recall_all = self.recall(self.df_true_positives, self.df_false_negatives)
@@ -277,7 +289,8 @@ class Evaluator():
         df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
             df_detections=df_detections,
             df_ground_truth=self.df_ground_truth,
-            radius=self.radius
+            radius=self.radius,
+            image_list = self.image_list
         )
 
         precision = self.precision(df_true_positives, df_false_positives)
@@ -288,29 +301,52 @@ class Evaluator():
 
 
     def get_precition_recall_curve(self, values: typing.List[float] = None, range_start=0, range_end=1.0, step=0.05):
+        """
+        Get precision recall curve for a range of confidence thresholds
+        :param values:
+        :param range_start:
+        :param range_end:
+        :param step:
+        :return:
+        """
         results = []
         all_errors = []
 
         for confidence_threshold in values:
             df_detections = self.df_detections[self.df_detections.scores >= confidence_threshold]
 
-            df_false_positives, df_true_positives, df_false_negatives = analyse_point_detections_greedy(
+            df_false_positives, df_true_positives, df_false_negatives, gdf_ground_truth = analyse_point_detections_greedy(
                 df_detections=df_detections,
                 df_ground_truth=self.df_ground_truth,
-                radius=self.radius
+                radius=self.radius,
+                image_list = self.image_list
             )
 
             precision = self.precision(df_true_positives, df_false_positives)
             recall = self.recall(df_true_positives, df_false_negatives)
             f1 = self.f1(precision, recall)
 
+            num_fp = len(df_false_positives)
+            num_tp = len(df_true_positives)
+            num_fn = len(df_false_positives)
+
+            metrics = {
+                'confidence_threshold': confidence_threshold,
+                'precision': precision,
+                'recall': recall,
+                'f1': f1,
+                'num_false_positives': num_fp,
+                'num_true_positives': num_tp,
+                'num_false_negatives': num_fn,
+            }
+
             errors = self.calculate_error_metrics(df_true_positives, df_false_positives, df_false_negatives)
 
             all_errors.append(errors)
-            d=[confidence_threshold, precision, recall, f1]
-            results.append(d)
+            # d=[confidence_threshold, precision, recall, f1]
+            results.append(metrics)
 
-        df_results = pd.DataFrame(results, columns=["confidence_threshold", "precision", "recall", "f1"])
+        df_results = pd.DataFrame(results)
         df_errors = pd.DataFrame(all_errors)
 
 
@@ -373,23 +409,12 @@ def plot_confidence_density(df: pd.DataFrame,
                             figsize=(12, 6),
                             color='blue',
                             fill=True,
-                            show_stats=True,
-                            show_histogram=True,
-                            kde_bandwidth=None):
+                            show_stats=False,
+                            show_histogram=False,
+                            kde_bandwidth=None,
+                            save_path=None):
     """
     Create a density plot of confidence scores.
-
-    :param df: DataFrame with a 'scores' column containing confidence scores
-    :param title: Title for the plot
-    :param xlabel: Label for x-axis
-    :param ylabel: Label for y-axis
-    :param figsize: Figure size as tuple (width, height)
-    :param color: Color for the density plot
-    :param fill: Whether to fill the area under the curve
-    :param show_stats: Whether to show mean, median lines
-    :param show_histogram: Whether to show histogram behind density
-    :param kde_bandwidth: Bandwidth for KDE (None for automatic)
-    :return: matplotlib figure and axis objects
     """
 
     # Check if 'scores' column exists
@@ -447,8 +472,6 @@ def plot_confidence_density(df: pd.DataFrame,
     stats_text = f'Count: {len(scores)}\n'
     stats_text += f'Mean: {scores.mean():.3f}\n'
     stats_text += f'Std: {scores.std():.3f}\n'
-    stats_text += f'Min: {scores.min():.3f}\n'
-    stats_text += f'Max: {scores.max():.3f}'
 
     ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
             fontsize=10, verticalalignment='top',
@@ -456,12 +479,140 @@ def plot_confidence_density(df: pd.DataFrame,
 
     plt.tight_layout()
 
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
     return fig, ax
 
 
+def plot_species_detection_analysis(df_recall_curve: dict,
+                                    save_path=None,
+                                    title="Marine Iguana Detection Analysis - Galápagos Islands",
+                                    figsize=(16, 12)):
+    """
+    Create a comprehensive 2x2 plot showing detection metrics for multiple species.
 
+    Args:
+        species_data: Dictionary where keys are species names and values are dictionaries containing:
+            - 'df_recall_curve': DataFrame with confidence_threshold, precision, recall
+            - 'df_true_positives': DataFrame with true positive detections and scores
+            - 'df_false_positives': DataFrame with false positive detections and scores
+        save_path: Optional path to save the plot
+        title: Overall plot title
+        figsize: Figure size tuple
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import numpy as np
 
+    # Set up color palette for species
+    colors = plt.cm.tab10(np.linspace(0, 1, len(species_data)))
 
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=figsize)
+    fig.suptitle(title, fontsize=16, fontweight='bold')
+
+    # Plot 1: Precision-Recall Curve (top left)
+    for idx, (species_name, data) in enumerate(species_data.items()):
+        df = data['df_recall_curve']
+        ax1.plot(df['recall'], df['precision'],
+                 label=species_name,
+                 linewidth=2,
+                 color=colors[idx])
+
+    ax1.set_xlabel('Recall', fontsize=12)
+    ax1.set_ylabel('Precision', fontsize=12)
+    ax1.set_title('Precision-Recall Curve', fontsize=13, fontweight='bold')
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_xlim(0, 1)
+    ax1.set_ylim(0, 1)
+
+    # Add mAP annotation if needed
+    # You can calculate mAP here if you have the data
+
+    # Plot 2: Confidence-Recall Curve (top right)
+    for idx, (species_name, data) in enumerate(species_data.items()):
+        df = data['df_recall_curve']
+        ax2.plot(df['confidence_threshold'], df['recall'],
+                 label=species_name,
+                 linewidth=2,
+                 color=colors[idx])
+
+    ax2.set_xlabel('Confidence Threshold', fontsize=12)
+    ax2.set_ylabel('Recall', fontsize=12)
+    ax2.set_title('Confidence-Recall Curve', fontsize=13, fontweight='bold')
+    ax2.legend(loc='best')
+    ax2.grid(True, alpha=0.3)
+    ax2.set_xlim(0, 1)
+    ax2.set_ylim(0, 1)
+
+    # Plot 3: Confidence-Precision Curve (bottom left)
+    for idx, (species_name, data) in enumerate(species_data.items()):
+        df = data['df_recall_curve']
+        ax3.plot(df['confidence_threshold'], df['precision'],
+                 label=species_name,
+                 linewidth=2,
+                 color=colors[idx])
+
+    ax3.set_xlabel('Confidence Threshold', fontsize=12)
+    ax3.set_ylabel('Precision', fontsize=12)
+    ax3.set_title('Confidence-Precision Curve', fontsize=13, fontweight='bold')
+    ax3.legend(loc='best')
+    ax3.grid(True, alpha=0.3)
+    ax3.set_xlim(0, 1)
+    ax3.set_ylim(0, 1)
+
+    # Plot 4: Detection Score Distribution (bottom right)
+    # Create histogram bins
+    bins = np.linspace(0, 1, 20)
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+
+    # Stack true positives and false positives for each species
+    bottom_tp = np.zeros(len(bin_centers))
+    bottom_fp = np.zeros(len(bin_centers))
+
+    for idx, (species_name, data) in enumerate(species_data.items()):
+        df_tp = data['df_true_positives']
+        df_fp = data['df_false_positives']
+
+        # Calculate histogram for true positives
+        tp_hist, _ = np.histogram(df_tp['scores'], bins=bins, density=True)
+        ax4.bar(bin_centers, tp_hist, width=bins[1] - bins[0],
+                bottom=bottom_tp,
+                color=colors[idx],
+                alpha=0.7,
+                edgecolor='black',
+                linewidth=0.5,
+                label=f'{species_name} - TP')
+        bottom_tp += tp_hist
+
+        # Calculate histogram for false positives
+        fp_hist, _ = np.histogram(df_fp['scores'], bins=bins, density=True)
+        ax4.bar(bin_centers, fp_hist, width=bins[1] - bins[0],
+                bottom=bottom_fp,
+                color=colors[idx],
+                alpha=0.4,
+                edgecolor='black',
+                linewidth=0.5,
+                label=f'{species_name} - FP',
+                hatch='//')
+        bottom_fp += fp_hist
+
+    ax4.set_xlabel('Confidence Score', fontsize=12)
+    ax4.set_ylabel('Density', fontsize=12)
+    ax4.set_title('Detection Score Distribution', fontsize=13, fontweight='bold')
+    ax4.legend(loc='best', fontsize=9)
+    ax4.grid(True, alpha=0.3, axis='y')
+    ax4.set_xlim(0, 1)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+    return fig, (ax1, ax2, ax3, ax4)
 
 
 
@@ -485,6 +636,14 @@ def plot_error_curve(df_recall_curve,
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
     fig.suptitle(title, fontsize=16, fontweight='bold')
 
+    # Find confidence threshold where mean_error is closest to zero
+    optimal_idx = df_recall_curve['f1'].abs().idxmax()
+    optimal_threshold = df_recall_curve.loc[optimal_idx, x_label]
+    optimal_f1_score = df_recall_curve.loc[optimal_idx, 'f1']
+    # Add vertical line at optimal threshold
+    ax1.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
+                label=f'Optimal Threshold: {optimal_threshold:.3f}\n(F1 Score: {optimal_f1_score:.3f})')
+
     # Top plot: Precision, Recall, F1
     ax1.plot(df_recall_curve[x_label], df_recall_curve['precision'], 'b-', label='Precision', linewidth=2)
     ax1.plot(df_recall_curve[x_label], df_recall_curve['recall'], 'r-', label='Recall', linewidth=2)
@@ -504,6 +663,17 @@ def plot_error_curve(df_recall_curve,
     line2 = ax2.plot(df_recall_curve[x_label], df_recall_curve['mean_absolute_error'], 'orange',
                      label='Mean Absolute Error', linewidth=2, marker='s', markersize=4)
 
+    # Find confidence threshold where mean_error is closest to zero
+    optimal_idx = df_recall_curve['mean_error'].abs().idxmin()
+    optimal_threshold = df_recall_curve.loc[optimal_idx, x_label]
+    optimal_error = df_recall_curve.loc[optimal_idx, 'mean_error']
+    # Add vertical line at optimal threshold
+    ax2.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
+                label=f'Optimal Threshold: {optimal_threshold:.3f}\n(Error: {optimal_error:.3f})')
+    # Add zero line for mean error
+    ax2.axhline(y=0, color='black', linestyle=':', alpha=0.5, label='Zero Error')
+
+
 
     # Formatting
     ax2.set_xlabel('Confidence Threshold')
@@ -511,13 +681,12 @@ def plot_error_curve(df_recall_curve,
     ax2.set_title('Error Metrics vs Confidence Threshold')
     ax2.grid(True, alpha=0.3)
 
-    # Combine legends
-    lines = line1 + line2
-    labels = [l.get_label() for l in lines]
-    ax2.legend(lines, labels, loc='upper left')
+    # # Combine legends
+    # lines = line1 + line2
+    # labels = [l.get_label() for l in lines]
+    # ax2.legend(lines, labels, loc='upper left')
+    ax2.legend(loc='upper left')
 
-    # Add zero line for mean error
-    ax2.axhline(y=0, color='black', linestyle=':', alpha=0.5, label='Zero Error')
 
     plt.tight_layout()
 

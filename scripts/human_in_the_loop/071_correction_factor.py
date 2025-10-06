@@ -180,6 +180,7 @@ if __name__ == '__main__':
     
     tile_size = 5000  # Adjust as needed
     # predictions = Path(prediction_paths).glob("*.geojson")
+
     main(prediction_path,
          reference_path,
          orthomosaic_path,

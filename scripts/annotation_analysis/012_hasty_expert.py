@@ -16,7 +16,7 @@ from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, ImageLa
 from com.biospheredata.visualization.visualize_result import visualise_image, visualise_polygons
 from playground.correction.basic_agreement import analyze_counts, count_user_annotations, compare_on_image_level, \
     visualize_multi_user_disagreement, plot_all_users_vs_consensus, analyse_normal_distribution_expert, \
-    filter_by_agreement
+    filter_by_agreement, analyze_count_dependent_bias
 from playground.correction.correction_factor_analysis import calculate_correction_factors, \
     get_best_correction_for_expert, apply_ensemble_method
 from playground.correction.error_type_analysis import analyze_error_compensation, identify_problematic_images, \
@@ -182,6 +182,7 @@ if __name__ == '__main__':
             visualise_hasty_annotation(ic, images_path=hasty_data_path / i.dataset_name,
                                        output_path= hasty_data_path / "visualizations", show=False,
                                        suffix="consensus_only")
+
             visualise_hasty_annotation(ie, images_path=hasty_data_path / i.dataset_name,
                                        output_path= hasty_data_path / "visualizations", show=False,
                                        suffix="expert_only")
@@ -261,23 +262,42 @@ if __name__ == '__main__':
 
 
     # Filter out images where 3+ experts agree exactly:
+    hA_flat = hA.get_flat_df()
+    hA_flat["labels"] = "iguana"
+    hA_flat["species"] = "iguana"
+    hA_flat["scores"] = 1  # no confidence score available because of human labellers
+
+    hA_flat['class_name'] = hA_flat['class_name'].replace({
+        'concenso': 'consensus',
+        'conceso_parcial': 'consensus',
+    })
+
+    hA_flat['class_name'] = hA_flat['class_name'].replace({
+        'Iguana_Andrea': 'Annotator 1',
+        'Iguana_Andres': 'Annotator 2',
+        'Iguana_Amy': 'Annotator 3',
+        'Iguana_Robin': 'Annotator 4',
+    })
 
     results = filter_by_agreement(
         hA_flat,
-        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"],
+        expert_names=["Annotator 1", "Annotator 2", "Annotator 3", "Annotator 4"],
         agreement_threshold=3,
-        agreement_type="exact"
+        agreement_type="exact",
+        image_column="image_name"
     )
 
+    pd.DataFrame(results["removed_images"])
 
-    hA_flat = results['filtered_data']
+
+    # hA_flat = results['filtered_data']
 
     # Run your correction factor analysis on the filtered data:
 
     filtered_correction_results = calculate_correction_factors(
         hA_flat,
         consensus_name="consensus",
-        expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"]
+        expert_names=["Annotator 1", "Annotator 2", "Annotator 3", "Annotator 4"]
     )
 
 
@@ -285,10 +305,16 @@ if __name__ == '__main__':
     summary = analyze_counts(hA_flat)
     print(summary)
 
-    count_user_annotations(hA_flat, username_1="Iguana_Andrea", username_2="Iguana_Andres")
-    count_user_annotations(hA_flat, username_1="Iguana_Robin", username_2="consensus")
+    count_user_annotations(hA_flat, username_1="Annotator 1", username_2="Annotator 2")
 
-    results = compare_on_image_level(hA_flat, username_1="Iguana_Andrea", username_2="consensus")
+
+
+    count_user_annotations(hA_flat, username_1="Annotator 1", username_2="consensus")
+    count_user_annotations(hA_flat, username_1="Annotator 2", username_2="consensus")
+    count_user_annotations(hA_flat, username_1="Annotator 3", username_2="consensus")
+    count_user_annotations(hA_flat, username_1="Annotator 4", username_2="consensus")
+
+    results = compare_on_image_level(hA_flat, username_1="Annotator 1", username_2="consensus")
 
     # Access key metrics
     print(f"MAE: {results['mae']:.3f}")
@@ -304,25 +330,28 @@ if __name__ == '__main__':
     results = plot_all_users_vs_consensus(hA_flat, consensus_name="consensus")
 
     # Test the normal distribution analysis
-    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
-                                                             username_1=EXPERT_1,
+    normal_dist_results, fig = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1="Annotator 1",
                                                              username_2="consensus")
+    fig.savefig(hasty_data_path / "visualizations" / "normal_distribution_annotator_1_vs_consensus.png")
+    # Test the normal distribution analysis
+    normal_dist_results, fig = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1="Annotator 2",
+                                                             username_2="consensus")
+    fig.savefig(hasty_data_path / "visualizations" / "normal_distribution_annotator_2_vs_consensus.png")
 
     # Test the normal distribution analysis
-    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
-                                                             username_1=EXPERT_2,
+    normal_dist_results, fig = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1="Annotator 3",
                                                              username_2="consensus")
+    fig.savefig(hasty_data_path / "visualizations" / "normal_distribution_annotator_3_vs_consensus.png")
 
-
-    # Test the normal distribution analysis
-    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
-                                                             username_1=EXPERT_3,
+    normal_dist_results, fig = analyse_normal_distribution_expert(hA_flat,
+                                                             username_1="Annotator 4",
                                                              username_2="consensus")
+    fig.savefig(hasty_data_path / "visualizations" / "normal_distribution_annotator_4_vs_consensus.png")
 
-
-    normal_dist_results = analyse_normal_distribution_expert(hA_flat,
-                                                             username_1=EXPERT_4,
-                                                             username_2="consensus")
+    analyze_count_dependent_bias(hA_flat)
 
     expert_analysis = analyze_error_compensation(
         hA_flat,

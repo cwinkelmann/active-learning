@@ -10,16 +10,16 @@ crop_size = 512
 # hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
 
 
-# endgame case
-hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
-hasty_annotations_labels_zipped = "full_label_correction_floreana_2025_07_10_train_correction_hasty_corrected_1.json.zip"
-labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
+# # endgame case
+# hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
+# hasty_annotations_labels_zipped = "full_label_correction_floreana_2025_07_10_train_correction_hasty_corrected_1.json.zip"
+# labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
 
 
 # added CVAT corrected missions
 hasty_annotations_images_zipped = "2025_09_19_images_final.zip"
-hasty_annotations_labels_zipped = "2025_09_19_orthomosaic_data_combined_corrections.json.zip"
-labels_path = Path(f"/home/cwinkelmann/work/Herdnet/data/2025_09_19/")
+hasty_annotations_labels_zipped = "2025_09_19_orthomosaic_data_combined_corrections_2.json.zip"
+labels_path = Path(f"/home/cwinkelmann/work/Herdnet/data/2025_09_28_orthomosaic_data/")
 
 # hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
 # hasty_annotations_labels_zipped = "fernandina_s_correction_hasty_corrected_1.json.zip"
@@ -71,11 +71,11 @@ datasets_mapping = {
     ],
     "Genovesa": ['Genovesa'],
 
-    "Fernandina_CVAT_train_corr": ['ha_corrected_fer_fna01_02_20122021'],
-    "Fernandina_CVAT_val_corr": ['ha_corrected_fer_fni03_04_19122021'],
+    "Fernandina_CVAT_train_corr": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023', 'ha_corrected_fer_fnd02_19122021'],
+    "Fernandina_CVAT_val_corr": ['ha_corrected_fer_fni03_04_19122021', 'ha_corrected_fer_fnj01_19122021'],
 
-    "Fernandina_CVAT_train_class": ['ha_fer_fna01_02_20122021'],
-    "Fernandina_CVAT_val_class": ['ha_fer_fni03_04_19122021'],
+    "Fernandina_CVAT_train_class": ['ha_fer_fna01_02_20122021', 'ha_fer_fef01_02_20012023', 'ha_fer_fnd02_19122021', ],
+    "Fernandina_CVAT_val_class": ['ha_fer_fni03_04_19122021', 'ha_fer_fnj01_19122021'],
 
     "Fernandina_m": ['Fer_FCD01-02-03_20122021', 'Fer_FPM01-02_20122023'],
     "Fernandina_m_fcd": ['Fer_FCD01-02-03_20122021'],
@@ -556,7 +556,7 @@ datasets = [
     # 
     # , 
     # train_floreana_2_overlap,
-     # # val_floreana,
+    val_floreana,
     # val_2_floreana,
     # test_floreana,
     # # train_winning, val_winning,
@@ -570,7 +570,7 @@ datasets = [
     # val_single_all,
 
     # Fernandina_CVAT_train_corr, Fernandina_CVAT_val_corr,
-    Fernandina_CVAT_train_class, Fernandina_CVAT_val_class,
+     # Fernandina_CVAT_train_class, Fernandina_CVAT_val_class,
 
 ]
 # datasets += train_floreana_increasing_length

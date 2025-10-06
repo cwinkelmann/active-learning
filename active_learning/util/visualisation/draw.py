@@ -6,7 +6,7 @@ from pathlib import Path
 from active_learning.util.Annotation import project_point_to_crop
 from active_learning.util.image_manipulation import create_box_around, crop_out_images_v3
 from active_learning.util.visualisation.annotation_vis import visualise_points_only
-from image_template_search.util.util import visualise_image
+from com.biospheredata.visualization.visualize_result import visualise_image
 
 
 def draw_text(
@@ -29,7 +29,7 @@ def draw_text(
     return image
 
 
-def draw_thumbnail(df, i, suffix, images_path, box_size):
+def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None, DETECTECTED_COLOR='blue', GT_COLOR='red'):
     ts_path = images_path / f"thumbnails_{suffix}"
     ts_path.mkdir(exist_ok=True)
 
@@ -41,17 +41,41 @@ def draw_thumbnail(df, i, suffix, images_path, box_size):
         projected_points = [project_point_to_crop(point, crop_box)
                             for point, crop_box in zip(df.geometry, box_polygons)]
 
-        for idx, (crop, point) in enumerate(zip(crops, projected_points)):
+        for idx, (crop, point, crop_box) in enumerate(zip(crops, projected_points, box_polygons)):
             crop = draw_text(crop, f"{df_fp_list[idx].get('species', '')} | {round(100 * df_fp_list[idx].get('scores'), 2)}%",
                              position=(10, 5), font_size=int(0.08 * box_size))
 
+
             ax_i = visualise_image(image=crop, show=False)
+            points_to_plot = None
+            if df_gt is not None and len(df_gt) > 0:
+                # Find GT points that fall within the current crop box
+                gt_in_box = df_gt[df_gt.geometry.within(crop_box)]
+                points_to_plot = []
+                if len(gt_in_box) > 0:
+                    # Project GT points to crop coordinates
+                    projected_gt = [project_point_to_crop(gt_point, crop_box)
+                                    for gt_point in gt_in_box.geometry]
+                    points_to_plot.extend(projected_gt)
+
+            if points_to_plot is not None and len(points_to_plot) > 1:
+                visualise_points_only(points=points_to_plot,
+                                      text_buffer=True, font_size=15,
+                                      show=False,
+                                      filename=ts_path / f"{Path(i.name).stem}_{suffix}_{idx}.JPG",
+                                      markersize=10, colors=GT_COLOR,
+                                      ax=ax_i)
+
             # visualose_points_only
-            visualise_points_only(points=projected_points,
+            ax_i = visualise_points_only(points=projected_points,
                                   text_buffer=True, font_size=15,
                                   show=False, markersize=10,
                                   filename=ts_path / f"{Path(i.name).stem}_{suffix}_{idx}.JPG",
-                                  title=f"{i.name} Points",
+                                  title=f"{i.name} Points", colors=DETECTECTED_COLOR,
                                   ax=ax_i)
+
+
+            ax_i.legend()
+
             plt.close()
             # crop.save(ts_path / f"{Path(i.name).stem}_{suffix}_{idx}.JPG")

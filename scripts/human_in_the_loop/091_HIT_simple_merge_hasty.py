@@ -10,7 +10,7 @@ from active_learning.config.dataset_filter import GeospatialDatasetCorrectionCon
 from active_learning.types.Exceptions import NoLabelsError
 from loguru import logger
 
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage, delete_dataset, replace_image
 from com.biospheredata.types.status import LabelingStatus
 from com.biospheredata.visualization.visualize_result import visualise_hasty_annotation
 
@@ -34,8 +34,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
 
     # remove "_counts" from end of dataset name if present
     dataset_name = config.dataset_name.replace("_counts", "")
-
-    hA_prediction = delete_dataset(dataset_name=dataset_name, hA=hA_prediction)
+    hA_reference.delete_dataset(dataset_name=dataset_name)
 
     for pred_image in hA_prediction.images:
         logger.info(f"Processing {pred_image.image_name}, dataset {dataset_name}")
@@ -55,22 +54,18 @@ def main(config: GeospatialDatasetCorrectionConfig,
         target_path = target_images_path / pred_image.dataset_name
         target_path.mkdir(parents=True, exist_ok=True)
 
-        if not (config.image_tiles_path / "converted_tiles" / pred_image.image_name).exists():
+        if not (target_path / pred_image.image_name).exists():
             shutil.copy(config.image_tiles_path / "converted_tiles" / pred_image.image_name,
                         target_path / pred_image.image_name)
-
-        pred_image.dataset_name = f"ha_{dataset_name}"
-
 
 
         hA_reference = replace_image(pred_image, hA)
 
-
-        target_path = target_images_path / pred_image.dataset_name
-        target_path.mkdir(parents=True, exist_ok=True)
-
-        shutil.copy(config.image_tiles_path / "converted_tiles" / pred_image.image_name,
-                    target_images_path / pred_image.dataset_name / pred_image.image_name)
+        # target_path = target_images_path / pred_image.dataset_name
+        # target_path.mkdir(parents=True, exist_ok=True)
+        #
+        # shutil.copy(config.image_tiles_path / "converted_tiles" / pred_image.image_name,
+        #             target_images_path / pred_image.dataset_name / pred_image.image_name)
 
     return hA_reference
 
@@ -105,6 +100,8 @@ if __name__ == "__main__":
         try:
             config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
             config.hasty_reference_annotation_path = annotations_to_update
+            hA.delete_dataset(f"ha_{config.dataset_name}")
+            hA.dataset_statistics()
             hA = main(config, target_images_path, visualisation_path)
 
             logger.info(f"Processed {config} config")
@@ -115,6 +112,6 @@ if __name__ == "__main__":
                 logger.error \
                     (f"No annotation run found for {dataset_correction_config}, {e} . That should not happend if that was uploaded to cvat, skipping")
 
-
+    print(f"Dataset Statistics: {hA.dataset_statistics()}")
     hA.save(annotations_to_update)
     logger.info(f"Saved combined annotations to {annotations_to_update}")

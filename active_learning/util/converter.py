@@ -9,7 +9,10 @@ import pandas as pd
 import shapely
 from loguru import logger
 from shapely.geometry.point import Point
-# from ultralytics.data.converter import convert_coco
+try:
+    from ultralytics.data.converter import convert_coco
+except ImportError:
+    logger.warning("ultralytics not installed, coco2yolo will not work")
 
 from active_learning.config.mapping import keypoint_id_mapping
 from active_learning.util.image import get_image_id
@@ -134,7 +137,6 @@ def coco2yolo(
     temp_dir = source_dir / "yolo_tmp"
 
     assert coco_annotations.exists(), f"{coco_annotations} does not exist"
-    # TODO this ultralytics COCO converter is crap
     convert_coco(
         labels_dir=coco_annotations.parent,
         save_dir=temp_dir,
@@ -375,7 +377,9 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
     return hasty_annotation
 
 
-def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, hA_reference: typing.Optional[HastyAnnotationV2] = None) -> typing.List[ImageLabelCollection]:
+def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
+                                images_path: Path,
+                                hA_reference: typing.Optional[HastyAnnotationV2] = None) -> typing.List[ImageLabelCollection]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
     assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
@@ -403,7 +407,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path, 
                     keypoints = [Keypoint(
                         x=int(row.x),
                         y=int(row.y),
-                        keypoint_class_id=keypoint_id_mapping.get(row.species, None),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("Body")),
                     )],  # you can store extra information if needed
                     kind=row.get("kind", None)
                 )
@@ -451,7 +455,7 @@ def _is_with_edge(x: int, y: int, width: int, height: int, edge_threshold: int =
 
 def hasty_to_shp(tif_path: Path,
                  hA_reference: HastyAnnotationV2,
-                 edge_threshold: int = 100,
+                 edge_threshold: int = 50,
                  suffix=".tif"):
     """
     Convert Hasty Annotation to a GeoDataFrame with geometries in geospatial coordinates.

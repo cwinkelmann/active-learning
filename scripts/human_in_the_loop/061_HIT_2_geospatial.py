@@ -152,13 +152,13 @@ if __name__ == "__main__":
         # "fer_fpe09_18122021",
         # "fer_fnd02_19122021",
         # "fer_fef01_02_20012023",
-        # "fer_fna01_02_20122021",
+        "fer_fna01_02_20122021",
         # "fer_fnj01_19122021",
-        "fer_fpm05_24012023",
+        # "fer_fpm05_24012023",
     ]
 
-    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected')
-    hA_to_update = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data/2025_09_19_orthomosaic_data_combined_corrections.json")
+    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
+    hA_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_19/2025_09_19_orthomosaic_data_combined_corrections_2.json")
 
     for dataset_correction_config in (f for f in configs_path.glob("*_config.json") if not f.name.startswith("._")):
         if not any(dataset_correction_config.name.lower().startswith(p) for p in prefixes_ready_to_analyse):

@@ -64,11 +64,15 @@ if __name__ == "__main__":
 
     class_filter = ["iguana"]
 
-    crop_size = 140
+    crop_size = 190
     overlap = 0
     # amount of empty images in the dataset
 
-    island = "Fernandina_s"  # or "Fernandina", "Santiago", "San Cristobal", "Santa Cruz", "Genovesa"
+    island = "Fernandina_s"
+    island = "Fernandina_m"
+    island = "Genovesa"
+    island = "Floreana"
+    island = "Floreana_best"
 
     datasets = {
         "Floreana": ['Floreana_22.01.21_FPC07', 'Floreana_03.02.21_FMO06', 'FLMO02_28012023', 'FLBB01_28012023',
@@ -91,10 +95,12 @@ if __name__ == "__main__":
         #                   "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG",
         #                   ],
         "attribute_filter": [
+            # Attribute(name="visibility", type="int", values=[-1,0,1,2,3,4,5,6,7,8,9,10])
             Attribute(name="visibility", type="int", values=[-1,0,1,2,3,4,5,6,7,8,9,10])
         ],
         "dataset_filter": dataset_filter,
         "empty_fraction": 0.0,
+        "remove_padding_folder": False,
         # "image_tags": ["segment"],
         # "num": 1
 
@@ -143,6 +149,7 @@ if __name__ == "__main__":
                               crop_size=crop_size,
                               overlap=overlap,
                               output_path=output_path_dset,
+                              config=dataset
                               )
         dp.dataset_filter = dataset.dataset_filter
 
@@ -174,6 +181,15 @@ if __name__ == "__main__":
               "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels]
 
         df_parameter = pd.DataFrame(l)
+
+        bins = [-2, 2, 5, 10]  # -2 to include -1, then 2, 5, and 10
+        labels = ['low', 'medium', 'high']
+
+        df_parameter['visibility_category'] = pd.cut(df_parameter['visibility'],
+                                           bins=bins,
+                                           labels=labels,
+                                           include_lowest=True)
+
         df_parameter.to_csv(output_path_dset / "individual_object.csv")
         # visualise a histogram
 
@@ -227,8 +243,8 @@ if __name__ == "__main__":
 
         fig = plot_image_grid_by_visibility(df_merged,
                                             image_dir=output_path_dset_object_const,
-                                            max_images_per_visibility=8,
-                                            width_scale=0.9)
+                                            max_images_per_visibility=4,
+                                            visibility_col='visibility_category',visibility_order = ['high', 'medium', 'low'])
 
         fig.savefig(vis_path / f"image_grid_by_visibility_{island}.png", dpi=300)
         plt.show()

@@ -399,19 +399,25 @@ if __name__ == "__main__":
 
 
     for dataset in dataset_configs.datasets:
+        logger.info(f"Starting Dataset {dataset.dataset_name}, split: {dataset.dset}")
+
         hasty_dataset_path = Path(
+            # "/home/cwinkelmann/work/Herdnet/data/2025_09_28_orthomosaic_data/") / dataset.dataset_name / dataset.dset
             "/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset
 
         dataset_dict = dataset.model_dump()
 
-        logger.info(f"Starting Dataset {dataset.dataset_name}, split: {dataset.dset}")
         CRS_utm_zone_15 = "32715"
         EPSG_WGS84 = "4326"
 
         flight_database_path= Path(base_path / "2020_2021_2022_2023_2024_database_analysis_ready.parquet")
         flight_database = gpd.read_parquet(flight_database_path)
-        flight_database.to_file(base_path_mapping / f"full_flight_database_{dataset.dataset_name}_analysis_read.geojson",
-                                driver="GeoJSON")
+
+        missions = gdf = gpd.read_file('/raid/cwinkelmann/work/active_learning/mapping/database/mapping/Iguanas_From_Above_all_data.gpkg', layer='iguana_missions')
+
+
+        # flight_database.to_file(base_path_mapping / f"full_flight_database_{dataset.dataset_name}_analysis_read.geojson",
+        #                         driver="GeoJSON")
         flight_database = flight_database.to_crs(epsg=CRS_utm_zone_15)
         # read the right database
         #flight_database = get_analysis_ready_image_metadata(flight_database)
@@ -420,14 +426,14 @@ if __name__ == "__main__":
         full_hasty_annotation_file_path = hasty_dataset_path / "hasty_format_full_size.json"
         hA = HastyAnnotationV2.from_file(full_hasty_annotation_file_path)
 
-
-
         hasty_images_path = hasty_dataset_path / "Default"
         #images_list = list_images(hasty_images_path, extension="JPG", recursive=True)
         #gdf_hasty_image_metadata = images_data_extraction(images_list)
         
         try:
             gdf_hasty_images = create_image_db(hasty_images_path)
+
+
         except Exception as e:
             logger.error(f"Problem with HASTY images database: {e}")
             continue
@@ -436,7 +442,7 @@ if __name__ == "__main__":
 
         # filter the flight_database for the images that are in the hasty images
         flight_database_filtered = flight_database[flight_database["image_hash"].isin(gdf_hasty_images["image_hash"])]
-
+        missions_filtered = missions[missions["mission_folder"].isin(flight_database_filtered["mission_folder"])]
         # # the the image_name mapping
         # a = flight_database[["image_hash", "image_name", "geometry"]]
         # b = gdf_hasty_images[["image_hash", "image_name"]]
@@ -444,12 +450,15 @@ if __name__ == "__main__":
         # gdf_mapping = gpd.GeoDataFrame(mapping, geometry="geometry")
         # gdf_mapping.to_file(base_path_mapping / f"image_name_mapping_{dataset.dataset_name}.geojson", driver="GeoJSON")
 
-        gdf_mapping = gpd.read_file("/raid/cwinkelmann/work/active_learning/mapping/database/mapping/All_detection_mapping.geojson")
+        # gdf_mapping = gpd.read_file("/raid/cwinkelmann/work/active_learning/mapping/database/mapping/All_detection_mapping.geojson")
 
 
         flight_database_filtered.to_file(hasty_dataset_path / "labelled_hasty_images_{dataset.dataset_name}.geojson", driver="GeoJSON")
         # get the full mission
         flight_database_full_missions_filtered = flight_database[flight_database["mission_folder"].isin(flight_database_filtered["mission_folder"])]
+
+        # get the mission statistics.
+        missions_filtered
 
         # create a polygon from each mission
 

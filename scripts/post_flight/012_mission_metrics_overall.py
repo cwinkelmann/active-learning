@@ -10,6 +10,7 @@ from loguru import logger
 from matplotlib import pyplot as plt
 ## copy the template and the nearby images to a new folder
 from pathlib import Path
+import numpy as np
 
 from active_learning.util.mapping.helper import get_mission_flight_length, get_flight_route_type
 from active_learning.util.visualisation.drone_flights import visualise_drone_model
@@ -18,12 +19,15 @@ from active_learning.util.visualisation.drone_flights import visualise_drone_mod
 database_base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/")
 # gdf_all = gpd.read_parquet(base_path / 'database/database_analysis_ready.parquet')
 database_path =  database_base_path / 'database_analysis_ready.parquet'
+# /Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/database_analysis_ready.parquet
+
 gdf_all = gpd.read_parquet(database_path)
 
 dest_folder = Path("/Users/christian/data/Iguanas_From_Above/selected_images")
 
-site_code_filter = 'FWK'
-gdf_all = gdf_all[gdf_all['site_code'] == site_code_filter].copy()
+### DEBUGGING FILTER ###
+#site_code_filter = 'FWK'
+#gdf_all = gdf_all[gdf_all['site_code'] == site_code_filter].copy()
 # site_polygon = gpd.read_file("/Users/christian/data/Iguanas_From_Above/sites/Fernandina_Punta_Mangle.shp")
 
 gdf_all['year'] = gdf_all['datetime_digitized'].dt.year
@@ -101,8 +105,8 @@ nadir_counts.rename(columns={'is_nadir': 'perspective', 'image_count': 'Image Co
 nadir_counts.replace({'perspective': {True: 'Nadir', False: 'Oblique'}}, inplace=True)
 
 
-
-
+# REMOVE all oblique images from the analysis
+gdf_all = gdf_all[gdf_all.is_nadir]
 
 # route_type: Corridor vs Area
 grouped = gdf_all.groupby(['expedition_phase', 'YYYYMMDD', 'flight_code', 'site_code', 'mission_folder', 'island'])
@@ -179,6 +183,86 @@ gdf_missions.to_file(database_base_path / 'database_analysis_ready.gpkg',
                   layer='iguana_missions', overwrite=True,
                      driver="GPKG")
 
+gdf_missions_latex = gdf_missions.drop(columns=['geometry', 'oblique_frac', 'mission_folder', 'expedition_phase', 'unique_exposure_programs'])
+
+# gdf_missions_latex_isa = gdf_missions_latex[gdf_missions_latex['island'] == 'Fernandina']
+# gdf_missions_latex_isa = gdf_missions_latex[gdf_missions_latex['island'] == 'Floreana']
+
+
+
+def _flatten_cell(x):
+    """Turn ['A'] -> 'A', ['A','B'] -> 'A,B', keep scalars as-is, None stays None."""
+    if isinstance(x, (list, tuple, np.ndarray)):
+        if len(x) == 0:
+            return None
+        if len(x) == 1:
+            return x[0]
+        return ",".join(map(str, x))
+    return x
+
+def format_gdf_for_latex(gdf: pd.DataFrame) -> pd.DataFrame:
+    """
+    Clean & format a (Geo)DataFrame for LaTeX export:
+    - round/format numeric columns
+    - flatten list-like/categorical cells
+    - cast ISO to int
+    - ensure date is YYYY-MM-DD string
+    """
+    df = gdf.copy()
+
+    # --- Column names you likely have (adjust if yours differ) ---
+    # If a column is missing, it's skipped safely.
+    round_1 = ['avg_f_number', 'avg_time_diff_seconds', 'avg_overlap_pct', 'median_overlap_pct']                               # e.g., 2.8
+    round_2 = ['avg_risk_score', 'avg_relative_altitude', 'avg_absolute_altitude', 'avg_shift_pixels']         # e.g., 27.32
+    round_3 = ['nadir_frac', 'oblique_frac', 'avg_gsd_cm_per_px', 'avg_shift_px']  # e.g., 0.579
+    round_4 = ['avg_exposure_time', 'avg_gsd_rel_cm']                         # e.g., 0.0005
+
+    round_2_misc = ['avg_risk', 'avg_speed_m_per_s', 'avg_time_diff_s']  # e.g., 3.08, 1.56
+
+    int_like = ['avg_forward_overlap_pct','median_forward_overlap_pct', 'images', 'avg_iso', 'mission_length_m', 'avg_photographic_sensitivity']                     # keep as integers if present
+
+    # A column that contained arrays in your sample:
+    flatten_like = ['unique_exposure_programs', 'mode', 'shooting_mode']  # whichever exists will be flattened
+
+    date_cols = ['date']  # ensure YYYY-MM-DD
+
+    # --- Apply conversions safely if columns exist ---
+    for c in flatten_like:
+        if c in df.columns:
+            df[c] = df[c].map(_flatten_cell)
+
+    for c in int_like:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce').round(0).astype('Int64')  # nullable int
+
+    for c in date_cols:
+        if c in df.columns:
+            df[c] = pd.to_datetime(df[c], errors='coerce').dt.strftime('%Y-%m-%d')
+
+    def round_if_present(cols, ndigits):
+        for c in cols:
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors='coerce').round(ndigits)
+
+    round_if_present(round_1, 1)
+    round_if_present(round_2, 2)
+    round_if_present(round_3, 3)
+    round_if_present(round_4, 4)
+    round_if_present(round_2_misc, 2)
+    
+    return df
+
+# gdf_missions_latex_isa = format_gdf_for_latex(gdf_missions_latex_isa)
+
+
+# gdf_missions_latex_isa.to_latex(
+#     table_path / 'table_mission_flight_stats_floreana.tex',
+#     index=False)
+#
+# gdf_missions_latex_isa.to_csv(
+#     table_path / 'table_mission_flight_stats_floreana.csv',
+#     index=False)
+
 nadir_counts = gdf_all.groupby('is_nadir').size().reset_index(name='image_count')
 nadir_counts['percentage'] = (nadir_counts['image_count'] / len(gdf_all) * 100).round(2)
 nadir_counts.sort_values('image_count', ascending=False, inplace=True)
@@ -211,6 +295,8 @@ island_metrics = island_aggregations_grouped.agg(
     median_forward_overlap_pct=('forward_overlap_pct', 'median'),
 ).reset_index()
 
+island_metrics = format_gdf_for_latex(island_metrics)
+
 
 # Save all tables to CSV and LaTeX
 tables = {
@@ -226,13 +312,16 @@ tables = {
 
 for table_name, df in tables.items():
     # Save to CSV
+
+    df = format_gdf_for_latex(df)
+
     df.to_csv(table_path / f"{table_name}.csv", index=False)
 
     # Save to LaTeX
     latex_table = df.to_latex(
         table_path / f"{table_name}.tex",
         index=False,
-        float_format="%.1f",
+        # float_format="%.1f",
         escape=False)
 
 
@@ -245,8 +334,9 @@ for table_name in tables.keys():
 
 
 
-group_columns = ['expedition_phase']
+# group_columns = ['expedition_phase']
 # group_columns = ['island', 'expedition_phase', 'year']
+group_columns = ['island', 'expedition_phase']
 grouped_global = gdf_all.groupby(group_columns)
 # grouped_global = gdf_all.groupby(['island', 'expedition_phase', 'year'])
 
@@ -266,30 +356,35 @@ group_global_stats = grouped_global.agg(
     median_forward_overlap_pct=('forward_overlap_pct', 'median'),
 ).reset_index()
 
-group_global_stats.to_csv(table_path / 'global_flight_stats_by_year_and_island.csv', index=False)
+group_global_stats = format_gdf_for_latex(group_global_stats)
+
+group_global_stats.to_csv(table_path / 'global_flight_stats_by_island_expedition.csv', index=False)
 group_global_stats.to_latex(
-    table_path / 'table_global_flight_stats_by_year_and_island.tex',
+    table_path / 'global_flight_stats_by_island_expedition.tex',
     index=False,
     caption='Global Flight Statistics by Year and Island',
     label='tab:global_flight_stats',
     position='htbp',
     column_format='|c|l|r|r|r|r|l|r|r|r|r|r|r|',  # 13 columns
     escape=False,
-    float_format='%.2f'
+
 )
 
 fig1, ax1 = visualise_drone_model(gdf_all, figure_path=figure_path / 'drone_model_site.png',
                                   title="Drone Model Usage by day of Expedition",
                                   )
+
 fig2, ax2 = visualise_drone_model(gdf_all, aggregation="month",
                                     title="Drone Model Usage by Month",
                                     legend_title="Drone Model",
                                   figure_path=figure_path / 'drone_model_globally_month.png')
+
 fig3, ax3 = visualise_drone_model(gdf_all,
                                   title ="Drone Model Usage by Expedition Phase",
                                   legend_title="Drone Model",
                                   aggregation="expedition_phase",
                                   figure_path=figure_path / 'drone_model_globally_expedition.png')
+
 fig4, ax4 = visualise_drone_model(gdf_all,
                                   aggregation="expedition_phase",
                                   title="Exposure Program by Expedition Phase",

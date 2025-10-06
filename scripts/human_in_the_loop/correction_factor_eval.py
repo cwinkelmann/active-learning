@@ -131,7 +131,6 @@ comparison.to_csv('tile_comparison_results.csv', index=False)
 print("\nResults saved to 'tile_comparison_results.csv'")
 
 
-# Optional: Create a more detailed comparison including coordinates
 def create_detailed_comparison(ground_truth, predictions):
     """
     Create a detailed comparison including all point coordinates

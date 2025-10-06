@@ -1,6 +1,9 @@
 """
 convert Hasty annotations which are most probably on a jpg to the geotiff coordinates
 
+To do this the geotiff are required to have the same name as the jpg but with .tiff ending
+
+TODO: use world files instead
 
 """
 from pathlib import Path

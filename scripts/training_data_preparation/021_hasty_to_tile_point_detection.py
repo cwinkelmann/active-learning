@@ -21,7 +21,7 @@ from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import visualise_polygons, visualise_image
 
-iguana_special_stats = False
+iguana_special_stats = True
 import dataset_configs_hasty_point_iguanas as dataset_configs
 
 # import dataset_configs_AED as dataset_configs
@@ -49,6 +49,7 @@ if __name__ == "__main__":
         CRS_utm_zone_15 = "32715"
         import geopandas as gpd
         flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=CRS_utm_zone_15)
+        mission_database = gdf = gpd.read_file('path/to/your_file.gpkg', layer='iguana_missions')
 
 
     for dataset in dataset_configs.datasets:
@@ -115,6 +116,7 @@ if __name__ == "__main__":
             dp.visualise_path = vis_path
         dp.use_multiprocessing = dataset_configs.use_multiprocessing
         dp.edge_black_out = dataset.edge_black_out
+        # dp.flight_database = flight_database if iguana_special_stats else None
 
         dp.run(flatten=dataset_configs.flatten)
         logger.info(f"done filtering")

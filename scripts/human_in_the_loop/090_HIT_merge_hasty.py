@@ -43,6 +43,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
     assert len(hA_prediction.images) == len(hA_correction.images)
     # remove "_counts" from end of dataset name if present
     dataset_name = config.dataset_name.replace("_counts", "")
+    hA_reference.delete_dataset(dataset_name=dataset_name)
 
     images = []
     uncorrected_images = []
@@ -52,6 +53,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
         # pred_image = hA_prediction.images[i]
         # corr_image = hA_correction.images[i]
 
+        # be careful to match the image ids
         corr_image = hA_correction.get_image_by_id(pred_image.image_id)
         pred_image = AnnotatedImage(**pred_image.model_dump(), dataset_name=dataset_name, image_status=LabelingStatus.COMPLETED)
 
@@ -98,19 +100,19 @@ if __name__ == "__main__":
         # "fer_fpe09_18122021",
         # "fer_fnd02_19122021",
         # "fer_fef01_02_20012023",
-        # "fer_fna01_02_20122021",
-        "fer_fnj01_19122021",
+        "fer_fna01_02_20122021",
+        # "fer_fnj01_19122021",
     ]
 
     # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
     configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp')
-    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected')
+    # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected')
     base_path = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data")
     target_images_path = base_path / "2025_07_10_images_final"
     visualisation_path = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data/visualisation")
-    visualisation_path = None
+    # visualisation_path = None
     annotations_to_update = Path("/Users/christian/data/training_data/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json")
-    annotations_to_update = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data/2025_09_19_orthomosaic_data_combined_corrections.json")
+    annotations_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_19/2025_09_19_orthomosaic_data_combined_corrections_2.json")
 
     hA = HastyAnnotationV2.from_file(annotations_to_update)
 
@@ -119,10 +121,14 @@ if __name__ == "__main__":
             logger.info(f"Skipping {dataset_correction_config} as it does not match any of the prefixes")
             continue
         try:
+
             config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
+
+            config.hasty_reference_annotation_path = annotations_to_update
+
             images, uncorrected_images = main(config, target_images_path, visualisation_path)
             hA.images.extend(images)
-            hA.images.extend(uncorrected_images)
+            # hA.images.extend(uncorrected_images)
 
             logger.info(f"Processed {config} config")
         except NoLabelsError as e:
@@ -133,5 +139,5 @@ if __name__ == "__main__":
                     (f"No annotation run found for {dataset_correction_config}, {e} . That should not happend if that was uploaded to cvat, skipping")
 
 
-    hA.save(base_path / "2025_09_19_orthomosaic_data_combined_corrections.json")
-    logger.info(f"Saved combined annotations to {base_path / '2025_09_19_orthomosaic_data_combined_corrections.json'}")
+    hA.save(base_path / "2025_09_19_orthomosaic_data_combined_corrections_3.json")
+    logger.info(f"Saved combined annotations to {base_path / '2025_09_19_orthomosaic_data_combined_corrections_3.json'}")

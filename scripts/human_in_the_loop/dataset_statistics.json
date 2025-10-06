@@ -1,0 +1,230 @@
+{
+  "San_STJB03_12012023": {
+    "num_images": 79,
+    "num_labels": 60
+  },
+  "Fer_FPM01-02_20122023": {
+    "num_images": 224,
+    "num_labels": 8014
+  },
+  "SCris_SRIL02_04022023": {
+    "num_images": 47,
+    "num_labels": 37
+  },
+  "San_STJB06_12012023": {
+    "num_images": 39,
+    "num_labels": 137
+  },
+  "Fer_FCD01-02-03_20122021_single_images": {
+    "num_images": 46,
+    "num_labels": 8061
+  },
+  "San_STJB01_12012023": {
+    "num_images": 215,
+    "num_labels": 112
+  },
+  "San_STJB02_12012023": {
+    "num_images": 85,
+    "num_labels": 21
+  },
+  "Floreana_02.02.21_FMO01": {
+    "num_images": 39,
+    "num_labels": 2609
+  },
+  "SCruz_SCM01_06012023": {
+    "num_images": 46,
+    "num_labels": 136
+  },
+  "San_STJB04_12012023": {
+    "num_images": 17,
+    "num_labels": 22
+  },
+  "Zooniverse_expert_phase_2": {
+    "num_images": 162,
+    "num_labels": 1349
+  },
+  "SCris_SRIL01_04022023": {
+    "num_images": 36,
+    "num_labels": 15
+  },
+  "SCris_SRIL04_04022023": {
+    "num_images": 29,
+    "num_labels": 54
+  },
+  "SRPB06 1053 - 1112 falcon_25.01.20": {
+    "num_images": 17,
+    "num_labels": 55
+  },
+  "Zooniverse_expert_phase_3": {
+    "num_images": 111,
+    "num_labels": 45
+  },
+  "FPM01_24012023": {
+    "num_images": 14,
+    "num_labels": 1218
+  },
+  "FLMO02_28012023": {
+    "num_images": 46,
+    "num_labels": 985
+  },
+  "Fer_FCD01-02-03_20122021": {
+    "num_images": 129,
+    "num_labels": 8792
+  },
+  "Floreana_03.02.21_FMO06": {
+    "num_images": 18,
+    "num_labels": 1170
+  },
+  "FMO03": {
+    "num_images": 22,
+    "num_labels": 1781
+  },
+  "FSCA02": {
+    "num_images": 3,
+    "num_labels": 205
+  },
+  "San_STJB01_10012023_DJI_0068": {
+    "num_images": 1,
+    "num_labels": 50
+  },
+  "Fer_FPE02_07052024": {
+    "num_images": 10,
+    "num_labels": 602
+  },
+  "FLBB01_28012023": {
+    "num_images": 18,
+    "num_labels": 442
+  },
+  "FMO04": {
+    "num_images": 12,
+    "num_labels": 1968
+  },
+  "FMO05": {
+    "num_images": 14,
+    "num_labels": 417
+  },
+  "FPA03 condor": {
+    "num_images": 3,
+    "num_labels": 81
+  },
+  "floreana_FPE01_FECA01": {
+    "num_images": 11,
+    "num_labels": 903
+  },
+  "FMO02": {
+    "num_images": 5,
+    "num_labels": 133
+  },
+  "Floreana_22.01.21_FPC07": {
+    "num_images": 7,
+    "num_labels": 120
+  },
+  "Genovesa": {
+    "num_images": 8,
+    "num_labels": 1808
+  },
+  "ha_corrected_fer_fnj01_19122021": {
+    "num_images": 58,
+    "num_labels": 202
+  },
+  "ha_corrected_fer_fpe09_18122021": {
+    "num_images": 29,
+    "num_labels": 22
+  },
+  "ha_corrected_fer_fnd02_19122021": {
+    "num_images": 71,
+    "num_labels": 252
+  },
+  "ha_corrected_fer_fni03_04_19122021": {
+    "num_images": 150,
+    "num_labels": 785
+  },
+  "ha_corrected_fer_fna01_02_20122021": {
+    "num_images": 247,
+    "num_labels": 3403
+  },
+  "ha_corrected_fer_fef01_02_20012023": {
+    "num_images": 415,
+    "num_labels": 1228
+  },
+  "ha_corrected_flo_flpc06_22012021": {
+    "num_images": 9,
+    "num_labels": 6
+  },
+  "ha_flo_flpc06_22012021": {
+    "num_images": 9,
+    "num_labels": 14
+  },
+  "ha_corrected_flo_flpo02_04022021": {
+    "num_images": 16,
+    "num_labels": 13
+  },
+  "ha_flo_flpo02_04022021": {
+    "num_images": 16,
+    "num_labels": 25
+  },
+  "ha_corrected_flo_flpc04_22012021": {
+    "num_images": 25,
+    "num_labels": 25
+  },
+  "ha_flo_flpc04_22012021": {
+    "num_images": 25,
+    "num_labels": 54
+  },
+  "ha_corrected_flo_flpo01_04022021": {
+    "num_images": 4,
+    "num_labels": 2
+  },
+  "ha_flo_flpo01_04022021": {
+    "num_images": 4,
+    "num_labels": 5
+  },
+  "ha_corrected_flo_flpc03_22012021": {
+    "num_images": 8,
+    "num_labels": 12
+  },
+  "ha_flo_flpc03_22012021": {
+    "num_images": 8,
+    "num_labels": 15
+  },
+  "ha_corrected_flo_flbb01_28012023": {
+    "num_images": 44,
+    "num_labels": 60
+  },
+  "ha_flo_flbb01_28012023": {
+    "num_images": 44,
+    "num_labels": 76
+  },
+  "ha_corrected_flo_flbb02_28012023": {
+    "num_images": 28,
+    "num_labels": 41
+  },
+  "ha_flo_flbb02_28012023": {
+    "num_images": 28,
+    "num_labels": 50
+  },
+  "ha_fer_fpe09_18122021": {
+    "num_images": 14,
+    "num_labels": 20
+  },
+  "ha_fer_fnd02_19122021": {
+    "num_images": 60,
+    "num_labels": 257
+  },
+  "ha_fer_fni03_04_19122021": {
+    "num_images": 134,
+    "num_labels": 708
+  },
+  "ha_fer_fnj01_19122021": {
+    "num_images": 44,
+    "num_labels": 184
+  },
+  "ha_fer_fna01_02_20122021": {
+    "num_images": 239,
+    "num_labels": 3522
+  },
+  "ha_fer_fef01_02_20012023": {
+    "num_images": 368,
+    "num_labels": 1230
+  }
+}

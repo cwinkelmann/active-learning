@@ -246,7 +246,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
     df_false_negatives = pd.concat(l_fn, ignore_index=True) if len(l_fn) > 0 else pd.DataFrame(columns=df_ground_truth.columns)
 
 
-    return df_false_positives, df_true_positives, df_false_negatives
+    return df_false_positives, df_true_positives, df_false_negatives, gdf_ground_truth_all
 
 
 def analyse_point_detections_geospatial(gdf_detections: gpd.GeoDataFrame,

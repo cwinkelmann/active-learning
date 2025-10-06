@@ -117,113 +117,214 @@ def plot_visibility_scatter(df, figsize=(18, 6)):
     return fig
 
 
-def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name",
-                                  max_images_per_visibility=3, figsize=None,
-                                  width_scale=0.9):
+# def plot_image_grid_by_visibility(df, image_dir, image_name_col="crop_image_name",
+#                                   max_images_per_visibility=3, figsize=None,
+#                                   width_scale=0.9,
+#                                   visibility_col='visibility', visibility_order = None):
+#     """
+#     Plot a grid of images grouped by visibility values, showing at most 3 images per visibility value.
+#
+#     Parameters:
+#     -----------
+#     df : pandas.DataFrame
+#         DataFrame containing image name, 'visibility', 'width', and 'height' columns
+#     image_dir : str
+#         Directory path where the images are stored
+#     image_name_col : str
+#         Name of the column containing image filenames (default "crop_image_name")
+#     max_images_per_visibility : int
+#         Maximum number of images to display per visibility value (default 3)
+#     figsize : tuple or None
+#         Figure size as (width, height) in inches. If None, will be calculated automatically.
+#     width_scale : float
+#         Scale factor for figure width (0-1), smaller values place images closer together
+#
+#     Returns:
+#     --------
+#     fig : matplotlib.figure.Figure
+#         The figure containing the image grid
+#     """
+#     # Group by visibility
+#     visibility_groups = df.groupby(visibility_col)
+#     if visibility_order is not None:
+#         unique_visibility_values = [v for v in visibility_order if v in df[visibility_col].unique()]
+#
+#     else:
+#         unique_visibility_values = sorted(df[visibility_col].unique())
+#
+#     # Calculate much tighter figure size
+#     if figsize is None:
+#         # Much smaller multipliers for tight spacing
+#         width = max_images_per_visibility * 2 + 0.5  # Just enough for images + title
+#         height = len(unique_visibility_values) * 1.5  # Minimal height per row
+#         figsize = (width, height)
+#
+#     # Create figure with no margins
+#     fig = plt.figure(figsize=figsize)
+#     fig.subplots_adjust(left=0, right=1, top=1, bottom=0, hspace=0, wspace=0)
+#
+#     # Create a grid with minimal spacing
+#     gs = gridspec.GridSpec(len(unique_visibility_values), 1, figure=fig,
+#                           hspace=0.05, wspace=0.05, left=0, right=1, top=1, bottom=0)
+#
+#     # For each visibility value
+#     for i, visibility in enumerate(unique_visibility_values):
+#         group_df = visibility_groups.get_group(visibility)
+#
+#         # Sample up to max_images_per_visibility images
+#         if len(group_df) > max_images_per_visibility:
+#             sample_df = group_df.sample(max_images_per_visibility, random_state=42)
+#         else:
+#             sample_df = group_df
+#
+#         # Create a nested gridspec with title on the left and images on the right
+#         section_gs = gridspec.GridSpecFromSubplotSpec(
+#             1, 2,
+#             subplot_spec=gs[i],
+#             width_ratios=[0.12, 0.88],  # Even smaller title area
+#             wspace=0.01,  # Minimal spacing
+#         )
+#
+#         # Create title area on the left
+#         title_ax = fig.add_subplot(section_gs[0])
+#         title_ax.text(0.5, 0.5, f'Visibility:\n{visibility}',
+#                       fontsize=10, weight='bold', ha='center', va='center')
+#         title_ax.axis('off')
+#
+#         # Create a nested gridspec for the images on the right
+#         image_gs = gridspec.GridSpecFromSubplotSpec(
+#             1, max_images_per_visibility,
+#             subplot_spec=section_gs[1],
+#             wspace=-0.1,  # Changed from 0.002 to 0 for no spacing
+#         )
+#
+#         # Plot each image in the row
+#         for j, (_, row) in enumerate(sample_df.iterrows()):
+#             if j < max_images_per_visibility:
+#                 # Create subplot
+#                 ax = fig.add_subplot(image_gs[0, j])
+#
+#                 # Get image path
+#                 img_path = os.path.join(image_dir, row[image_name_col])
+#
+#                 try:
+#                     # Try to read and display the image
+#                     img = plt.imread(img_path)
+#                     ax.imshow(img)
+#                     # Smaller font for dimensions
+#                     ax.set_xlabel(f"{row['width']}×{row['height']}", fontsize=7)
+#                 except FileNotFoundError:
+#                     # If image not found, display placeholder
+#                     ax.text(0.5, 0.5, f"Image not found",
+#                             ha='center', va='center', fontsize=7)
+#
+#                 # Remove all axis elements
+#                 ax.set_xticks([])
+#                 ax.set_yticks([])
+#                 ax.set_xticklabels([])
+#                 ax.set_yticklabels([])
+#                 for spine in ax.spines.values():
+#                     spine.set_visible(False)
+#
+#     # No tight_layout - it adds unwanted padding
+#     # Instead manually adjust if needed
+#     return fig
+
+import os
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+
+def plot_image_grid_by_visibility(
+    df,
+    image_dir,
+    image_name_col="crop_image_name",
+    max_images_per_visibility=3,
+    figsize=None,
+    visibility_col="visibility",
+    visibility_order=None,
+    label_col_ratio=0.5,   # width of label column relative to ONE image column
+    pad=0.03,              # equal horizontal & vertical spacing inside the image grid
+    label_fmt=lambda v: str(v),  # formatting for the label text
+):
     """
-    Plot a grid of images grouped by visibility values, showing at most 3 images per visibility value.
-
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing image name, 'visibility', 'width', and 'height' columns
-    image_dir : str
-        Directory path where the images are stored
-    image_name_col : str
-        Name of the column containing image filenames (default "crop_image_name")
-    max_images_per_visibility : int
-        Maximum number of images to display per visibility value (default 3)
-    figsize : tuple or None
-        Figure size as (width, height) in inches. If None, will be calculated automatically.
-    width_scale : float
-        Scale factor for figure width (0-1), smaller values place images closer together
-
-    Returns:
-    --------
-    fig : matplotlib.figure.Figure
-        The figure containing the image grid
+    Display images grouped by visibility in a grid with:
+      - equal horizontal & vertical spacing between images
+      - a narrower first column for the visibility label
+      - square image cells (consistent look regardless of figure size)
     """
-    # Group by visibility
-    visibility_groups = df.groupby('visibility')
-    unique_visibility_values = sorted(df['visibility'].unique())
 
-    # Calculate much tighter figure size
+    # Resolve order
+    if visibility_order is not None:
+        vis_values = [v for v in visibility_order if v in df[visibility_col].unique()]
+    else:
+        vis_values = sorted(df[visibility_col].unique())
+
+    n_rows = len(vis_values)
+    n_img_cols = max_images_per_visibility
+
+    # Sensible default figsize: square-ish images + a narrow label column
     if figsize is None:
-        # Much smaller multipliers for tight spacing
-        width = max_images_per_visibility * 2 + 1.5  # Just enough for images + title
-        height = len(unique_visibility_values) * 1.5  # Minimal height per row
-        figsize = (width, height)
+        # width ~= (label_col_ratio + n_img_cols) * 2.2; height ~= n_rows * 2.2
+        figsize = ((label_col_ratio + n_img_cols) * 2.2, n_rows * 2.2)
 
-    # Create figure with no margins
     fig = plt.figure(figsize=figsize)
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0, hspace=0, wspace=0)
 
-    # Create a grid with minimal spacing
-    gs = gridspec.GridSpec(len(unique_visibility_values), 1, figure=fig,
-                          hspace=0.01, left=0, right=1, top=1, bottom=0)
+    # Two subfigures: left for labels (narrow), right for images (grid)
+    # Width ratios: label column is 'label_col_ratio', each image column is '1'
+    left_w = label_col_ratio
+    right_w = n_img_cols
+    subfigs = fig.subfigures(
+        1, 2, width_ratios=[left_w, right_w], wspace=0.02  # small gap between label & grid
+    )
+    left_sf, right_sf = subfigs
 
-    # For each visibility value
-    for i, visibility in enumerate(unique_visibility_values):
-        group_df = visibility_groups.get_group(visibility)
+    # Left subfigure: n_rows x 1 for labels (vertical spacing = pad)
+    gs_left = left_sf.add_gridspec(n_rows, 1, hspace=pad, top=1, bottom=0, left=0, right=1)
+    label_axes = [left_sf.add_subplot(gs_left[i, 0]) for i in range(n_rows)]
 
-        # Sample up to max_images_per_visibility images
-        if len(group_df) > max_images_per_visibility:
-            sample_df = group_df.sample(max_images_per_visibility, random_state=42)
-        else:
-            sample_df = group_df
+    # Right subfigure: n_rows x n_img_cols for images with equal hspace/wspace = pad
+    gs_right = right_sf.add_gridspec(
+        n_rows, n_img_cols, hspace=pad, wspace=pad, top=1, bottom=0, left=0, right=1
+    )
+    img_axes = [[right_sf.add_subplot(gs_right[i, j]) for j in range(n_img_cols)] for i in range(n_rows)]
 
-        # Create a nested gridspec with title on the left and images on the right
-        section_gs = gridspec.GridSpecFromSubplotSpec(
-            1, 2,
-            subplot_spec=gs[i],
-            width_ratios=[0.12, 0.88],  # Even smaller title area
-            wspace=0.01,  # Minimal spacing
+    # Fill labels and images
+    for i, vis in enumerate(vis_values):
+        # Label cell (kept auto aspect; it's just text)
+        ax_label = label_axes[i]
+        ax_label.text(
+            0.5, 0.5, label_fmt(vis),
+            fontsize=10, weight="bold", ha="center", va="center"
         )
+        ax_label.axis("off")
 
-        # Create title area on the left
-        title_ax = fig.add_subplot(section_gs[0])
-        title_ax.text(0.5, 0.5, f'Visibility:\n{visibility}',
-                      fontsize=10, weight='bold', ha='center', va='center')
-        title_ax.axis('off')
+        # Row images
+        row_df = df[df[visibility_col] == vis]
+        sample_df = (
+            row_df.sample(n_img_cols, random_state=42)
+            if len(row_df) > n_img_cols else row_df
+        ).reset_index(drop=True)
 
-        # Create a nested gridspec for the images on the right
-        image_gs = gridspec.GridSpecFromSubplotSpec(
-            1, max_images_per_visibility,
-            subplot_spec=section_gs[1],
-            wspace=0.002,  # Almost no spacing between images
-        )
+        for j in range(n_img_cols):
+            ax = img_axes[i][j]
+            ax.set_axis_off()
+            # Force **square axes** so spacing horizontally & vertically looks identical
+            ax.set_box_aspect(1)
 
-        # Plot each image in the row
-        for j, (_, row) in enumerate(sample_df.iterrows()):
-            if j < max_images_per_visibility:
-                # Create subplot
-                ax = fig.add_subplot(image_gs[0, j])
-
-                # Get image path
-                img_path = os.path.join(image_dir, row[image_name_col])
-
+            if j < len(sample_df):
+                img_path = os.path.join(image_dir, sample_df.loc[j, image_name_col])
                 try:
-                    # Try to read and display the image
                     img = plt.imread(img_path)
                     ax.imshow(img)
-                    # Smaller font for dimensions
-                    ax.set_xlabel(f"{row['width']}×{row['height']}", fontsize=7)
                 except FileNotFoundError:
-                    # If image not found, display placeholder
-                    ax.text(0.5, 0.5, f"Image not found",
-                            ha='center', va='center', fontsize=7)
+                    ax.text(0.5, 0.5, "Image not found", ha="center", va="center", fontsize=8)
 
-                # Remove all axis elements
-                ax.set_xticks([])
-                ax.set_yticks([])
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])
-                for spine in ax.spines.values():
-                    spine.set_visible(False)
-
-    # No tight_layout - it adds unwanted padding
-    # Instead manually adjust if needed
     return fig
+
+
+
+
+
 
 def visualise_points_only(points: List[shapely.Point],
                           labels: Optional[List[str]] = None,
@@ -255,6 +356,9 @@ def visualise_points_only(points: List[shapely.Point],
     # Plot points
     if colors and len(colors) == len(x_coords):
         ax.scatter(x_coords, y_coords, c=colors, s=markersize ** 2, alpha=0.8, edgecolors='black')
+    # elif #colors is a string and colors:
+    elif isinstance(colors, str):
+        ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black', color=colors)
     else:
         ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black', color='red')
 
