@@ -49,7 +49,8 @@ if __name__ == "__main__":
         CRS_utm_zone_15 = "32715"
         import geopandas as gpd
         flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=CRS_utm_zone_15)
-        mission_database = gdf = gpd.read_file('path/to/your_file.gpkg', layer='iguana_missions')
+        mission_database = gdf = gpd.read_file('/raid/cwinkelmann/work/active_learning/mapping/database/mapping/Iguanas_From_Above_all_data.gpkg',
+                                               layer='iguana_missions')
 
 
     for dataset in dataset_configs.datasets:
@@ -59,7 +60,7 @@ if __name__ == "__main__":
         dset = dataset.dset
         num = dataset.num
         overlap = dataset.overlap
-        ifcn = ImageFilterConstantNum(num=num, dataset_config=dataset)
+        ifcn = ImageFilterConstantNum(num=num, dataset_config=dataset, sample_strategy=dataset.sample_strategy)
 
         if dataset_configs.unpack:
             uA = UnpackAnnotations()
@@ -94,8 +95,9 @@ if __name__ == "__main__":
         vis_path = dataset_configs.labels_path / f"visualisations" / f"{dataset.dataset_name}_{overlap}_{dataset_configs.crop_size}_{dset}"
         vis_path.mkdir(exist_ok=True, parents=True)
 
-        # hA_flat = hA.get_flat_df()
-        # logger.info(f"Flattened annotations {hA_flat} annotations.")
+        hA_flat = hA.get_flat_df()
+        dataset_names = hA_flat["dataset_name"].unique()
+        logger.info(f"Availabe datasets: {dataset_names}.")
 
         dp = DataprepPipeline(annotations_labels=hA,
                               images_path=images_path,

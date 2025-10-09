@@ -2,6 +2,7 @@ from loguru import logger
 from pathlib import Path
 
 from active_learning.config.dataset_filter import DatasetFilterConfig
+from active_learning.types.filter import SampleStrategy
 from com.biospheredata.types.status import LabelingStatus, AnnotationType
 
 crop_size = 512
@@ -38,7 +39,7 @@ label_mapping = {"iguana_point": 1, "iguana": 2}
 
 
 overlap = 0
-VISUALISE_FLAG = True
+VISUALISE_FLAG = False
 empty_fraction = 0
 use_multiprocessing = True
 unpack = True
@@ -80,6 +81,8 @@ datasets_mapping = {
     "Fernandina_m": ['Fer_FCD01-02-03_20122021', 'Fer_FPM01-02_20122023'],
     "Fernandina_m_fcd": ['Fer_FCD01-02-03_20122021'],
     "Fernandina_m_fpm": ['Fer_FPM01-02_20122023'],
+
+    "Fernanna_m_corr": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023'],
 
     "the_rest": [
         # "SRPB06 1053 - 1112 falcon_25.01.20", # orthomosaics contains nearly iguanas but not annotated
@@ -198,8 +201,9 @@ train_floreana_increasing_length = [DatasetFilterConfig(**{
     "annotation_types": annotation_types,
     "class_filter": class_filter,
     "crop_size": crop_size,
-    "num": x
-}) for x in range(1, 36)]
+    "num": x,
+    "sample_strategy": SampleStrategy.ORDERED_ASC
+}) for x in range(1, 125)]
 
 
 
@@ -316,9 +320,12 @@ train_fernandina_s1_increasing_length = [DatasetFilterConfig(**{
     "class_filter": class_filter,
     "crop_size": crop_size,
     "num": x,
+
+    "sample_strategy": SampleStrategy.ORDERED_ASC,
     "remove_Default": True,
     "remove_padding": True
-}) for x in range(1, 25)]
+}) for x in range(1, 39)]
+
 val_fernandina_s2 = DatasetFilterConfig(**{
     "dset": "val",
     "dataset_name": "Fernandina_s_detection",
@@ -504,6 +511,22 @@ Fernandina_CVAT_val_corr = DatasetFilterConfig(**{
     "remove_default_folder": False,
 })
 
+train_all_corr = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "All_detection",
+    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"]
+                      + datasets_mapping["Fernandina_s_2"] + datasets_mapping["Fernandina_s_1"]
+                      + datasets_mapping["Fernandina_m_fpm"] + datasets_mapping["Fernandina_m_fcd"]
+                      + datasets_mapping["Genovesa"] + datasets_mapping["Fernandina_CVAT_train_corr"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+})
+
 Fernandina_CVAT_train_class = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "Fernandina_CVAT_class",
@@ -556,7 +579,7 @@ datasets = [
     # 
     # , 
     # train_floreana_2_overlap,
-    val_floreana,
+    # val_floreana,
     # val_2_floreana,
     # test_floreana,
     # # train_winning, val_winning,
@@ -565,13 +588,15 @@ datasets = [
     # train_fernandina_s1, val_fernandina_s2,
     # train_genovesa, val_genovesa,
     # # train_rest,
-    # # train_all,
+    
+    # train_all_corr,
+
     # train_single_all,
     # val_single_all,
 
     # Fernandina_CVAT_train_corr, Fernandina_CVAT_val_corr,
-     # Fernandina_CVAT_train_class, Fernandina_CVAT_val_class,
+    # Fernandina_CVAT_train_class, Fernandina_CVAT_val_class,
 
 ]
-# datasets += train_floreana_increasing_length
+datasets += train_floreana_increasing_length
 # datasets += train_fernandina_s1_increasing_length

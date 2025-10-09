@@ -14,7 +14,7 @@ from loguru import logger
 from pathlib import Path
 from shapely import affinity, unary_union
 
-from active_learning.filter import SpatialSampleStrategy
+from active_learning.types.filter import SpatialSampleStrategy
 from active_learning.types.Exceptions import WrongSpatialSamplingStrategy, LabelInconsistenyError
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.Annotation import project_point_to_crop

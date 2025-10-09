@@ -13,7 +13,8 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 
 from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
-from active_learning.filter import ImageFilterConstantNum, SampleStrategy, sample_coco
+from active_learning.filter import ImageFilterConstantNum, sample_coco
+from active_learning.types.filter import SampleStrategy
 from active_learning.pipelines.data_prep import DataprepPipeline, AnnotationsIntermediary
 from active_learning.util.converter import coco2yolo
 from com.biospheredata.converter.HastyConverter import HastyConverter

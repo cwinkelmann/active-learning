@@ -152,9 +152,10 @@ if __name__ == "__main__":
         # "fer_fpe09_18122021",
         # "fer_fnd02_19122021",
         # "fer_fef01_02_20012023",
-        "fer_fna01_02_20122021",
+        # "fer_fna01_02_20122021",
         # "fer_fnj01_19122021",
         # "fer_fpm05_24012023",
+        "fer_fe01_02_20012023",
     ]
 
     configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')

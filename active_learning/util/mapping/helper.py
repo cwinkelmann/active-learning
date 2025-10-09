@@ -567,6 +567,25 @@ def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
 
     return mission_geometry, flight_length
 
+def get_mission_flight_duration(gdf_mission: gpd.GeoDataFrame) -> float:
+    """
+    Calculate the flight duration of the mission
+    :param gdf_mission: GeoDataFrame with the mission
+    :return: flight duration in seconds
+    """
+    # Get the geometry of the mission
+    # sort by timestamp if available
+    gdf_mission = gdf_mission.sort_values(by=['datetime_digitized'], ascending=True)
+
+    # Get first and last timestamps
+    start_time = gdf_mission['datetime_digitized'].iloc[0]
+    end_time = gdf_mission['datetime_digitized'].iloc[-1]
+
+    # Calculate duration in seconds
+    duration_seconds = (end_time - start_time).total_seconds()
+
+    return duration_seconds
+
 def get_mission_type(gdf_mission: gpd.GeoDataFrame) -> str:
     """
     Determine if the mission is a oblique cliff or nadir flights

@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List
 
+from active_learning.types.filter import SampleStrategy
 from com.biospheredata.types.status import LabelingStatus, AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import Attribute
 
@@ -92,6 +93,10 @@ class DatasetFilterConfig(BaseModel):
     remove_padding_folder: bool = Field(
         default=True,
         description="Whether to remove the 'padding_folder' should be removed, which contains all images from the subsets."
+    )
+    sample_strategy: SampleStrategy = Field(
+        default=SampleStrategy.RANDOM,
+        description="Strategy for sampling images from the dataset."
     )
 
 

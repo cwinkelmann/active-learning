@@ -12,14 +12,19 @@ from matplotlib import pyplot as plt
 from pathlib import Path
 import numpy as np
 
-from active_learning.util.mapping.helper import get_mission_flight_length, get_flight_route_type
+from active_learning.util.mapping.helper import get_mission_flight_length, get_flight_route_type, \
+    get_mission_flight_duration
 from active_learning.util.visualisation.drone_flights import visualise_drone_model
 
 # base_path = Path("/Users/christian/data/Iguanas_From_Above/")
 database_base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/")
+
 # gdf_all = gpd.read_parquet(base_path / 'database/database_analysis_ready.parquet')
 database_path =  database_base_path / 'database_analysis_ready.parquet'
 # /Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024/database_analysis_ready.parquet
+
+database_base_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/')
+database_path = database_base_path / '2020_2021_2022_2023_2024_database_analysis_ready_2024_06_10.parquet'
 
 gdf_all = gpd.read_parquet(database_path)
 
@@ -106,7 +111,7 @@ nadir_counts.replace({'perspective': {True: 'Nadir', False: 'Oblique'}}, inplace
 
 
 # REMOVE all oblique images from the analysis
-gdf_all = gdf_all[gdf_all.is_nadir]
+# gdf_all = gdf_all[gdf_all.is_nadir]
 
 # route_type: Corridor vs Area
 grouped = gdf_all.groupby(['expedition_phase', 'YYYYMMDD', 'flight_code', 'site_code', 'mission_folder', 'island'])
@@ -136,12 +141,14 @@ for (expedition_phase, date, flight_code, site_code, mission_folder, island), gr
     # gdf_group_data_metrics = get_flight_metrics(group_data)
     #
     geometry, mission_length = get_mission_flight_length(gdf_group_data_metrics)
+    flight_duration = get_mission_flight_duration(gdf_group_data_metrics)
 
     group_summary_data['mission_length_m'] = mission_length
     if mission_length > 10000:
         logger.warning(f"Something is wrong with the mission length {mission_length} m for Expedition Phase {expedition_phase}, Date:  {date}, Site: {site_code}, Count: {len(group_data)}. The distance between first and last shot cannot be more than 10 km")
         logger.warning(f"This happened with three images in STESS01_09012023 ( Snt_STESS01_DJI_0609_09012023.JPG ), SCVE02_13012023 ( Scruz_SCVE02_DJI_0527_13012023.JPG )  and FSQ01_23012023 ( Fer_FSQ01_DJI_0705_23012023.JPG )")
     group_summary_data['geometry'] = geometry
+    group_summary_data['flight_duration'] = flight_duration
 
     if mission_folder == "FSP02_23012023":
         pass
@@ -157,6 +164,10 @@ for (expedition_phase, date, flight_code, site_code, mission_folder, island), gr
 df_missions = pd.DataFrame(groups)
 gdf_missions = gpd.GeoDataFrame(df_missions, geometry='geometry', crs=gdf_all.crs)
 
+def lower_quantile_mean(x):
+    """Calculate mean of values in the lower 25% quantile"""
+    threshold = x.quantile(0.25)
+    return x[x <= threshold].mean()
 
 mission_aggregations = grouped.agg(
     image_count=('exposure_time', 'count'),  # Count per group using any column
@@ -174,6 +185,8 @@ mission_aggregations = grouped.agg(
     avg_speed_m_per_s=('speed_m_per_s', 'mean'),
     avg_forward_overlap_pct=('forward_overlap_pct', 'mean'),
     median_forward_overlap_pct=('forward_overlap_pct', 'median'),
+    # # how to get the lower quantille
+    lower_q25_forward_overlap_pct=('forward_overlap_pct', lower_quantile_mean),
 ).reset_index()
 
 gdf_missions = gdf_missions.merge(mission_aggregations, on='mission_folder', how='left',suffixes=('', '_dup'))
@@ -325,11 +338,11 @@ for table_name, df in tables.items():
         escape=False)
 
 
-logger.info(f"\nTables saved to: {table_path}")
-logger.info("Files created:")
-for table_name in tables.keys():
-    logger.info(f"  - {table_name}.csv")
-    logger.info(f"  - {table_name}.tex")
+# logger.info(f"\nTables saved to: {table_path}")
+# logger.info("Files created:")
+# for table_name in tables.keys():
+#     logger.info(f"  - {table_name}.csv")
+#     logger.info(f"  - {table_name}.tex")
 
 
 

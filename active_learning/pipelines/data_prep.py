@@ -277,6 +277,7 @@ class DataprepPipeline(object):
         self.run_filter(flatten=flatten)
 
         lables_before = len(self.hA_filtered.get_flat_df())
+        logger.info(f"labels before filter: {lables_before}")
         self.sanity_check(self.hA_filtered)
 
         if self.config.crop:

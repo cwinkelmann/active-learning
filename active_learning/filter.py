@@ -2,26 +2,15 @@ import typing
 
 import copy
 
-import random
-
 import abc
-from enum import Enum
 import random
-import json
 from loguru import logger
 from typing import Dict
 
+from active_learning.types.filter import SampleStrategy
 from active_learning.config.dataset_filter import DatasetFilterConfig
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
-class SampleStrategy(Enum):
-    FIRST = 1
-    RANDOM = 2
-    PERCENTAGE = 3
-
-class SpatialSampleStrategy(Enum):
-    NEAREST = 1
-    RANDOM = 2
 
 class ImageFilter():
     def __init__(self):
@@ -63,6 +52,20 @@ def sample_hasty(l: typing.List[T],
         if n is None:
             raise ValueError("n must be specified for the 'first' method")
         n = min(n, len(l))  # Ensure n doesn't exceed the number of l
+        sampled_list = l[:n]
+
+    elif method == SampleStrategy.ORDERED_ASC:
+        """ get first images by amount of labels"""
+        if n is None:
+            raise ValueError("n must be specified for the 'ordered' method")
+        l = sorted(l, key=lambda x: x.label_count(), reverse=False)
+        sampled_list = l[:n]
+    elif method == SampleStrategy.ORDERED_DESC:
+        """ get first images by amount of labels"""
+        if n is None:
+            raise ValueError("n must be specified for the 'ordered' method")
+        l = sorted(l, key=lambda x: x.label_count(), reverse=True)
+
         sampled_list = l[:n]
 
     else:

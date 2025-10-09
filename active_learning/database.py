@@ -28,6 +28,9 @@ def create_image_db(images_path: Path = None,
                     image_extension="JPG") -> gpd.GeoDataFrame:
     """
     Main function to create the image database from a folder of images.
+    :param image_extension:
+    :param gdf_preexisting_database:
+    :param local_epsg:
     :param base_folder:
     :return:
     """
@@ -101,7 +104,8 @@ def derive_image_metadata(gdf_image_metadata_2: gpd.GeoDataFrame) -> gpd.GeoData
 
 
         # Calculate center and distances
-        center = gdf_group_data_metrics.unary_union.centroid
+
+        center = gdf_group_data_metrics.geometry.buffer(15).unary_union.centroid
         distances = gdf_group_data_metrics.geometry.distance(center)
 
         # Filter out points more than 10,000m from center

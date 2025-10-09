@@ -12,7 +12,8 @@ from shapely.geometry import Polygon
 
 from active_learning.util.converter import coco2hasty
 from com.biospheredata.converter.HastyConverter import HastyConverter
-from active_learning.filter import ImageFilterConstantNum, SampleStrategy, sample_coco
+from active_learning.filter import ImageFilterConstantNum, sample_coco
+from active_learning.types.filter import SampleStrategy
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, HastyAnnotationV2
 
 

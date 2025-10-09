@@ -90,7 +90,7 @@ def reorder_columns(df):
         'FlightRollDegree',
         'FlightYawDegree',
         'FlightPitchDegree',
-        'FlightXSpeed',
+        'FlightXSpeed', # Matrice
         'FlightYSpeed',
         'FlightZSpeed',
         'bearing_to_prev',
@@ -120,6 +120,11 @@ def reorder_columns(df):
         'shift_mm',
         'shift_pixels',
         'forward_overlap_pct',
+        'overlap_distance',
+        'angle_diff',
+        'flight_mode',
+        'relevant_dimension',
+
         'is_oblique',
         'is_nadir',
 
@@ -172,7 +177,8 @@ def reorder_columns(df):
         'jpeg_interchange_format_length',
         'image_description',
         'xp_keywords',
-
+        
+        # TODO this is a special case for a Matrics 4e drone
         # Specialized Equipment (LRF - Laser Range Finder)
         'LRFTargetDistance',
         'LRFTargetLat',
@@ -184,7 +190,10 @@ def reorder_columns(df):
         'ImageSource',
         'ProductName'
     ]
-
+    missing_columns = set(reordered_columns) - set(df.columns)
+    extra_columns = set(df.columns) - set(reordered_columns)
+    # delete the missing columns from the list
+    reordered_columns = [col for col in reordered_columns if col in df.columns]
     # To reorder your DataFrame:
     df_reordered = df[reordered_columns]
 
@@ -197,16 +206,23 @@ if __name__ == "__main__":
     # island_folder_path = Path("/Users/christian/data/missions/norway_db_test_2/")
 
     # get_analysis_ready_image_metadata = main(base_folder=island_folder_path, local_epsg="25833")
-    database_path = island_folder_path / "database_analysis_ready.parquet"
+    database_path = '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet'
+
+    current_date = "2024_06_10"
+    updated_database_path = f'/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready_{current_date}.parquet'
     gdf_db = gpd.read_parquet(database_path)
 
     # setting this to None will avoid re-processing existing images
     island_folder_path = None
 
-
+    # gdf_db = gdf_db[gdf_db.folder_name == "FLMO06_23052024"]
+    # gdf_db = gdf_db[gdf_db.folder_name == "FLCC02_29012023"]
     gdf_analysis_ready_image_metadata = create_image_db(images_path=island_folder_path,
                                                         local_epsg="32715",
                                                         gdf_preexisting_database=gdf_db)
+
+
+    #
 
     # reorder the columns
     gdf_analysis_ready_image_metadata = reorder_columns(gdf_analysis_ready_image_metadata)
@@ -219,6 +235,7 @@ if __name__ == "__main__":
     # remove images which don't belong in there manually
 
     gdf_analysis_ready_image_metadata = convert_to_serialisable_dataframe(gdf_analysis_ready_image_metadata)
-    gdf_analysis_ready_image_metadata.to_parquet(database_path)
+    gdf_analysis_ready_image_metadata.to_parquet(updated_database_path)
 
-    logger.info(f"Image metadata saved to {database_path}")
+
+    logger.info(f"Image metadata saved to {updated_database_path}")

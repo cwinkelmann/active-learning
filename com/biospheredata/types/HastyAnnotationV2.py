@@ -221,6 +221,9 @@ class ImageLabelCollection(BaseModel):
     width: int
     height: int
 
+    def label_count(self):
+        return len(self.labels)
+
     def denormalise(self):
         """
         Normalise the labels to the image size
