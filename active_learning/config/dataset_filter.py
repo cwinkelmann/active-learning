@@ -126,6 +126,10 @@ class DataPrepReport(DatasetFilterConfig):
         default=None,
         description="Statistics about labels in the dataset, such as class distribution, number of labels per"
     )
+    cropped_label_statistics: typing.Optional[dict] = Field(
+        default=None,
+        description="Statistics about labels in the cropped dataset, such as class distribution, number of labels per"
+    )
     label_mapping: typing.Optional[dict] = Field(
         default=None,
         description="Label Mapping of class id to class name"

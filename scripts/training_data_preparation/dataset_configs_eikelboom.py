@@ -19,14 +19,14 @@ from com.biospheredata.visualization.visualize_result import (visualise_image, v
 
 base_path = Path("/raid/cwinkelmann/training_data/eikelboom2019")
 
-labels_name = base_path / "eikelboom_hasty.json"
+labels_full_path_name = base_path / "eikelboom_hasty.json"
 images_path = base_path
 annotation_types = [AnnotationType.BOUNDING_BOX]
 class_filter = ["Giraffe", "Elephant", "Zebra"]
 label_mapping = {"Giraffe":1, "Elephant":2, "Zebra":3}
-crop_size = 512
+crop_size = 700
 empty_fraction = 0.0
-overlap = 0
+overlap = 200
 VISUALISE_FLAG = False
 use_multiprocessing = True
 edge_black_out = False

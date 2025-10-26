@@ -404,7 +404,7 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
             ds_image_name=None,
             width=width,
             height=height,
-            image_status="Done",
+            image_status="DONE",
             tags=[],
             image_mode=None,
             labels=image_labels
@@ -443,10 +443,10 @@ def determine_changes(
         reference_image = hA_reference.get_image_by_id(i.image_id)
         diff = set(updated_image.labels) - set(reference_image.labels)
         if len(diff) > 0:
-
-            updated_image.labels
-
-        logger.warning(f"Continue the implementation of this")
+            pass
+            # updated_image.labels
+            # TODO implement me
+        # logger.warning(f"Continue the implementation of this")
 
 
 

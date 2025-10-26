@@ -1,4 +1,5 @@
 import shutil
+from matplotlib import pyplot as plt
 
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def main(config: GeospatialDatasetCorrectionConfig,
 
     if not hA_corrected_path.exists():
         raise NoLabelsError(f"hA_corrected_path {hA_corrected_path} does not exist")
-
+    # we need the prediction for the list of images
     hA_prediction = HastyAnnotationV2.from_file(file_path=hA_prediction_path)
     hA_correction = HastyAnnotationV2.from_file(file_path=hA_corrected_path)
     hA_reference = HastyAnnotationV2.from_file(config.hasty_reference_annotation_path)
@@ -44,6 +45,8 @@ def main(config: GeospatialDatasetCorrectionConfig,
     # remove "_counts" from end of dataset name if present
     dataset_name = config.dataset_name.replace("_counts", "")
     hA_reference.delete_dataset(dataset_name=dataset_name)
+    hA_reference.delete_dataset(dataset_name=f"ha_corrected_{dataset_name}")
+    hA_reference.delete_dataset(dataset_name=f"ha_{dataset_name}")
 
     images = []
     uncorrected_images = []
@@ -58,16 +61,17 @@ def main(config: GeospatialDatasetCorrectionConfig,
         pred_image = AnnotatedImage(**pred_image.model_dump(), dataset_name=dataset_name, image_status=LabelingStatus.COMPLETED)
 
         if visualisation_path is not None and len(corr_image.labels) > 0:
-
+            logger.info(f"visualising {pred_image.image_name}, dataset {dataset_name}")
             visualise_hasty_annotation(image=corr_image, images_path=config.image_tiles_path / "converted_tiles",
                                        output_path= visualisation_path,
                                        title = f"Prediction {dataset_name}, {pred_image.image_name}",
                                        show=False)
+            plt.close()
 
         pred_image.dataset_name = f"ha_{dataset_name}"
-        uncorrected_images.append(pred_image)
+        # uncorrected_images.append(pred_image)
 
-        hA_reference.images.append(pred_image)
+        # hA_reference.images.append(pred_image)
         target_path = target_images_path / pred_image.dataset_name
         target_path.mkdir(parents=True, exist_ok=True)
 
@@ -81,15 +85,16 @@ def main(config: GeospatialDatasetCorrectionConfig,
 
         target_path = target_images_path / corr_image.dataset_name
         target_path.mkdir(parents=True, exist_ok=True)
-
-        shutil.copy(config.image_tiles_path / "converted_tiles" / corr_image.image_name,
-                    target_images_path / corr_image.dataset_name / corr_image.image_name)
+            
+        if not (config.image_tiles_path / "converted_tiles" / corr_image.image_name).exists():
+            shutil.copy(config.image_tiles_path / "converted_tiles" / corr_image.image_name,
+                        target_images_path / corr_image.dataset_name / corr_image.image_name)
 
     # update the reference annotation file
-
+    logger.info(f"Kept {sum([len(img.labels) for img in images])} labels")
     # hA_updated_path = config.hasty_reference_annotation_path.stem + f"_updated_with_{dataset_name}.json"
-
-    # hA_reference.to_file(hA_updated_path)
+    logger.info(f"Updated config.hasty_reference_annotation_path to {config.hasty_reference_annotation_path}")
+    hA_reference.save(config.hasty_reference_annotation_path)
     return images, uncorrected_images
 
 if __name__ == "__main__":
@@ -100,19 +105,25 @@ if __name__ == "__main__":
         # "fer_fpe09_18122021",
         # "fer_fnd02_19122021",
         # "fer_fef01_02_20012023",
-        "fer_fna01_02_20122021",
+        # "fer_fna01_02_20122021",
         # "fer_fnj01_19122021",
+        "fer_fwk01_20122021",
+        "fer_fe01_02_20012023",
     ]
 
     # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
     configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp')
     # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected')
-    base_path = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data")
-    target_images_path = base_path / "2025_07_10_images_final"
-    visualisation_path = Path("/Users/christian/data/training_data/2025_09_19_orthomosaic_data/visualisation")
+    base_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_28_orthomosaic_data/")
+    base_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11")
+    target_images_path = base_path / "unzipped_images"
+    visualisation_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_28_orthomosaic_data/visualisation")
+    visualisation_path = None
+
     # visualisation_path = None
-    annotations_to_update = Path("/Users/christian/data/training_data/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json")
-    annotations_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_19/2025_09_19_orthomosaic_data_combined_corrections_2.json")
+    # annotations_to_update = Path("/Users/christian/data/training_data/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json")
+    # annotations_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_19/2025_09_19_orthomosaic_data_combined_corrections_2.json")
+    annotations_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_09_19_orthomosaic_data_combined_corrections_4.json")
 
     hA = HastyAnnotationV2.from_file(annotations_to_update)
 
@@ -138,6 +149,6 @@ if __name__ == "__main__":
                 logger.error \
                     (f"No annotation run found for {dataset_correction_config}, {e} . That should not happend if that was uploaded to cvat, skipping")
 
-
-    hA.save(base_path / "2025_09_19_orthomosaic_data_combined_corrections_3.json")
-    logger.info(f"Saved combined annotations to {base_path / '2025_09_19_orthomosaic_data_combined_corrections_3.json'}")
+    # print(hA.dataset_statistics())
+     # hA.save(base_path / "2025_09_19_orthomosaic_data_combined_corrections_5.json")
+    # logger.info(f"Saved combined annotations to {base_path / '2025_09_19_orthomosaic_data_combined_corrections_5.json'}")

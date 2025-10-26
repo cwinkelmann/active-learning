@@ -8,6 +8,7 @@ from pathlib import Path
 
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, filter_by_class
 from com.biospheredata.types.status import LabelingStatus
+from scripts.training_data_preparation import dataset_configs_hasty_point_iguanas
 
 
 # Calculate bbox area from bbox_x1y1x2y2 format: [x1, y1, x2, y2]
@@ -136,15 +137,16 @@ def get_aggregations(df_flat):
 
 
 if __name__ == '__main__':
-    dataset_name = 'eikelboom2019'
+    # dataset_name = 'eikelboom2019'
     # labels_path = Path("/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame")
-    labels_path = Path("/home/cwinkelmann/work/Herdnet/data/2025_09_28_orthomosaic_data")
+    labels_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/IFA_training_data/")
     # labels_path = Path("/Users/christian/data/training_data/2025_08_10_endgame")
 
     # hacky way
     # get a list of images which are in a dataset
-    labels_file_path = labels_path / "unzipped_hasty_annotation/2025_09_19_orthomosaic_data_combined_corrections_3.json"
-
+    # labels_file_path = labels_path / "unzipped_hasty_annotation/2025_09_19_orthomosaic_data_combined_corrections_3.json"
+    labels_file_path = labels_path / "2025_10_11_labels.json"
+    # "/home/cwinkelmann/work/Herdnet/data/2025_10_11/2025_09_19_orthomosaic_data_combined_corrections_4.json"
     target_labels = ['iguana_point', "iguana"]
 
     # labels_file_path = labels_path / "unzipped_hasty_annotation/2025_07_10_labels_final.json"
@@ -154,8 +156,8 @@ if __name__ == '__main__':
     hA.images = [img for img in hA.images if img.image_status == LabelingStatus.COMPLETED.value]
     # remove all labels which are not in target_labels
     hA = filter_by_class(hA, target_labels)
-    hA.dataset_statistics()
-
+    hA_stats = hA.dataset_statistics()
+    df_ha_stats = pd.DataFrame(hA_stats)
     target_labels_points =  ["iguana_point"]
     target_labels_box =  ["iguana"]
 
@@ -187,11 +189,17 @@ if __name__ == '__main__':
         'ha_corrected_fer_fef01_02_20012023': "Fernandina",
         'ha_fer_fef01_02_20012023': "Fernandina",
 
+        # The uncorrected labels are not added anymore
+        'ha_corrected_fer_fwk01_20122021': "Fernandina",
+        'ha_corrected_fer_fe01_02_20012023': "Fernandina",
+
 
         'ha_corrected_flo_flpo02_04022021': "Floreana",
         'ha_flo_flpo02_04022021': "Floreana",
         'ha_corrected_flo_flpc04_22012021': "Floreana",
         'ha_flo_flpc04_22012021': "Floreana",
+        'ha_corrected_flo_flpc06_22012021': "Floreana",
+        'ha_flo_flpc06_22012021': "Floreana",
         'ha_corrected_flo_flpo01_04022021': "Floreana",
         'ha_flo_flpo01_04022021': "Floreana",
         'ha_corrected_flo_flpc03_22012021': "Floreana",
@@ -259,22 +267,36 @@ if __name__ == '__main__':
         'ha_fer_fna01_02_20122021': "DroneDeploy",
         'ha_corrected_fer_fef01_02_20012023': "DroneDeploy",
         'ha_fer_fef01_02_20012023': "DroneDeploy",
+        'ha_corrected_fer_fwk01_20122021': "DroneDeploy",
+        'ha_corrected_fer_fe01_02_20012023': "DroneDeploy",
 
-        'ha_corrected_flo_flpo02_04022021': "DroneDeploy",
-        'ha_flo_flpo02_04022021': "DroneDeploy",
-        'ha_corrected_flo_flpc04_22012021': "DroneDeploy",
-        'ha_flo_flpc04_22012021': "DroneDeploy",
         'ha_corrected_flo_flpo01_04022021': "DroneDeploy",
         'ha_flo_flpo01_04022021': "DroneDeploy",
+        'ha_corrected_flo_flpo02_04022021': "DroneDeploy",
+        'ha_flo_flpo02_04022021': "DroneDeploy",
+
         'ha_corrected_flo_flpc03_22012021': "DroneDeploy",
         'ha_flo_flpc03_22012021': "DroneDeploy",
+        'ha_corrected_flo_flpc04_22012021': "DroneDeploy",
+        'ha_flo_flpc04_22012021': "DroneDeploy",
+        'ha_corrected_flo_flpc06_22012021': "DroneDeploy",
+        'ha_flo_flpc06_22012021': "DroneDeploy",
+
+
         'ha_corrected_flo_flbb01_28012023': "DroneDeploy",
         'ha_flo_flbb01_28012023': "DroneDeploy",
         'ha_corrected_flo_flbb02_28012023': "DroneDeploy",
         'ha_flo_flbb02_28012023': "DroneDeploy",
 
-
     }
+    df_ha_stats = df_ha_stats.T.reset_index(drop=False).rename(columns={"index": "dataset_name"})
+    df_ortho_single_images_mapping = pd.DataFrame(list(ortho_single_images_mapping.items()),
+                      columns=['dataset_name', 'Software'])
+    df_islands_mapping   = pd.DataFrame(list(dataset_name_island_mapping.items()),
+                              columns=['dataset_name', 'Island'])
+    # map the dataset names to islands and if they are orthomosaics or single images
+    df_ha_stats = df_ha_stats.merge(df_ortho_single_images_mapping, on='dataset_name', how='left').fillna("Single Images")
+    df_ha_stats = df_ha_stats.merge(df_islands_mapping, on='dataset_name', how='left').fillna("Mixed")
 
     # remove the names that are in the mapping
     # Remove the ortho datasets to get only single images datasets

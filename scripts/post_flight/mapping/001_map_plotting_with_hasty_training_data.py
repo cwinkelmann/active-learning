@@ -18,8 +18,9 @@ import pandas as pd
 from loguru import logger
 
 from active_learning.database import images_data_extraction, derive_image_metadata
+from active_learning.types.image_metadata import list_images, get_image_gdf
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks, find_closest_island
+    draw_accurate_scalebar, get_geographic_ticks, find_closest_island, draw_accurate_scalebar_v2
 
 web_mercator_projection_epsg = 3857
 
@@ -27,7 +28,8 @@ def create_galapagos_expedition_map(
         gdf_flight_database: geopandas.GeoDataFrame,
         gpkg_path="/Volumes/2TB/SamplingIssues/sampling_issues.gpkg",
         output_path="galapagos_hasty_training_data_map.png",
-        dpi=300):
+        dpi=300,
+        draw_inset_map=True):
     """
     Creates a map of the Galápagos Islands showing expedition data locations with different colors for each phase.
     """
@@ -41,6 +43,8 @@ def create_galapagos_expedition_map(
     # Add expedition phase mapping
     flight_database['year_month'] = flight_database['datetime_digitized'].dt.strftime('%Y_%m')
 
+
+
     expedition_mapping = {
         "2020_01": 1,
         "2021_01": 2,
@@ -52,6 +56,14 @@ def create_galapagos_expedition_map(
         "2024_04": 6,  # from the El Niño folder
         "2024_05": 6,  # from the El Niño folder
     }
+
+    # Filter for important islands to plot nicely
+    important_islands = ["Santiago", "Santa Fé", "Española", "Isabela",
+                         "Fernandina", "Floreana", "Santa Cruz", "San Cristóbal",
+                         "Genovesa", "San Cristobal", "Marchena", "Pinta"]
+
+    islands_to_remove = ["Wolf", "Darwin"]
+    islands = islands[~islands['nombre'].isin(islands_to_remove)]
 
     # Map the expedition phases
     flight_database['expedition_phase'] = flight_database['year_month'].map(expedition_mapping)
@@ -67,11 +79,6 @@ def create_galapagos_expedition_map(
     islands_wm = islands.to_crs(epsg=web_mercator_projection_epsg)
     islands_wm = islands_wm[islands_wm['tipo'] == 'Isla']
 
-    # Filter for important islands to plot nicely
-    important_islands = ["Santiago", "Santa Fé", "Española", "Isabela",
-                         "Fernandina", "Floreana", "Santa Cruz", "San Cristóbal",
-                         "Genovesa", "San Cristobal", "Marchena", "Pinta"]
-
 
 
     islands_wm_f = islands_wm[islands_wm['nombre'].isin(important_islands)]
@@ -84,13 +91,22 @@ def create_galapagos_expedition_map(
     islands_wm.plot(ax=ax, alpha=0.7, edgecolor='black', color='lightgrey')
 
     # Define colors for each expedition phase
+    # expedition_colors = {
+    #     1: '#E63946',  # Red - 2020
+    #     2: '#F77F00',  # Orange - 2021 (Jan/Feb)
+    #     3: '#FCBF49',  # Yellow - 2021 (Dec)
+    #     4: '#277DA1',  # Blue - 2023 (Jan/Feb)
+    #     5: '#4D908E',  # Teal - 2024 (Jan)
+    #     6: '#90E0EF',  # Light Blue - 2024 (Apr/May)
+    # }
+
     expedition_colors = {
-        1: '#E63946',  # Red - 2020
-        2: '#F77F00',  # Orange - 2021 (Jan/Feb)
-        3: '#FCBF49',  # Yellow - 2021 (Dec)
-        4: '#277DA1',  # Blue - 2023 (Jan/Feb)
-        5: '#4D908E',  # Teal - 2024 (Jan)
-        6: '#90E0EF',  # Light Blue - 2024 (Apr/May)
+        1: '#D7191C',  # Red
+        2: '#FDAE61',  # Orange
+        3: '#ABDDA4',  # Light Green
+        4: '#2B83BA',  # Blue
+        5: '#7570B3',  # Purple
+        6: '#66C2A5',  # Teal / Aqua
     }
 
     expedition_labels = {
@@ -109,25 +125,25 @@ def create_galapagos_expedition_map(
             phase_data.plot(ax=ax,
                           marker='o',
                           color=expedition_colors[phase],
-                          markersize=125,
+                          markersize=50,
                           alpha=0.7,
                           label=f"{expedition_labels[phase]} ({len(phase_data)} photos)")
 
     # Dictionary of label offsets (dx, dy) in map units
     label_offsets = {
         "Santiago": (30000, 10000),
-        "Wolf": (1000, 5000),
-        "Darwin": (1000, 5000),
+        # "Wolf": (1000, 6500),
+        # "Darwin": (1000, 5500),
         "Santa Fé": (0, -9000),
-        "Española": (10000, 9000),
-        "Isabela": (-10000, 0),
+        "Española": (10000, 10000),
+        "Isabela": (-10000, -40000),
         "Fernandina": (-15000, -21000),
         "Floreana": (0, -14000),
-        "Santa Cruz": (35000, 10000),
+        "Santa Cruz": (35000, 12000),
         "San Cristóbal": (70000, -10000),
         "Genovesa": (10000, 10000),
         "San Cristobal": (10000, 23000),
-        "Marchena": (10000, 10000),
+        "Marchena": (10000, 13000),
         "Pinta": (10000, 10000),
     }
 
@@ -153,11 +169,13 @@ def create_galapagos_expedition_map(
 
         # Add the label with white background for better visibility
         ax.text(label_x, label_y, island_name,
-                fontsize=11, ha='center', va='center',
-                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black'))
+                fontsize=12, ha='center', va='center',
+                # bbox=dict(boxstyle="round,pad=0.3", facecolor='white',
+                #           alpha=0.8, edgecolor='black')
+                )
 
     # Title
-    ax.set_title('Galápagos Islands - Marine Iguana Single Image Training Data ', fontsize=16, pad=20)
+    # ax.set_title('Galápagos Islands - Marine Iguana Single Image Training Data ', fontsize=16, pad=20)
 
     # Load countries for inset map
     countries = gpd.read_file(gpkg_path, layer='ne_10m_admin_0_countries')
@@ -173,20 +191,21 @@ def create_galapagos_expedition_map(
 
     # Add information text box
     info_text = """Data source: Marine Iguana Survey Data (2020-2024)
-            Inset map: Made with Natural Earth
-            Map projection: Web Mercator (EPSG:3857)
-            Marine Iguana population assessment in the Galápagos Archipelago
-            HNEE/Winkelmann, 2025"""
+Inset map: Made with Natural Earth
+Map projection: Web Mercator (EPSG:3857)
+Marine Iguana population assessment in the Galápagos Archipelago """
+            # HNEE/Winkelmann, 2025"""
 
     add_text_box(
         ax,
         info_text,
         # location='upper left',
-        fontsize=9,
+        fontsize=11,
         alpha=0.8,
         pad=0.5,
         # xy=(0.55, 0.84),  # Custom coordinates in axes fraction
-        xy=(0.05, 0.98),  # Custom coordinates in axes fraction
+        xy=(0.4, 0.1),  # Custom coordinates in axes fraction
+        frameon=False
     )
 
     # Set up coordinate grid
@@ -207,31 +226,55 @@ def create_galapagos_expedition_map(
 
     # Style the tick labels
     for tick in ax.get_xticklabels():
-        tick.set_fontsize(9)
+        tick.set_fontsize(11)
     for tick in ax.get_yticklabels():
-        tick.set_fontsize(9)
+        tick.set_fontsize(11)
+
+    if draw_inset_map:
+        # Adding an inset map to the plot
+        iax = inset_map(ax, location="upper right", size=2.5, pad=0.1, xticks=[], yticks=[])
+        # Add the label with white background for better visibility
+
+        # Plotting alaska in the inset map
+        south_america.plot(ax=iax, color='lightgrey', edgecolor='black', linewidth=0.5, alpha=0.7)
+        if not ecuador.empty:
+            ecuador.plot(ax=iax, color='#AAAAFF', edgecolor='black', linewidth=0.8)
+            iax.text(ecuador.centroid.x - 450000 , ecuador.centroid.y + 450000, "Mainland\n Ecuador",
+                     fontsize=12, ha='center', va='center',
+                     # bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black')
+                     )
+
+        # Creating the extent indicator, which appears by-default as a red square on the map
+        indicate_extent(iax, ax, web_mercator_projection_epsg, web_mercator_projection_epsg)
 
     # Add north arrow
-    na = NorthArrow(location="center left", rotation={"degrees": 0}, scale=0.6)
+    na = NorthArrow(location="lower right", rotation={"degrees": 0}, scale=0.6)
     ax.add_artist(na.copy())
 
-    # Add scale bar
-    draw_accurate_scalebar(ax, islands_wm,
-                           location=(islands_wm.total_bounds[0] + 100,
-                                     islands_wm.total_bounds[1] + 100),
-                           length_km=100,  # Total length in km
-                           segments=4,
-                           height=6500)
+    # # Add scale bar
+    # draw_accurate_scalebar_v2(ax, islands_wm,
+    #                        location=(islands_wm.total_bounds[0] + 100,
+    #                                  islands_wm.total_bounds[1] + 100),
+    #                        length_km=100,  # Total length in km
+    #                        segments=4,
+    #                        height=6500)
+
+    draw_accurate_scalebar_v2(ax,
+                              length_km=100,  # Total length in km
+                              segments=4, height_relative=0.015)
 
     # Add legend for expedition phases
-    legend = ax.legend(loc='upper right',
-                      title='Expedition Phases',
-                      fontsize=10,
-                      title_fontsize=11,
-                      frameon=True,
-                      fancybox=True,
-                      shadow=True,
-                      framealpha=0.9)
+    legend = ax.legend(
+        bbox_to_anchor=(0, 0.98),
+        loc='upper left',
+
+        title='Expedition Phases',
+        fontsize=12,
+        title_fontsize=13,
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.9)
 
     # Adjust legend marker size
     # legend.legend_handles
@@ -263,8 +306,16 @@ if __name__ == "__main__":
     full_hasty_annotation_file_path = Path(
         "/Users/christian/data/training_data/2025_04_18_all/unzipped_hasty_annotation/labels.json")
     hasty_images_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_images")
+    hasty_images_path = Path("/Users/christian/data/training_data/2025_09_28_orthomosaic_data/2025_07_10_images_final")
 
-    gdf_hasty_image_metadata = images_data_extraction(hasty_images_path)
+    images_list = list_images(hasty_images_path, extension="JPG", recursive=True)
+    image_metadata = images_data_extraction(images_list)
+
+    lst_image_metadata = [x.to_series() for x in image_metadata]
+    df_image_metadata = pd.DataFrame(lst_image_metadata)
+
+    # geospatial dataframe
+    gdf_hasty_image_metadata = get_image_gdf(df_image_metadata)
 
     # TODO get the right projections
     gdf_hasty_image_metadata.to_crs(epsg="32715", inplace=True)

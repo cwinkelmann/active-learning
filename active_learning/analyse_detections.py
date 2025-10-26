@@ -6,6 +6,8 @@ This produces a csv file with the false positives because they are what we need 
  Similar to Kellenberger - maybe this one Benjamin, et al. "Detecting and classifying elephants in the wild." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2020.
 
 """
+from pathlib import Path
+
 import typing
 
 import geopandas as gpd
@@ -91,7 +93,7 @@ def analyse_point_detections(df_detections: pd.DataFrame, df_ground_truth: pd.Da
 
 def analyse_point_detections_greedy(df_detections: pd.DataFrame,
                                     df_ground_truth: pd.DataFrame,
-                                    image_list: typing.List[str],
+                                    image_list: typing.List[Path],
                                     radius=150,
                                     confidence_threshold=0.5) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
@@ -167,7 +169,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
             l_fp.append(gdf_pred)
             image_errors.append(
                 {"image_name": image, "err": len(gdf_pred), "num_gt": 0, "num_pred": len(gdf_pred)})
-            continue
+
 
         # If there are no predictions for the image, mark all as false negatives
         if len(pred_coords) == 0:

@@ -222,7 +222,7 @@ def visualise_image(image_path: Path = None,
                     image: typing.Union[PILImage, np.ndarray] = None,
                     output_file_name: Path = None,
                     show: bool = False,
-                    title: str = "original image",
+                    title: str | None = None,
                     ax: axes.Axes = None, figsize=(20, 15), dpi=150) -> axis:
     """
     :param image:
@@ -249,7 +249,9 @@ def visualise_image(image_path: Path = None,
 
     imr = np.array(image, dtype=np.uint8)
     ax.imshow(imr)
-    ax.set_title(title)
+
+    if title:
+        ax.set_title(title)
 
     if output_file_name is not None:
         plt.savefig(output_file_name)

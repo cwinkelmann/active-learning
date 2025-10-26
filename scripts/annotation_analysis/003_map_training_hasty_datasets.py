@@ -403,7 +403,8 @@ if __name__ == "__main__":
 
         hasty_dataset_path = Path(
             # "/home/cwinkelmann/work/Herdnet/data/2025_09_28_orthomosaic_data/") / dataset.dataset_name / dataset.dset
-            "/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset
+            # "/raid/cwinkelmann/training_data/iguana/2025_08_10_endgame/") / dataset.dataset_name / dataset.dset
+            "/raid/cwinkelmann/training_data/iguana/2025_10_11") / dataset.dataset_name / dataset.dset
 
         dataset_dict = dataset.model_dump()
 
@@ -415,8 +416,10 @@ if __name__ == "__main__":
 
         missions = gdf = gpd.read_file('/raid/cwinkelmann/work/active_learning/mapping/database/mapping/Iguanas_From_Above_all_data.gpkg', layer='iguana_missions')
 
+        output_dir = base_path_mapping / "figures"
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        # flight_database.to_file(base_path_mapping / f"full_flight_database_{dataset.dataset_name}_analysis_read.geojson",
+        # flight_database.to_file(output_dir / f"full_flight_database_{dataset.dataset_name}_analysis_read.geojson",
         #                         driver="GeoJSON")
         flight_database = flight_database.to_crs(epsg=CRS_utm_zone_15)
         # read the right database
@@ -438,11 +441,18 @@ if __name__ == "__main__":
             logger.error(f"Problem with HASTY images database: {e}")
             continue
 
-
+        site_code_filter = ["FCD", "FEA", "FPE", "FPM", "FWK", "FNA", "FEF", "FNJ", "FNI", "FND"
+                                                                                           "FLMO", "FLBB", "FLPC",
+                            "FLSCA", "FLPA",
+                            "GES",
+                            ]
 
         # filter the flight_database for the images that are in the hasty images
         flight_database_filtered = flight_database[flight_database["image_hash"].isin(gdf_hasty_images["image_hash"])]
-        missions_filtered = missions[missions["mission_folder"].isin(flight_database_filtered["mission_folder"])]
+        # missions_filtered = missions[missions["mission_folder"].isin(flight_database_filtered["mission_folder"])]
+        missions_filtered = missions[missions["site_code"].isin(site_code_filter)]
+
+
         # # the the image_name mapping
         # a = flight_database[["image_hash", "image_name", "geometry"]]
         # b = gdf_hasty_images[["image_hash", "image_name"]]
@@ -453,12 +463,12 @@ if __name__ == "__main__":
         # gdf_mapping = gpd.read_file("/raid/cwinkelmann/work/active_learning/mapping/database/mapping/All_detection_mapping.geojson")
 
 
-        flight_database_filtered.to_file(hasty_dataset_path / "labelled_hasty_images_{dataset.dataset_name}.geojson", driver="GeoJSON")
+        flight_database_filtered.to_file(output_dir / f"labelled_hasty_images_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
         # get the full mission
         flight_database_full_missions_filtered = flight_database[flight_database["mission_folder"].isin(flight_database_filtered["mission_folder"])]
 
         # get the mission statistics.
-        missions_filtered
+        missions_filtered.to_file(output_dir / f"labelled_missions_filtered_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
 
         # create a polygon from each mission
 
@@ -497,13 +507,12 @@ if __name__ == "__main__":
         gdf_mission_lines = gpd.GeoDataFrame(mission_lines, crs=flight_database_full_missions_filtered.crs)
         gdf_mission_polygons = gpd.GeoDataFrame(mission_polygons, crs=flight_database_full_missions_filtered.crs)
 
-        gdf_mission_polygons.to_file(hasty_dataset_path / f"labelled_hasty_mission_polygons_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
-        gdf_mission_lines.to_file(hasty_dataset_path / f"labelled_hasty_mission_lines_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
+        gdf_mission_polygons.to_file(output_dir / f"labelled_hasty_mission_polygons_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
+        gdf_mission_lines.to_file(output_dir / f"labelled_hasty_mission_lines_{dataset.dataset_name}_{dataset.dset}.geojson", driver="GeoJSON")
 
         islands_gdf = get_islands(gpkg_path=base_path / "sampling_issues.gpkg",
                                   fligth_database_path=flight_database_path,)
-        output_dir = base_path_mapping / "figures"
-        output_dir.mkdir(parents=True, exist_ok=True)
+
 
 
         # for i, mission_names_set in enumerate(mission_names_filter):

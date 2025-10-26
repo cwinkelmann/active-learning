@@ -370,8 +370,8 @@ class HastyAnnotationV2(BaseModel):
                 dataset_stats[dataset_name]['num_point_labels'] += num_points
                 dataset_stats[dataset_name]['num_labels'] += len(image.labels)
 
-        for dataset, stats in dataset_stats.items():
-            logger.info(f"Dataset: {dataset}, Images: {stats['num_images']}, Labels: {stats['num_labels']}")
+        # for dataset, stats in dataset_stats.items():
+        #     logger.info(f"Dataset: {dataset}, Images: {stats['num_images']}, Labels: {stats['num_labels']}")
 
         return dataset_stats
 
@@ -387,7 +387,7 @@ class HastyAnnotationV2(BaseModel):
         self.images = [image for image in self.images if image.dataset_name != dataset_name]
 
         deleted_count = initial_count - len(self.images)
-        logger.info(f"Deleted {deleted_count} images from dataset '{dataset_name}'")
+        logger.warning(f"Deleted {deleted_count} images from dataset '{dataset_name}'")
 
     def rename_dataset(self, dataset_old: str, dataset_new: str):
         """
@@ -478,7 +478,7 @@ class HastyAnnotationV2(BaseModel):
                 return
         raise ValueError("image id not found in project")
 
-    def get_image_by_name(self, image_name: str) -> Optional[AnnotatedImage]:
+    def get_image_by_name(self, image_name: str, dataset_name: str) -> Optional[AnnotatedImage]:
         """
         Get an image by its name from the project.
 
@@ -486,7 +486,7 @@ class HastyAnnotationV2(BaseModel):
         :return: The AnnotatedImage object if found, otherwise None.
         """
         for image in self.images:
-            if image.image_name == image_name:
+            if image.image_name == image_name and image.dataset_name == dataset_name:
                 return image
         return None
 
@@ -779,3 +779,4 @@ def replace_image(updateimage: AnnotatedImage, hA: HastyAnnotationV2):
     # No match found, append new image
     hA.images.append(updateimage)
     return hA
+

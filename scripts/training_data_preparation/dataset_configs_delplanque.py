@@ -13,8 +13,8 @@ label_mapping = {"Alcelaphinae": 1, "Buffalo": 2, "Kob": 3, "Warthog": 4, "Water
 
 crop_size = 512
 empty_fraction = 0.0
-overlap = 0
-VISUALISE_FLAG = True
+overlap = 160
+VISUALISE_FLAG = False
 use_multiprocessing = True
 edge_black_out = False # each box which is on the edge will be marked black
 num = None # Amount of image to take

@@ -27,7 +27,7 @@ def create_galapagos_expedition_map(
         output_path="galapagos_expedition_map.png",
         dpi=300,
         draw_inset_map=True,
-label_fontsize=11):
+        label_fontsize=12):
     """
     Creates a map of the Galápagos Islands showing expedition data locations with different colors for each phase.
     """
@@ -53,8 +53,19 @@ label_fontsize=11):
         "2024_05": 6,  # from the El Niño folder
     }
 
+    # Filter for important islands to plot nicely
+    important_islands = ["Santiago",
+                         # "Wolf", "Darwin",
+                         "Santa Fé", "Española", "Isabela",
+                         "Fernandina", "Floreana", "Santa Cruz", "San Cristóbal",
+                         "Genovesa", "San Cristobal", "Marchena", "Pinta"]
+
+    islands_to_remove = ["Wolf", "Darwin"]
+    islands = islands[~islands['nombre'].isin(islands_to_remove)]
+
     # Map the expedition phases
     flight_database['expedition_phase'] = flight_database['year_month'].map(expedition_mapping)
+    flight_database = flight_database[flight_database.island.isin(important_islands)]
 
     # Remove unmapped data points
     flight_database = flight_database[flight_database['expedition_phase'].notna()]
@@ -67,11 +78,6 @@ label_fontsize=11):
     islands_wm = islands.to_crs(epsg=web_mercator_projection_epsg)
     islands_wm = islands_wm[islands_wm['tipo'] == 'Isla']
 
-    # Filter for important islands to plot nicely
-    important_islands = ["Santiago", "Wolf", "Darwin", "Santa Fé", "Española", "Isabela",
-                         "Fernandina", "Floreana", "Santa Cruz", "San Cristóbal",
-                         "Genovesa", "San Cristobal", "Marchena", "Pinta"]
-
     islands_wm_f = islands_wm[islands_wm['nombre'].isin(important_islands)]
 
     # Determine name column
@@ -81,14 +87,24 @@ label_fontsize=11):
     # Plot all islands
     islands_wm.plot(ax=ax, alpha=0.7, edgecolor='black', color='lightgrey')
 
+    # plt.show(block=False)
+
     # Define colors for each expedition phase
+    # expedition_colors = {
+    #     1: '#E63946',  # Red - 2020
+    #     2: '#F77F00',  # Orange - 2021 (Jan/Feb)
+    #     3: '#FCBF49',  # Yellow - 2021 (Dec)
+    #     4: '#277DA1',  # Blue - 2023 (Jan/Feb)
+    #     5: '#4D908E',  # Teal - 2024 (Jan)
+    #     6: '#90E0EF',  # Light Blue - 2024 (Apr/May)
+    # }
     expedition_colors = {
-        1: '#E63946',  # Red - 2020
-        2: '#F77F00',  # Orange - 2021 (Jan/Feb)
-        3: '#FCBF49',  # Yellow - 2021 (Dec)
-        4: '#277DA1',  # Blue - 2023 (Jan/Feb)
-        5: '#4D908E',  # Teal - 2024 (Jan)
-        6: '#90E0EF',  # Light Blue - 2024 (Apr/May)
+        1: '#D7191C',  # Red
+        2: '#FDAE61',  # Orange
+        3: '#ABDDA4',  # Light Green
+        4: '#2B83BA',  # Blue
+        5: '#7570B3',  # Purple
+        6: '#66C2A5',  # Teal / Aqua
     }
 
     expedition_labels = {
@@ -107,7 +123,7 @@ label_fontsize=11):
             phase_data.plot(ax=ax,
                           marker='o',
                           color=expedition_colors[phase],
-                          markersize=8,
+                          markersize=50,
                           alpha=0.7,
                           label=f"{expedition_labels[phase]} ({len(phase_data)} photos)")
 
@@ -115,8 +131,8 @@ label_fontsize=11):
     # dy small -> it is up, dy negative -> down
     label_offsets = {
         "Santiago": (30000, 10000),
-        "Wolf": (1000, 6500),
-        "Darwin": (1000, 5500),
+        # "Wolf": (1000, 6500),
+        # "Darwin": (1000, 5500),
         "Santa Fé": (0, -9000),
         "Española": (10000, 10000),
         "Isabela": (-10000, -40000),
@@ -157,7 +173,7 @@ label_fontsize=11):
                  )
 
     # Title
-    ax.set_title('Galápagos Islands - Marine Iguana Survey Expeditions (2020-2024)', fontsize=16, pad=20)
+    # ax.set_title('Galápagos Islands - Marine Iguana Survey Expeditions (2020-2024)', fontsize=16, pad=20)
 
     # Load countries for inset map
     countries = gpd.read_file(gpkg_path, layer='ne_10m_admin_0_countries')
@@ -171,28 +187,13 @@ label_fontsize=11):
     south_america = south_america.to_crs(epsg=web_mercator_projection_epsg)
     ecuador = south_america[south_america['ADMIN'] == 'Ecuador']
 
-    # Add information text box
-    info_text = """Data source: Marine Iguana Survey Data (2020-2024)
-Inset map: Made with Natural Earth
-Map projection: Web Mercator (EPSG:3857)
-Marine Iguana population assessment in the Galápagos Archipelago
-HNEE/Winkelmann, 2025"""
 
-    add_text_box(
-        ax,
-        info_text,
-        location='upper right',
-        fontsize=11,
-        alpha=0.8,
-        pad=0.5,
-        # xy=(0.55, 0.84),  # Custom coordinates in axes fraction
-        xy=(0.2, 0.98),  # Custom coordinates in axes fraction
-    )
 
     # Set up coordinate grid
     x_ticks_proj, x_ticks_geo, y_ticks_proj, y_ticks_geo = get_geographic_ticks(ax,
                                                                                 epsg_from=web_mercator_projection_epsg,
-                                                                                epsg_to=4326)
+                                                                                epsg_to=4326,
+                                                                                n_ticks=5)
 
     # Set the tick positions to the projected coordinates
     ax.set_xticks(x_ticks_proj)
@@ -204,6 +205,25 @@ HNEE/Winkelmann, 2025"""
 
     # Add a light grid
     ax.grid(linestyle='--', alpha=0.5, zorder=0)
+
+    # Add information text box
+    info_text = """Data source: Marine Iguana Survey Data (2020-2024)
+Inset map: Made with Natural Earth
+Map projection: Web Mercator (EPSG:3857)
+Marine Iguana population assessment in the Galápagos Archipelago"""
+    # HNEE/Winkelmann, 2025"""
+
+    add_text_box(
+        ax,
+        info_text,
+        location='upper right',
+        fontsize=11,
+        alpha=0.8,
+        pad=0.5,
+        # xy=(0.55, 0.84),  # Custom coordinates in axes fraction
+        xy=(0.4, 0.1),
+        frameon=False # Custom coordinates in axes fraction
+    )
 
     # Style the tick labels
     for tick in ax.get_xticklabels():
@@ -220,8 +240,8 @@ HNEE/Winkelmann, 2025"""
         south_america.plot(ax=iax, color='lightgrey', edgecolor='black', linewidth=0.5, alpha=0.7)
         if not ecuador.empty:
             ecuador.plot(ax=iax, color='#AAAAFF', edgecolor='black', linewidth=0.8)
-            iax.text(ecuador.centroid.x - 550000 , ecuador.centroid.y + 300000, "Mainland\n Ecuador",
-                     fontsize=11, ha='center', va='center',
+            iax.text(ecuador.centroid.x - 450000 , ecuador.centroid.y + 450000, "Mainland\n Ecuador",
+                     fontsize=12, ha='center', va='center',
                      # bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='black')
                      )
 
@@ -229,7 +249,8 @@ HNEE/Winkelmann, 2025"""
         indicate_extent(iax, ax, web_mercator_projection_epsg, web_mercator_projection_epsg)
 
     # Add north arrow
-    na = NorthArrow(location="center left", rotation={"degrees": 0}, scale=0.6)
+    # na = NorthArrow(location="center left", rotation={"degrees": 0}, scale=0.6)
+    na = NorthArrow(location="lower right", rotation={"degrees": 0}, scale=0.6)
     ax.add_artist(na.copy())
 
     # Add scale bar
@@ -239,15 +260,15 @@ HNEE/Winkelmann, 2025"""
 
     # Add legend for expedition phases
     legend = ax.legend(
-        bbox_to_anchor=(0.38, 0.8),
-        loc='upper right',
-                      title='Expedition Phases',
-                      fontsize=11,
-                      title_fontsize=12,
-                      frameon=True,
-                      fancybox=True,
-                      shadow=True,
-                      framealpha=0.9)
+        bbox_to_anchor=(0, 0.98),
+        loc='upper left',
+        title='Expedition Phases',
+        fontsize=12,
+        title_fontsize=13,
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.9)
 
     # Adjust legend marker size
     # legend.legend_handles

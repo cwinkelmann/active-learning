@@ -24,10 +24,10 @@ from active_learning.filter import ImageFilterConstantNumByLabel
 from active_learning.util.visualisation.annotation_vis import visualise_hasty_annotation_statistics, plot_bbox_sizes
 
 # import dataset_configs_weinstein as dataset_configs
-# import dataset_configs_hasty_iguanas as dataset_configs
+import dataset_configs_hasty_iguanas as dataset_configs
 
 # import dataset_configs_eikelboom as dataset_configs
-import dataset_configs_delplanque as dataset_configs
+# import dataset_configs_delplanque as dataset_configs
 
 empty_class_name = "empty"
 
@@ -53,7 +53,28 @@ if __name__ == "__main__":
         ifcln = ImageFilterConstantNumByLabel(num_labels=dataset.num_labels)
         # output_path = dataset["output_path"]
 
-        hA = HastyAnnotationV2.from_file(dataset_configs.labels_name)
+        if dataset_configs.unpack:
+            uA = UnpackAnnotations()
+            hA, images_path = uA.unzip_hasty(
+                hasty_annotations_labels_zipped=dataset_configs.labels_path / dataset_configs.hasty_annotations_labels_zipped,
+                hasty_annotations_images_zipped=dataset_configs.labels_path / dataset_configs.hasty_annotations_images_zipped)
+
+            # Add the new required fields
+            dataset_dict.update({
+                'labels_path': dataset_configs.hasty_annotations_images_zipped,
+            })
+
+        else:
+            # hA = HastyAnnotationV2.from_file(dataset_configs.labels_path / dataset_configs.labels_name)
+            hA = HastyAnnotationV2.from_file(dataset_configs.labels_full_path_name)
+            images_path = dataset_configs.images_path
+
+            # Add the new required fields
+            dataset_dict.update({
+                'labels_path': dataset_configs.labels_path,
+            })
+
+
 
         output_path_dset = dataset_configs.labels_path / dataset.dataset_name / f"detection_{dset}_{overlap}_{dataset_configs.crop_size}"
         output_path_classifcation_dset = dataset_configs.labels_path / dataset.dataset_name / f"classification_{dset}_{overlap}_{dataset_configs.crop_size}"
@@ -63,6 +84,11 @@ if __name__ == "__main__":
 
         vis_path = dataset_configs.labels_path / f"visualisations" / f"{dataset.dataset_name}_{dset}_{overlap}_{dataset_configs.crop_size}"
         vis_path.mkdir(exist_ok=True, parents=True)
+
+        bbox_statistics = plot_bbox_sizes(hA.images, suffix=f"{dataset.dataset_name}_{dset}_unchanged",
+                                          plot_name=vis_path / f"box_sizes_{dataset.dataset_name}_{dset}_unchanged.png")
+        # create_simple_histograms(hA.images)
+        visualise_hasty_annotation_statistics(hA.images)
 
         df_hA_flat = hA.get_flat_df()
         logger.info(f"Flattened annotations {df_hA_flat} annotations.")
@@ -87,7 +113,7 @@ if __name__ == "__main__":
         hA_labels_stats = label_statistics(df_hA_flat)
 
         dp = DataprepPipeline(annotations_labels=hA,
-                              images_path=dataset_configs.images_path,
+                              images_path=images_path,
                               crop_size=dataset_configs.crop_size,
                               overlap=overlap,
                               output_path=output_path_dset,
@@ -115,8 +141,9 @@ if __name__ == "__main__":
                                           plot_name=vis_path / f"box_sizes_{dataset.dataset_name}_{dset}.png")
         # create_simple_histograms(hA.images)
         visualise_hasty_annotation_statistics(hA_filtered.images)
-        plot_bbox_sizes(hA_filtered.images, suffix=dataset.dataset_name,
-                        plot_name=vis_path / f"box_sizes_{dataset.dataset_name}.png")
+
+        report.bbox_statistics = bbox_statistics
+
 
 
         # find labels which have 0 height or width
@@ -148,6 +175,7 @@ if __name__ == "__main__":
         report.num_labels_filtered = sum(len(i.labels) for i in hA_filtered.images)
         report.num_images_filtered = len(hA_filtered.images)
         report.label_statistics = label_statistics(hA_filtered.get_flat_df())
+        report.cropped_label_statistics = label_statistics(hA_crops.get_flat_df())
 
         def get_label_mapping(hA: HastyAnnotationV2) -> dict:
             """

@@ -8,6 +8,7 @@ class LabelingStatus(Enum):
     NEW = "NEW"
     IN_PROGRESS = "IN PROGRESS"
     DONE = "DONE"
+    Done = "Done" # temp fix
     TO_REVIEW = "TO REVIEW"
     COMPLETED = "COMPLETED"
     SKIPPED = "SKIPPED"

@@ -102,7 +102,7 @@ def get_orthomosaic_crs(orthomosaic_path: Path):
     # Open the orthomosaic to get its CRS
     with rasterio.open(orthomosaic_path) as dataset:
         ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
-        logger.debug(f"Orthomosaic CRS: {ortho_crs}")
+        # logger.debug(f"Orthomosaic CRS: {ortho_crs}")
         return ortho_crs
 
 def get_orthomosaic_epsg(orthomosaic_path: Path):

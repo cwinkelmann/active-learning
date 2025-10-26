@@ -18,9 +18,9 @@ crop_size = 512
 
 
 # added CVAT corrected missions
-hasty_annotations_images_zipped = "2025_09_19_images_final.zip"
-hasty_annotations_labels_zipped = "2025_09_19_orthomosaic_data_combined_corrections_2.json.zip"
-labels_path = Path(f"/home/cwinkelmann/work/Herdnet/data/2025_09_28_orthomosaic_data/")
+hasty_annotations_images_zipped = "2025_10_11_images.zip"
+hasty_annotations_labels_zipped = "2025_10_11_labels.json.zip"
+labels_path = Path(f"/raid/cwinkelmann/training_data/iguana/2025_10_11")
 
 # hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
 # hasty_annotations_labels_zipped = "fernandina_s_correction_hasty_corrected_1.json.zip"
@@ -53,17 +53,19 @@ datasets_mapping = {
     "Floreana_1": ['Floreana_02.02.21_FMO01', 'FMO02', 'FLMO02_28012023', 'FMO03',
                    'FMO04', 'FMO05', 'Floreana_03.02.21_FMO06'],
 
-    "Floreana_3": ['FMO03', 'FMO04',],
+    "Floreana_2_classic": ['Floreana_22.01.21_FPC07',
+                            'FLBB01_28012023', 'FPA03 condor', 'FSCA02'],
 
-    "Floreana_4": ['FPA03 condor', 'FSCA02'],
+    # "Floreana_2": ['Floreana_22.01.21_FPC07', 'FLBB01_28012023'],
 
-    "Floreana_2": ['Floreana_22.01.21_FPC07',
-                   'FLBB01_28012023'],
+    # "Floreana_4": ['FPA03 condor', 'FSCA02'],
 
-    "Floreana_best": ['Floreana_03.02.21_FMO06',
-                      'Floreana_02.02.21_FMO01', 'FMO02', 'FMO05', 'FMO04', 'FMO03',
-                      'FPA03 condor'],
+    # "Floreana_best": ['Floreana_03.02.21_FMO06',
+    #                   'Floreana_02.02.21_FMO01', 'FMO02', 'FMO05', 'FMO04', 'FMO03',
+    #                   'FPA03 condor'],
 
+    "Fernandina_s": ['Fer_FCD01-02-03_20122021_single_images', "floreana_FPE01_FECA01", 'FPM01_24012023',
+                     'Fer_FPE02_07052024'],
     "Fernandina_s_1": ['Fer_FCD01-02-03_20122021_single_images', "floreana_FPE01_FECA01"],
     # yes that is Fernandina despite the name
     "Fernandina_s_2": [
@@ -71,18 +73,35 @@ datasets_mapping = {
         'Fer_FPE02_07052024'
     ],
     "Genovesa": ['Genovesa'],
+    "Fernandina_m": ['Fer_FCD01-02-03_20122021', 'Fer_FPM01-02_20122023'],
+    "Fernandina_CVAT_train_corr": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023',
+                                   'ha_corrected_fer_fnd02_19122021'],
+    "Fernandina_m_fna_fef_FE_FNF": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023',
+                                    'ha_corrected_fer_fnd02_19122021',
+                                    'ha_corrected_fer_fni03_04_19122021', 'ha_corrected_fer_fnj01_19122021',
+                                    'ha_corrected_fer_fe01_02_20012023'],
 
-    "Fernandina_CVAT_train_corr": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023', 'ha_corrected_fer_fnd02_19122021'],
+    "Fernandina_m_fna_fef_FE_FEF": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023'],
+
     "Fernandina_CVAT_val_corr": ['ha_corrected_fer_fni03_04_19122021', 'ha_corrected_fer_fnj01_19122021'],
+    "Fernandina_m_fwk": ['ha_corrected_fer_fwk01_20122021'],
 
     "Fernandina_CVAT_train_class": ['ha_fer_fna01_02_20122021', 'ha_fer_fef01_02_20012023', 'ha_fer_fnd02_19122021', ],
     "Fernandina_CVAT_val_class": ['ha_fer_fni03_04_19122021', 'ha_fer_fnj01_19122021'],
 
-    "Fernandina_m": ['Fer_FCD01-02-03_20122021', 'Fer_FPM01-02_20122023'],
     "Fernandina_m_fcd": ['Fer_FCD01-02-03_20122021'],
     "Fernandina_m_fpm": ['Fer_FPM01-02_20122023'],
 
     "Fernanna_m_corr": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023'],
+
+    "Fernandina": ['ha_corrected_fer_fna01_02_20122021', 'ha_corrected_fer_fef01_02_20012023',
+                   'ha_corrected_fer_fnd02_19122021',
+                   'ha_corrected_fer_fni03_04_19122021', 'ha_corrected_fer_fnj01_19122021',
+                   'ha_corrected_fer_fe01_02_20012023'
+                   'Fer_FCD01-02-03_20122021', 'Fer_FPM01-02_20122023', 'Fer_FCD01-02-03_20122021_single_images',
+                   "floreana_FPE01_FECA01", 'FPM01_24012023',
+                   'Fer_FPE02_07052024'
+                   ],
 
     "the_rest": [
         # "SRPB06 1053 - 1112 falcon_25.01.20", # orthomosaics contains nearly iguanas but not annotated
@@ -125,6 +144,21 @@ train_genovesa = DatasetFilterConfig(**{
     "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
+    "overlap": 320,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+
+})
+
+train_genovesa_plus = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "Genovesa_detection",
+    "dataset_filter": datasets_mapping["Genovesa"] + datasets_mapping["Floreana"] + datasets_mapping["Fernandina"],
+    "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
     "overlap": overlap,
     "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
@@ -136,7 +170,7 @@ val_genovesa = DatasetFilterConfig(**{
     "dset": "val",
     "dataset_name": "Genovesa_detection",
     "dataset_filter": datasets_mapping["Genovesa"],  # Fer_FCD01-02-03_20122021_single_images
-    "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG"],
+    "images_filter": ["DJI_0474_GES07.JPG", "DJI_0515_GES07.JPG", "DJI_0703_GES13.JPG"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -148,11 +182,24 @@ val_genovesa = DatasetFilterConfig(**{
 })
 
 ## Floreana
+train_floreana_Fernandina = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "Floreana__Fernandina_detection",
+    "dataset_filter": datasets_mapping["Floreana"] + datasets_mapping["Fernandina"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    "remove_Default": False
+})  ## Floreana
+
 train_floreana = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "Floreana_detection",
     "dataset_filter": datasets_mapping["Floreana_1"],
-    # "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -165,8 +212,7 @@ train_floreana = DatasetFilterConfig(**{
 train_floreana_2 = DatasetFilterConfig(**{
     "dset": "train_2",
     "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_2"] + datasets_mapping["Floreana_1"],
-    # "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
+    "dataset_filter": datasets_mapping["Floreana_2_classic"] + datasets_mapping["Floreana_1"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -179,7 +225,7 @@ train_floreana_2 = DatasetFilterConfig(**{
 train_floreana_2_overlap = DatasetFilterConfig(**{
     "dset": "train_2",
     "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_2"] + datasets_mapping["Floreana_1"],
+    "dataset_filter": datasets_mapping["Floreana_2_classic"] + datasets_mapping["Floreana_1"],
     # "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
@@ -203,15 +249,12 @@ train_floreana_increasing_length = [DatasetFilterConfig(**{
     "crop_size": crop_size,
     "num": x,
     "sample_strategy": SampleStrategy.ORDERED_ASC
-}) for x in range(1, 125)]
-
-
+}) for x in range(125, 170)]
 
 val_floreana = DatasetFilterConfig(**{
     "dset": "val",
     "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_3"] + datasets_mapping["Floreana_4"],  # Fer_FCD01-02-03_20122021_single_images
-    # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
+    "dataset_filter": datasets_mapping["Floreana_2_classic"],  # Fer_FCD01-02-03_20122021_single_images
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -222,39 +265,40 @@ val_floreana = DatasetFilterConfig(**{
     "remove_Default": False
 })
 
-val_1_floreana = DatasetFilterConfig(**{
-    "dset": "val",
-    "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_3"],  # Fer_FCD01-02-03_20122021_single_images
-    "output_path": labels_path,
-    "empty_fraction": empty_fraction,
-    "overlap": overlap,
-    "status_filter": [LabelingStatus.COMPLETED],
-    "annotation_types": annotation_types,
-    "class_filter": class_filter,
-    "crop_size": crop_size,
-    "remove_Default": False
-})
 
-val_2_floreana = DatasetFilterConfig(**{
-    "dset": "val_2",
-    "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_4"],  # Fer_FCD01-02-03_20122021_single_images
-    # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
-    "output_path": labels_path,
-    "empty_fraction": empty_fraction,
-    "overlap": overlap,
-    "status_filter": [LabelingStatus.COMPLETED],
-    "annotation_types": annotation_types,
-    "class_filter": class_filter,
-    "crop_size": crop_size,
-    "remove_Default": False
-})
+# val_2_floreana = DatasetFilterConfig(**{
+#     "dset": "val_2",
+#     "dataset_name": "Floreana_detection",
+#     "dataset_filter": datasets_mapping["Floreana_4"],  #
+#     "output_path": labels_path,
+#     "empty_fraction": empty_fraction,
+#     "overlap": overlap,
+#     "status_filter": [LabelingStatus.COMPLETED],
+#     "annotation_types": annotation_types,
+#     "class_filter": class_filter,
+#     "crop_size": crop_size,
+#     "remove_Default": False
+# })
+#
+# test_floreana = DatasetFilterConfig(**{
+#     "dset": "test",
+#     "dataset_name": "Floreana_detection",
+#     "dataset_filter": datasets_mapping["Floreana_4"],  # Fer_FCD01-02-03_20122021_single_images
+#     # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
+#     "output_path": labels_path,
+#     "empty_fraction": empty_fraction,
+#     "overlap": overlap,
+#     "status_filter": [LabelingStatus.COMPLETED],
+#     "annotation_types": annotation_types,
+#     "class_filter": class_filter,
+#     "crop_size": crop_size,
+#     "remove_Default": False
+# })
 
-test_floreana = DatasetFilterConfig(**{
+all_floreana = DatasetFilterConfig(**{
     "dset": "test",
-    "dataset_name": "Floreana_detection",
-    "dataset_filter": datasets_mapping["Floreana_3"],  # Fer_FCD01-02-03_20122021_single_images
+    "dataset_name": "Floreana_detection_all",
+    "dataset_filter": datasets_mapping["Floreana"],  # Fer_FCD01-02-03_20122021_single_images
     # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
@@ -293,7 +337,49 @@ val_fernandina_m = DatasetFilterConfig(**{
     "class_filter": class_filter,
     "crop_size": crop_size,
 })
+
+fne_to_fnf = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "Fernandina__fne_to_fnf",
+    "dataset_filter": datasets_mapping["Fernandina_m_fna_fef_FE_FNF"],  # Fer_FCD01-02-03_20122021_single_images
+    # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+})
+
+fna_fef = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "Fernandina_m_fna_fef_FE_FEF",
+    "dataset_filter": datasets_mapping["Fernandina_m_fna_fef_FE_FEF"],  # Fer_FCD01-02-03_20122021_single_images
+    # "images_filter": ["DJI_0474_GES07.JPG", "DJI_0474_GES07.JPG", "DJI_0703_GES13.JPG" ],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+})
 # Fernandina single images
+train_fernandina = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "Fernandina_s_detection",
+    "dataset_filter": datasets_mapping["Fernandina_s"],
+    # "images_filter": ["DJI_0043_GES06.JPG", "DJI_0168_GES06.JPG", "DJI_0901_GES06.JPG", "DJI_0925_GES06.JPG"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    "remove_Default": False
+})
 train_fernandina_s1 = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "Fernandina_s_detection",
@@ -311,7 +397,7 @@ train_fernandina_s1 = DatasetFilterConfig(**{
 train_fernandina_s1_increasing_length = [DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": f"Fernandina_s_detection_il_{x}",
-    "dataset_filter": datasets_mapping["Fernandina_s_1"],
+    "dataset_filter": datasets_mapping["Fernandina_s_1"] + datasets_mapping["Floreana"] + datasets_mapping["Genovesa"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
     "overlap": overlap,
@@ -324,7 +410,7 @@ train_fernandina_s1_increasing_length = [DatasetFilterConfig(**{
     "sample_strategy": SampleStrategy.ORDERED_ASC,
     "remove_Default": True,
     "remove_padding": True
-}) for x in range(1, 39)]
+}) for x in range(160, 500, 5)]
 
 val_fernandina_s2 = DatasetFilterConfig(**{
     "dset": "val",
@@ -367,10 +453,24 @@ train_single_all = DatasetFilterConfig(**{
     "class_filter": class_filter,
     "crop_size": crop_size,
 })
+
+train_single_all_2 = DatasetFilterConfig(**{
+    "dset": "train",
+    "dataset_name": "All_detection_single",
+    "dataset_filter": datasets_mapping["Floreana"] + datasets_mapping["Fernandina_s"] + datasets_mapping[
+        "Genovesa"] + datasets_mapping["the_rest"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+})
 val_single_all = DatasetFilterConfig(**{
     "dset": "val",
     "dataset_name": "All_detection_single",
-    "dataset_filter": datasets_mapping["Floreana_2"] + datasets_mapping["Fernandina_s_2"] + datasets_mapping[
+    "dataset_filter": datasets_mapping["Floreana_2_classic"] + datasets_mapping["Fernandina_s_2"] + datasets_mapping[
         "Genovesa"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
@@ -380,17 +480,18 @@ val_single_all = DatasetFilterConfig(**{
     "class_filter": class_filter,
     "crop_size": crop_size,
 })
-# All datasets_mapping combined
-train_all = DatasetFilterConfig(**{
+# Trying to solve fwk
+train_all_extended = DatasetFilterConfig(**{
     "dset": "train",
-    "dataset_name": "All_detection",
-    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"]
+    "dataset_name": "All_detection_extend",
+    "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana"]
                       + datasets_mapping["Fernandina_s_2"] + datasets_mapping["Fernandina_s_1"]
                       + datasets_mapping["Fernandina_m_fpm"] + datasets_mapping["Fernandina_m_fcd"]
+                      + datasets_mapping["Fernandina_m_fna_fef_FE_FNF"]
                       + datasets_mapping["Genovesa"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
-    "overlap": overlap,
+    "overlap": 0,
     "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
     "class_filter": class_filter,
@@ -402,7 +503,7 @@ train_winning = DatasetFilterConfig(**{
     "dset": "train",
     "dataset_name": "All_detection_winning",
     "dataset_filter": datasets_mapping["the_rest"] + datasets_mapping["Floreana_1"]
-                      + datasets_mapping["Floreana_2"]
+                      + datasets_mapping["Floreana_2_classic"]
                       + datasets_mapping["Fernandina_m_fpm"]
                       + datasets_mapping["Fernandina_s_2"]  # fpm and fpe
                       + datasets_mapping["Genovesa"],
@@ -410,6 +511,24 @@ train_winning = DatasetFilterConfig(**{
     "empty_fraction": empty_fraction,
     "overlap": overlap,
     "status_filter": [LabelingStatus.COMPLETED],
+    "annotation_types": annotation_types,
+    "class_filter": class_filter,
+    "crop_size": crop_size,
+    # "edge_black_out": edge_black_out,
+    # "num": num,
+    # "crop": False,
+    "remove_default_folder": False,
+})
+
+# the wining datasets_mapping combination
+val_fwk = DatasetFilterConfig(**{
+    "dset": "val",
+    "dataset_name": "Fernandina_fwk",
+    "dataset_filter": datasets_mapping["Fernandina_m_fwk"],
+    "output_path": labels_path,
+    "empty_fraction": empty_fraction,
+    "overlap": overlap,
+    # "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
     "class_filter": class_filter,
     "crop_size": crop_size,
@@ -471,8 +590,6 @@ All = DatasetFilterConfig(**{
     # "crop": False,
     "remove_default_folder": False,
 })
-
-
 
 ### CVAT corrected and not corrected datasets_mapping
 
@@ -561,18 +678,18 @@ Fernandina_CVAT_val_class = DatasetFilterConfig(**{
 })
 
 datasets = [
-# All,
-# train_floreana_sample,
-# train_floreana,
-# val_floreana,
-# val_1_floreana,
-# val_2_floreana,
-# test_floreana,
-# #
-# train_fernandina_s1,
-# val_fernandina_s2,
-# 
-# train_genovesa, val_genovesa,
+
+    train_floreana, val_floreana,
+    train_fernandina_s1, val_fernandina_s2,
+    train_fernandina_m, val_fernandina_m,
+    # 
+    train_genovesa, val_genovesa,
+    # 
+    # train_floreana_Fernandina,
+    
+
+    
+    # train_genovesa_plus,
 
 
     # # ,
@@ -588,7 +705,7 @@ datasets = [
     # train_fernandina_s1, val_fernandina_s2,
     # train_genovesa, val_genovesa,
     # # train_rest,
-    
+
     # train_all_corr,
 
     # train_single_all,
@@ -596,7 +713,11 @@ datasets = [
 
     # Fernandina_CVAT_train_corr, Fernandina_CVAT_val_corr,
     # Fernandina_CVAT_train_class, Fernandina_CVAT_val_class,
+    # train_all_extended,
+    # val_fwk,
+    # fna_fef
+    # train_fernandina
 
 ]
-datasets += train_floreana_increasing_length
+# datasets += train_floreana_increasing_length
 # datasets += train_fernandina_s1_increasing_length

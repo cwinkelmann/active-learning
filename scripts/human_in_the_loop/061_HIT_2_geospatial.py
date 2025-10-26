@@ -112,17 +112,20 @@ def main(config: GeospatialDatasetCorrectionConfig, hA_to_update: Path):
     hA_updated.save(config.output_path / f"{config.dataset_name}_corrected_intermediate_hasty.json")
     gdf_annotation = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_updated)
 
+    # TODO merge the updated annotations into the original annotations
+    hA_reference_updated
+
     corrected_path = config.output_path / f"{config.dataset_name}_corrected_annotation.geojson"
     gdf_annotation.to_file(filename=corrected_path, driver="GeoJSON")
     logger.info(f"corrected file saved to : {corrected_path}")
 
     # Now we can project every annotation to the original orthomosaic coordinates
-    for i, annotated_image in enumerate(hA_updated.images):
-        point_existing = False
-        # TODO implement this changes part
-        for j, corrected_label in enumerate(annotated_image.labels):
-
-            pass
+    # for i, annotated_image in enumerate(hA_updated.images):
+    #     point_existing = False
+    #     # TODO implement this changes part
+    #     for j, corrected_label in enumerate(annotated_image.labels):
+    #
+    #         pass
 
 
     # logger.info(f"Updated {config.output_path / config.hasty_reference_annotation_name}")
@@ -134,6 +137,8 @@ def main(config: GeospatialDatasetCorrectionConfig, hA_to_update: Path):
     report_path = corrected_path.parent / f"{corrected_path.stem}_correction_config.json"
     config.save(report_path)
     logger.info(f"Saved report config to {report_path}")
+
+    return report_path
 
 if __name__ == "__main__":
     # report_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/FLPC03_correction_config.json")
@@ -155,18 +160,21 @@ if __name__ == "__main__":
         # "fer_fna01_02_20122021",
         # "fer_fnj01_19122021",
         # "fer_fpm05_24012023",
+        # "fer_fe01_02_20012023",
+        # "fer_fwk01_20122021",
         "fer_fe01_02_20012023",
     ]
 
     configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
-    hA_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_19/2025_09_19_orthomosaic_data_combined_corrections_2.json")
+    hA_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_28_orthomosaic_data/2025_09_19_orthomosaic_data_combined_corrections_3.json")
 
     for dataset_correction_config in (f for f in configs_path.glob("*_config.json") if not f.name.startswith("._")):
         if not any(dataset_correction_config.name.lower().startswith(p) for p in prefixes_ready_to_analyse):
-            logger.info(f"Skipping {dataset_correction_config} as it does not match any of the prefixes")
+            logger.debug(f"Skipping {dataset_correction_config} as it does not match any of the prefixes")
             continue
         try:
             config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
+            logger.info(f"Processing {dataset_correction_config} for dataset {config.dataset_name}")
             r = main(config, hA_to_update=hA_to_update)
     
             logger.info(f"Processed {r} config")

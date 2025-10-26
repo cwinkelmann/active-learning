@@ -27,7 +27,7 @@ def format_lat_lon(value, pos, is_latitude=True, rounding=1):
     return f"{value}°{direction}"
 
 # First convert the axis limits from Web Mercator to WGS84 for proper lat/lon labeling
-def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
+def get_geographic_ticks_old(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
     """Convert projected coordinates to geographic coordinates for axis ticks"""
     transformer = pyproj.Transformer.from_crs(epsg_from, epsg_to, always_xy=True)
 
@@ -52,6 +52,66 @@ def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
         y_ticks_geo.append(lat)
 
     return x_ticks_proj, x_ticks_geo, y_ticks_proj, y_ticks_geo
+
+def _nice_degree_step(span_deg, target_ticks=5):
+    """Pick a pleasant step size in degrees for ~target_ticks."""
+    candidates = np.array([0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0])
+    approx = span_deg / max(target_ticks - 1, 1)
+    return candidates[np.argmin(np.abs(candidates - approx))]
+
+def _frange(start, stop, step):
+    """Range for floats, inclusive of stop (with tolerance)."""
+    n = int(np.floor((stop - start) / step + 1e-9)) + 1
+    return np.round(start + step * np.arange(n), 10)
+
+def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
+    """
+    Choose 'nice' lon/lat ticks in geographic space (deg), force 0° lat if visible,
+    then transform those ticks back to the projected CRS for Matplotlib axes.
+    """
+    # Transformers
+    proj_to_geo = pyproj.Transformer.from_crs(epsg_from, epsg_to, always_xy=True)
+    geo_to_proj = pyproj.Transformer.from_crs(epsg_to, epsg_from, always_xy=True)
+
+    # Current limits (projected)
+    x_min, x_max = ax.get_xlim()
+    y_min, y_max = ax.get_ylim()
+
+    # Convert x-limits -> longitudes (lat doesn't matter for lon in Web Mercator)
+    lon_min, _ = proj_to_geo.transform(x_min, 0.0)
+    lon_max, _ = proj_to_geo.transform(x_max, 0.0)
+    if lon_min > lon_max:  # just in case of reversed limits
+        lon_min, lon_max = lon_max, lon_min
+
+    # Convert y-limits -> latitudes (lon doesn't matter for lat in Web Mercator)
+    _, lat_min = proj_to_geo.transform(0.0, y_min)
+    _, lat_max = proj_to_geo.transform(0.0, y_max)
+    if lat_min > lat_max:
+        lat_min, lat_max = lat_max, lat_min
+
+    # Pick 'nice' step sizes
+    lon_step = _nice_degree_step(lon_max - lon_min, n_ticks)
+    lat_step = _nice_degree_step(lat_max - lat_min, n_ticks)
+
+    # Snap to step grid
+    lon_start = np.floor(lon_min / lon_step) * lon_step
+    lon_stop  = np.ceil(lon_max / lon_step) * lon_step
+    lat_start = np.floor(lat_min / lat_step) * lat_step
+    lat_stop  = np.ceil(lat_max / lat_step) * lat_step
+
+    # Build degree tick arrays
+    x_ticks_geo = _frange(lon_start, lon_stop, lon_step)
+    y_ticks_geo = _frange(lat_start, lat_stop, lat_step)
+
+    # GUARANTEE 0° latitude tick if visible
+    if (lat_min <= 0.0 <= lat_max) and (not np.isclose(y_ticks_geo, 0.0).any()):
+        y_ticks_geo = np.sort(np.append(y_ticks_geo, 0.0))
+
+    # Transform back to projected for placement
+    x_ticks_proj = [geo_to_proj.transform(lon, 0.0)[0] for lon in x_ticks_geo]
+    y_ticks_proj = [geo_to_proj.transform(0.0, lat)[1] for lat in y_ticks_geo]
+
+    return x_ticks_proj, x_ticks_geo.tolist(), y_ticks_proj, y_ticks_geo.tolist()
 
 
 def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),

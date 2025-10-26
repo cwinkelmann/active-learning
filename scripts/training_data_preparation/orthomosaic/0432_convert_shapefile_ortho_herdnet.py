@@ -23,7 +23,7 @@ from com.biospheredata.types.status import ImageFormat
 
 
 if __name__ == "__main__":
-
+    tile_size = 800
     # orthophoto path
     train_orthophoto = Path(
         "/Volumes/G-DRIVE/Iguanas_From_Above_Orthomosaics/FLPC01-07_22012021/exports/FLPC01-07_22012021-orthomosaic.tiff")
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     gdf_local = convert_gdf_to_jpeg_coords(gdf_train, train_orthophoto)
 
     grid_manager = GeoSpatialRasterGrid(train_orthophoto)
-    gdf_grid = grid_manager.create_regular_grid(x_size=5000, y_size=5000, overlap_ratio=0.0)
+    gdf_grid = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0.0)
 
     slicer = GeoSlicer(base_path=train_orthophoto.parent,
                            image_name=train_orthophoto.name,

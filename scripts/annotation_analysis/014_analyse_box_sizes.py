@@ -157,7 +157,7 @@ if __name__ == "__main__":
     #     for ai in annotated_images
     # ]
     # create plots for the dataset
-    hA.dataset_statistics()
+    pd.DataFrame(hA.dataset_statistics())
 
 
 
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     dataset_names = set(ai.dataset_name for ai in annotated_images)
 
     df_flat = hA.get_flat_df()
-
+    aggregation_stats = get_aggregations(df_flat, group_by=['class_name'])
 
     for split in dataset_names:
         create_simple_histograms(annotated_images, dataset_name=split)
@@ -178,4 +178,4 @@ if __name__ == "__main__":
 
         # visualise_hasty_annotation_statistics(annotated_images_split)
 
-        aggregation_stats
+        print(f"{split}: {aggregation_stats}")

@@ -21,17 +21,18 @@ from com.biospheredata.converter.HastyConverter import HastyConverter
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import visualise_polygons, visualise_image
 
-iguana_special_stats = True
-import dataset_configs_hasty_point_iguanas as dataset_configs
+iguana_special_stats = False
+# import dataset_configs_hasty_point_iguanas as dataset_configs
 
 # import dataset_configs_AED as dataset_configs
-# import dataset_configs_delplanque as dataset_configs
+import dataset_configs_delplanque as dataset_configs
 # import dataset_configs_eikelboom as dataset_configs
 
 
 
 if __name__ == "__main__":
     if iguana_special_stats:
+        # see 003_map_training_hasty_datasets
         # this only works if there the data is georeferenced
         # pd.DataFrame(dataset_configs.datasets_mapping)
         rows = []
@@ -41,8 +42,8 @@ if __name__ == "__main__":
 
         df = pd.DataFrame(rows)
         df_grouped = df.groupby('Dataset_Group')['Dataset_ID'].agg(lambda x: ', '.join(x)).reset_index()
-        df_grouped.to_latex("dataset_mapping.tex", index=False)
         base_path = Path("/raid/cwinkelmann/work/active_learning/mapping/database/")
+        df_grouped.to_latex(base_path / "dataset_mapping.tex", index=False)
         base_path_mapping = base_path / "mapping"
         base_path_mapping.mkdir(parents=True, exist_ok=True)
         flight_database_path = Path(base_path / "2020_2021_2022_2023_2024_database_analysis_ready.parquet")
@@ -174,15 +175,21 @@ if __name__ == "__main__":
                                               labels=[p.class_name for p in image.labels], ax=ax_s,
                                               show=False, linewidth=2,
                                               filename=filename,
-                                              title=f"Cropped Objects  {image.image_name} polygons")
+                                              title=None)
 
-                if AnnotationType.KEYPOINT in dataset_configs.annotation_types:
-                    visualise_points_only(points=[p.incenter_centroid for p in image.labels],
-                                          labels=[p.class_name for p in image.labels], ax=ax_s,
-                                          text_buffer=True, font_size=15,
-                                          show=False, markersize=10,
-                                          filename=filename,
-                                          title=f"Cropped Objects {image.image_name} Points")
+                plt.close()
+                # if AnnotationType.KEYPOINT in dataset_configs.annotation_types:
+                filename_point = vis_path / (f"cropped_point_"
+                                       f"{image.image_name}.png")
+                ax_s = visualise_image(
+                    image_path=output_path_dset / f"crops_{dataset_configs.crop_size}" / image.image_name,
+                    show=False, figsize=(9, 9))
+                visualise_points_only(points=[p.incenter_centroid for p in image.labels],
+                                      labels=[p.class_name for p in image.labels], ax=ax_s,
+                                      text_buffer=True, font_size=15,
+                                      show=False, markersize=10,
+                                      filename=filename_point,
+                                      title=None)
                 plt.close()
 
         aI.set_hasty_annotations(hA=hA_crops)

@@ -379,7 +379,9 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
 
 def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
                                 images_path: Path,
-                                hA_reference: typing.Optional[HastyAnnotationV2] = None) -> typing.List[ImageLabelCollection]:
+                                dataset_name:str,
+                                hA_reference: typing.Optional[HastyAnnotationV2] = None,
+                                ) -> typing.List[ImageLabelCollection]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
     assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
@@ -428,7 +430,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
             annotations.append(annotation)
 
         if hA_reference is not None:
-            ilC = hA_reference.get_image_by_name(image_name)
+            ilC = hA_reference.get_image_by_name(image_name, dataset_name=dataset_name)
             # ilC.labels.extend(annotations)
             # get the image from the reference
 

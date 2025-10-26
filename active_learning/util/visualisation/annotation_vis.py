@@ -330,7 +330,7 @@ def visualise_points_only(points: List[shapely.Point],
                           labels: Optional[List[str]] = None,
                           colors: Optional[List[str]] = None,
                           markersize: float = 5.0,
-                          title: str = "Points Visualization",
+                          title: str | None = None,
                           filename: Optional[Path] = None,
                           show: bool = True, text_buffer=True, font_size=10,
                           ax=None,
@@ -364,15 +364,23 @@ def visualise_points_only(points: List[shapely.Point],
 
     # Add labels
     if labels:
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
         for i, (x, y) in enumerate(zip(x_coords, y_coords)):
             if i < len(labels):
+
+                # Adjust offset based on position
+                x_offset = 35 if x < (x_max - 100) else -35
+                y_offset = 5 if y < (y_max - 50) else -5
+                ha = 'left' if x_offset > 0 else 'right'
+
                 if text_buffer:
                     # add a small box around the text in white is it is easier to read
                     ax.text(x + 35, y + 5, labels[i], fontsize=font_size,
                             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
 
-
-    ax.set_title(title)
+    if title:
+        ax.set_title(title)
     if show_grid:
         ax.grid(True, alpha=0.3)
     ax.set_aspect('equal')
