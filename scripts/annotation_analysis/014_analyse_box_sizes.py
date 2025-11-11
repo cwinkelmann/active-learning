@@ -139,15 +139,16 @@ def get_aggregations(df_flat, group_by=['class_name']):
 
 
 if __name__ == "__main__":
-    base_path = Path("/Users/christian/data/training_data/2025_07_10_final_analysis/unzipped_hasty_annotation")
-    base_path = Path("/raid/cwinkelmann/training_data/eikelboom2019/")
+    # base_path = Path("/Users/christian/data/training_data/2025_07_10_final_analysis/unzipped_hasty_annotation")
+    # base_path = Path("/raid/cwinkelmann/training_data/eikelboom2019/")
+    base_path = Path("/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style")
 
-
-    hA = HastyAnnotationV2.from_file(base_path / "eikelboom_hasty.json")
+    # hA = HastyAnnotationV2.from_file(base_path / "eikelboom_hasty.json")
+    hA = HastyAnnotationV2.from_file(base_path / "/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style/delplanque_hasty.json")
     annotated_images = hA.images
 
-    annotated_images = [ai for ai in annotated_images if ai.dataset_name not in [
-        "Zooniverse_expert_phase_3", "Zooniverse_expert_phase_2"]]
+    # annotated_images = [ai for ai in annotated_images if ai.dataset_name not in [
+    #     "Zooniverse_expert_phase_3", "Zooniverse_expert_phase_2"]]
 
     # keep only "iguana"
     # annotated_images = [
@@ -160,8 +161,8 @@ if __name__ == "__main__":
     pd.DataFrame(hA.dataset_statistics())
 
 
-
-    visualise_hasty_annotation_statistics(annotated_images)
+    # Thiis is slightly nonsensical
+    # visualise_hasty_annotation_statistics(annotated_images, title_flag=False)
 
     dataset_names = set(ai.dataset_name for ai in annotated_images)
 
@@ -169,10 +170,11 @@ if __name__ == "__main__":
     aggregation_stats = get_aggregations(df_flat, group_by=['class_name'])
 
     for split in dataset_names:
-        create_simple_histograms(annotated_images, dataset_name=split)
+        create_simple_histograms(annotated_images, dataset_name=split, title_flag=False)
         annotated_images_split = [ai for ai in annotated_images if ai.dataset_name == split]
         # create_simple_histograms(annotated_images_split)
-        plot_bbox_sizes(annotated_images_split, suffix=f"{split}", plot_name = f"box_sizes_{split}.png")
+        plot_bbox_sizes(annotated_images_split, suffix=f"{split}",
+                        plot_name = f"box_sizes_{split}.png", title_flag=False)
 
         aggregation_stats = get_aggregations(df_flat[df_flat['dataset_name'] == split], group_by=['class_name'])
 

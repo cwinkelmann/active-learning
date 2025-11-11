@@ -8,11 +8,13 @@ import typing
 import copy
 
 import shapely
+from fiftyone.utils.cvat import CVATBackend
 from loguru import logger
 from pathlib import Path
 import fiftyone as fo
 import pandas as pd
 
+from active_learning.types.Exceptions import NoChangesDetected
 from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint, AnnotatedImage, hA_from_file, \
     HastyAnnotationV2, ImageLabelCollection
 from PIL import Image
@@ -224,6 +226,246 @@ def cvat2hasty(hA_tiled_prediction: HastyAnnotationV2,
     return stats_df, hA_corrected, iCLdl
 
 
+import fiftyone as fo
+from datetime import datetime
+import logging
+
+import fiftyone as fo
+from datetime import datetime
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def get_cvat_annotation_status(dataset: fo.Dataset, anno_key: str) -> dict:
+    """
+    Fetch CVAT annotation status including job assignee, stage, and state.
+
+    Args:
+        dataset: FiftyOne dataset
+        anno_key: Annotation run key
+
+    Returns:
+        dict: Comprehensive annotation metadata including CVAT job statuses
+    """
+
+    if anno_key not in dataset.list_annotation_runs():
+        logger.error(f"Annotation run '{anno_key}' not found in {dataset.list_annotation_runs()}")
+        return None
+
+    try:
+        anno_info = dataset.get_annotation_info(anno_key)
+        view = dataset.load_annotation_view(anno_key)
+        results = dataset.load_annotation_results(anno_key)
+
+        # Build basic status
+        status = {
+            'anno_key': anno_key,
+            'timestamp': datetime.now().isoformat(),
+            'total_samples': len(dataset),
+            'annotated_samples': len(view),
+            'backend': type(results.backend).__name__ if hasattr(results, 'backend') else 'unknown',
+        }
+
+        # Get CVAT-specific information
+        if hasattr(anno_info, 'config'):
+            config = anno_info.config
+            status['cvat_info'] = {
+                'organization': config.get('organization'),
+                'project_name': config.get('project_name'),
+                'label_field': config.get('label_field'),
+            }
+
+        # Get CVAT task and job information
+        if hasattr(results, 'backend') and isinstance(results.backend, CVATBackend):
+            backend = results.backend
+
+            # Try different ways to access the API client
+            api_client = None
+
+            # Method 1: Direct attribute
+            if hasattr(backend, 'api'):
+                api_client = backend.api
+            # Method 2: Through _api attribute
+            elif hasattr(backend, '_api'):
+                api_client = backend._api
+            # Method 3: Through config
+            elif hasattr(backend, 'config') and hasattr(backend.config, 'api'):
+                api_client = backend.config.api
+            # Method 4: Connect using config
+            elif hasattr(backend, 'config'):
+                try:
+                    api_client = backend.connect_to_api()
+                except:
+                    pass
+
+            if api_client is None:
+                logger.error("Could not access CVAT API client")
+                logger.error(f"Backend attributes: {dir(backend)}")
+                status['is_complete'] = None
+                return status
+
+            cvat_tasks = []
+            all_jobs_complete = True
+
+            # Get task IDs
+            task_ids = results.task_ids if hasattr(results, 'task_ids') else []
+
+            if not task_ids:
+                logger.warning(f"No task IDs found for annotation run '{anno_key}'")
+                status['is_complete'] = None
+                return status
+
+            for task_id in task_ids:
+                try:
+                    # Fetch task from CVAT API
+                    task = api_client.tasks.retrieve(task_id)
+
+                    task_info = {
+                        'task_id': task_id,
+                        'name': task.name,
+                        'status': task.status,
+                        'owner': task.owner.username if hasattr(task, 'owner') and hasattr(task.owner,
+                                                                                           'username') else None,
+                        'jobs': []
+                    }
+
+                    # Fetch jobs for this task
+                    jobs_response = api_client.jobs.list(task_id=task_id)
+
+                    # Handle different response types
+                    jobs = jobs_response.results if hasattr(jobs_response, 'results') else jobs_response
+
+                    for job in jobs:
+                        job_info = {
+                            'job_id': job.id,
+                            'assignee': job.assignee.username if hasattr(job, 'assignee') and job.assignee else None,
+                            'stage': job.stage if hasattr(job, 'stage') else None,
+                            'state': job.state if hasattr(job, 'state') else None,
+                            'start_frame': job.start_frame if hasattr(job, 'start_frame') else None,
+                            'stop_frame': job.stop_frame if hasattr(job, 'stop_frame') else None,
+                        }
+
+                        # Check if job is complete
+                        if job_info['state'] != 'completed':
+                            all_jobs_complete = False
+
+                        task_info['jobs'].append(job_info)
+
+                    cvat_tasks.append(task_info)
+
+                except Exception as e:
+                    logger.error(f"Failed to fetch CVAT task {task_id}: {type(e).__name__}: {e}")
+                    import traceback
+                    logger.debug(traceback.format_exc())
+
+            status['cvat_tasks'] = cvat_tasks
+            status['is_complete'] = all_jobs_complete
+            status['total_jobs'] = sum(len(task['jobs']) for task in cvat_tasks)
+            status['completed_jobs'] = sum(
+                1 for task in cvat_tasks
+                for job in task['jobs']
+                if job['state'] == 'completed'
+            )
+
+            # Log status
+            completion_status = "COMPLETE" if status['is_complete'] else "IN PROGRESS"
+            logger.info(
+                f"Status for '{anno_key}': {completion_status} - {status['completed_jobs']}/{status['total_jobs']} jobs complete")
+        else:
+            status['is_complete'] = None
+            logger.warning(
+                f"Backend is not CVATBackend (is {type(results.backend).__name__}), cannot determine job completion status")
+            logger.info(f"Status for '{anno_key}': {status['annotated_samples']}/{status['total_samples']} samples")
+
+        return status
+
+    except Exception as e:
+        logger.error(f"Failed to fetch annotation status for '{anno_key}': {type(e).__name__}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+
+def is_annotation_complete(dataset: fo.Dataset, anno_key: str) -> bool:
+    """
+    Check if an annotation run is complete based on CVAT job states.
+
+    Args:
+        dataset: FiftyOne dataset
+        anno_key: Annotation run key
+
+    Returns:
+        bool: True if all jobs are completed, False otherwise, None if cannot determine
+    """
+    status = get_cvat_annotation_status(dataset, anno_key)
+
+    if not status:
+        return None
+
+    is_complete = status.get('is_complete')
+
+    if is_complete is None:
+        logger.warning(f"Cannot determine completion status for '{anno_key}' (non-CVAT backend?)")
+        return None
+
+    if is_complete:
+        logger.info(f"✓ Annotation '{anno_key}' is COMPLETE ({status['completed_jobs']}/{status['total_jobs']} jobs)")
+    else:
+        logger.info(
+            f"⏳ Annotation '{anno_key}' is IN PROGRESS ({status['completed_jobs']}/{status['total_jobs']} jobs)")
+
+        # Log job details
+        if 'cvat_tasks' in status:
+            for task in status['cvat_tasks']:
+                for job in task['jobs']:
+                    if job['state'] != 'completed':
+                        logger.info(
+                            f"  Job {job['job_id']}: {job['state']} ({job['stage']}) - Assignee: {job['assignee']}")
+
+    return is_complete
+
+
+def get_job_details(dataset: fo.Dataset, anno_key: str) -> list:
+    """
+    Get detailed job information for an annotation run.
+
+    Args:
+        dataset: FiftyOne dataset
+        anno_key: Annotation run key
+
+    Returns:
+        list: List of job details with assignee, stage, and state
+    """
+    status = get_cvat_annotation_status(dataset, anno_key)
+
+    if not status or 'cvat_tasks' not in status:
+        logger.error(f"Cannot get job details for '{anno_key}'")
+        return []
+
+    all_jobs = []
+    for task in status['cvat_tasks']:
+        for job in task['jobs']:
+            all_jobs.append({
+                'task_id': task['task_id'],
+                'task_name': task['name'],
+                'job_id': job['job_id'],
+                'assignee': job['assignee'],
+                'stage': job['stage'],
+                'state': job['state'],
+                'frame_range': f"{job['start_frame']}-{job['stop_frame']}"
+            })
+
+    return all_jobs
+
+
+
+
+
+
+
+
 def download_cvat_annotations(dataset_name, anno_key=None):
     """
     Downloads annotations from CVAT and prepares them for processing.
@@ -240,6 +482,8 @@ def download_cvat_annotations(dataset_name, anno_key=None):
 
     # Load the dataset
     dataset = fo.load_dataset(dataset_name)
+
+
     dataset.load_annotations(anno_key)
 
     # Load the view that was annotated in the App
@@ -298,7 +542,15 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
         if hasattr(sample, "hasty_image_id"):
             image_id = sample.hasty_image_id
 
-            orgininal_image = [i for i in hA_template.images if i.image_id == image_id][0]
+            if image_id == "ec1eb174-6979-485b-b0c9-aecef26c3a47":
+                pass
+
+            try:
+                orgininal_image = [i for i in hA_template.images if i.image_id == image_id][0]
+            except IndexError:
+                orgininal_image = [i for i in hA_template.images if i.image_name == sample.hasty_image_name][0]
+
+                pass
         else:
             # Generate a consistent image ID if none exists
             image_id = str(uuid.uuid4())
@@ -419,6 +671,126 @@ def foDataset2Hasty(hA_template: HastyAnnotationV2,
     return hasty_annotation
 
 
+
+import pandas as pd
+from shapely.geometry import Point
+from shapely import wkt
+
+
+def check_moved_points(df1: pd.DataFrame, df2: pd.DataFrame, tolerance: float = 0.0) -> pd.DataFrame:
+    """
+    Join two annotation dataframes by label_id and check if points have been moved.
+
+    Args:
+        df1: First dataframe (e.g., original annotations)
+        df2: Second dataframe (e.g., updated annotations)
+        tolerance: Distance tolerance in pixels (default: 0.0 for exact match)
+
+    Returns:
+        DataFrame with moved points and their original/new locations
+    """
+
+    # Join on label_id
+    merged = df1.merge(
+        df2,
+        on='label_id',
+        how='inner',
+        suffixes=('_original', '_updated')
+    )
+
+    if len(merged) == 0:
+        print("No matching label_ids found between dataframes")
+        return pd.DataFrame()
+
+    print(f"Found {len(merged)} matching label_ids")
+
+
+    # Calculate if points moved
+    def points_differ(row):
+        orig = row['centroid_original']
+        updated = row['centroid_updated']
+
+        if orig is None or updated is None:
+            return pd.DataFrame()
+
+        # Calculate Euclidean distance
+        distance = orig.distance(updated)
+
+        return distance > tolerance
+
+    def calculate_distance(row):
+        orig = row['centroid_original']
+        updated = row['centroid_updated']
+
+        if orig is None or updated is None:
+            return None
+
+        distance = orig.distance(updated)
+        return distance
+
+    merged['moved'] = merged.apply(points_differ, axis=1)
+    merged['distance_pixels'] = merged.apply(calculate_distance, axis=1)
+
+    # Filter to only moved points
+    moved_points = merged[merged['moved'] == True].copy()
+
+    if len(moved_points) == 0:
+        logger.info("✓ No points were moved")
+        return pd.DataFrame()
+
+    logger.info(f"⚠ Found {len(moved_points)} moved points")
+
+    # Select relevant columns for output
+    result = moved_points[[
+        'label_id',
+        'unique_ID_original',
+        'image_name_original',
+        'image_name_updated',
+        'centroid_original',
+        'centroid_updated',
+        'distance_pixels',
+        'attribute_original',
+        'attribute_updated'
+    ]].copy()
+
+    return result
+
+
+
+
+
+def find_added_and_removed_annotations(df1: pd.DataFrame, df2: pd.DataFrame):
+    """
+    Find annotations that were added or removed between two dataframes.
+
+    Args:
+        df1: Original dataframe
+        df2: Updated dataframe
+
+    Returns:
+        tuple: (added_df, removed_df)
+    """
+
+    label_ids_1 = set(df1['label_id'].dropna())
+    label_ids_2 = set(df2['label_id'].dropna())
+
+    # Removed: in df1 but not in df2
+    removed_ids = label_ids_1 - label_ids_2
+    removed_df = df1[df1['label_id'].isin(removed_ids)].copy()
+
+    # Added: in df2 but not in df1
+    added_ids = label_ids_2 - label_ids_1
+    added_df = df2[df2['label_id'].isin(added_ids)].copy()
+
+    print(f"Removed annotations: {len(removed_df)}")
+    print(f"Added annotations: {len(added_df)}")
+
+    return added_df, removed_df
+
+
+
+
+
 def determine_changes(
     hA_reference: HastyAnnotationV2,
     hA_reference_updated: HastyAnnotationV2,
@@ -430,25 +802,50 @@ def determine_changes(
     :param class_name:
     :return:
     """
-
+    changes = {}
     df_old = hA_reference.get_flat_df()
     df_new = hA_reference_updated.get_flat_df()
 
+    old_label_ids = set(df_old.label_id)
+
+    try:
+        new_label_ids = set(df_new.label_id)
+        moved_points = check_moved_points(df_old, df_new, tolerance=0)
+    except:
+        new_label_ids = set()
+        moved_points = set()
+
+
+    if len(moved_points) == 0:
+        raise NoChangesDetected(f"No changes detected, probably the task is not edited yet.")
+
+    # new labels
     rows_not_in_df2 = df_new[~df_new['label_id'].isin(df_old['label_id'])]
+    # deleted labels, where label is does not exist in df_new
+    rows_not_in_df_new = df_old[~df_old['label_id'].isin(df_new['label_id'])]
 
+    changes["deleted_annotatations"] = len(rows_not_in_df_new)
+    changes["added_annotations"] = len(rows_not_in_df2)
+    changes["total_changes"] = len(rows_not_in_df_new) + len(rows_not_in_df2)
+    changes["old_objects"] = len(old_label_ids)
+    changes["new_objects"] = len(new_label_ids)
+
+
+
+    total_diff = 0
     logger.info(f"There were {len(df_old)} labels in the original annotation and {len(df_new)} in the updated annotation")
-
+# delplanque_train___15ef3a616405520ff8d4515f1b9f8a52f44d402e.JPG_1fd041e7-2214-4720-9039-4c4c6715b7fc.jpg
     for i in hA_reference_updated.images:
         updated_image = hA_reference_updated.get_image_by_id(i.image_id)
         reference_image = hA_reference.get_image_by_id(i.image_id)
         diff = set(updated_image.labels) - set(reference_image.labels)
         if len(diff) > 0:
-            pass
+            total_diff += len(diff)
             # updated_image.labels
             # TODO implement me
         # logger.warning(f"Continue the implementation of this")
 
-
+    return changes
 
 def cvat2hasty_v2(hA_tiled_prediction: HastyAnnotationV2,
                dataset_name,

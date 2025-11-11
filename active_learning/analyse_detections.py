@@ -6,6 +6,7 @@ This produces a csv file with the false positives because they are what we need 
  Similar to Kellenberger - maybe this one Benjamin, et al. "Detecting and classifying elephants in the wild." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2020.
 
 """
+import json
 from pathlib import Path
 
 import typing
@@ -251,7 +252,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
     return df_false_positives, df_true_positives, df_false_negatives, gdf_ground_truth_all
 
 
-def analyse_point_detections_geospatial(gdf_detections: gpd.GeoDataFrame,
+def analyse_point_detections_geospatial_ckdtree(gdf_detections: gpd.GeoDataFrame,
                                         gdf_ground_truth: gpd.GeoDataFrame,
                                         radius_m=1,
                                         tile_name="tile_name",
@@ -305,10 +306,11 @@ def analyse_point_detections_geospatial(gdf_detections: gpd.GeoDataFrame,
             if len(gdf_pred) < len_before:
                 # logger.warning(f"Removed {len_before - len(gdf_pred)} predictions with NaN labels and scores for image {image}")
                 pass
-        # Convert geometries to tuples (here we use int() conversion; adjust if necessary)
-        gt_coords = gdf_gt.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
+        # gt_coords = gdf_gt.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
+        # pred_coords = gdf_pred.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
 
-        pred_coords = gdf_pred.geometry.apply(lambda geom: (int(geom.x), int(geom.y))).tolist()
+        gt_coords = gdf_gt.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
+        pred_coords = gdf_pred.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
 
         # If there are no predictions for the image, mark all ground truth as false negatives
         if len(pred_coords) == 0:
@@ -385,6 +387,385 @@ def analyse_point_detections_geospatial(gdf_detections: gpd.GeoDataFrame,
     return df_false_positives, df_true_positives, df_false_negatives
 
 
+from scipy.optimize import linear_sum_assignment
+import numpy as np
+
+from shapely.geometry import LineString, mapping
+
+
+def create_matching_visualization_geojson(gdf_detections: gpd.GeoDataFrame,
+                                          gdf_ground_truth: gpd.GeoDataFrame,
+                                          gdf_false_positives: gpd.GeoDataFrame,
+                                          gdf_true_positives: gpd.GeoDataFrame,
+                                          gdf_false_negatives: gpd.GeoDataFrame,
+                                          output_path: str,
+                                          radius_m: float = 1,
+                                          tile_name: str = "orthomosaic_name",
+                                          tile_name_prediction: str = "orthomosaic_name"):
+    """
+    Create a GeoJSON visualization showing:
+    - Green lines: True positive matches (GT to Pred)
+    - Red points: False positives (unmatched predictions)
+    - Orange points: False negatives (unmatched GT)
+    - Blue circles: Search radius around GT points
+
+    Parameters:
+        gdf_detections: All predictions
+        gdf_ground_truth: All ground truth
+        gdf_false_positives: FP predictions
+        gdf_true_positives: TP predictions
+        gdf_false_negatives: FN ground truth
+        output_path: Where to save the GeoJSON
+        radius_m: Matching radius used
+        tile_name: Column name for tile in GT
+        tile_name_prediction: Column name for tile in predictions
+    """
+
+    features = []
+
+    # Get all unique images
+    gt_images = set(gdf_ground_truth[tile_name].dropna().unique())
+    pred_images = set(gdf_detections[tile_name_prediction].dropna().unique())
+    image_list = gt_images.union(pred_images)
+
+    for image in image_list:
+        # Filter data for this image
+        gdf_gt = gdf_ground_truth[gdf_ground_truth[tile_name] == image].copy()
+        gdf_pred = gdf_detections[gdf_detections[tile_name_prediction] == image].copy()
+
+        # Get GT coordinates
+        gt_coords = [(geom.x, geom.y) for geom in gdf_gt.geometry]
+        pred_coords = [(geom.x, geom.y) for geom in gdf_pred.geometry]
+
+        if len(gt_coords) == 0 or len(pred_coords) == 0:
+            continue
+
+        # Build cost matrix
+        gt_coords_array = np.array(gt_coords)
+        pred_coords_array = np.array(pred_coords)
+
+        cost_matrix = np.linalg.norm(
+            gt_coords_array[:, np.newaxis, :] - pred_coords_array[np.newaxis, :, :],
+            axis=2
+        )
+
+        # Apply Hungarian algorithm
+        gt_indices, pred_indices = linear_sum_assignment(cost_matrix)
+
+        # Create lines for matches within radius (True Positives)
+        for gt_idx, pred_idx in zip(gt_indices, pred_indices):
+            distance = cost_matrix[gt_idx, pred_idx]
+            gt_point = gt_coords[gt_idx]
+            pred_point = pred_coords[pred_idx]
+
+            if distance <= radius_m:
+                # GREEN LINE - True Positive match
+                line = LineString([gt_point, pred_point])
+                features.append({
+                    "type": "Feature",
+                    "geometry": mapping(line),
+                    "properties": {
+                        "type": "TP_match",
+                        "distance": float(distance),
+                        "image": image,
+                        "gt_idx": int(gt_idx),
+                        "pred_idx": int(pred_idx),
+                        "color": "#00FF00",  # Green
+                        "stroke": "#00FF00",
+                        "stroke-width": 2
+                    }
+                })
+            else:
+                # YELLOW LINE - Assigned by Hungarian but outside radius
+                line = LineString([gt_point, pred_point])
+                features.append({
+                    "type": "Feature",
+                    "geometry": mapping(line),
+                    "properties": {
+                        "type": "rejected_match",
+                        "distance": float(distance),
+                        "image": image,
+                        "gt_idx": int(gt_idx),
+                        "pred_idx": int(pred_idx),
+                        "color": "#FFFF00",  # Yellow
+                        "stroke": "#FFFF00",
+                        "stroke-width": 1,
+                        "stroke-dasharray": "5,5"
+                    }
+                })
+
+        # Add GT points with search radius circles
+        for idx, (gt_point, geom) in enumerate(zip(gt_coords, gdf_gt.geometry)):
+            # Blue circle showing search radius
+            circle = geom.buffer(radius_m)
+            features.append({
+                "type": "Feature",
+                "geometry": mapping(circle),
+                "properties": {
+                    "type": "search_radius",
+                    "image": image,
+                    "gt_idx": int(idx),
+                    "color": "#0000FF",  # Blue
+                    "stroke": "#0000FF",
+                    "stroke-width": 1,
+                    "fill": "#0000FF",
+                    "fill-opacity": 0.1
+                }
+            })
+
+            # GT point
+            features.append({
+                "type": "Feature",
+                "geometry": mapping(geom),
+                "properties": {
+                    "type": "ground_truth",
+                    "image": image,
+                    "gt_idx": int(idx),
+                    "color": "#0000FF",  # Blue
+                    "marker-color": "#0000FF",
+                    "marker-size": "small"
+                }
+            })
+
+    # Add False Positive points (RED)
+    for idx, row in gdf_false_positives.iterrows():
+        features.append({
+            "type": "Feature",
+            "geometry": mapping(row.geometry),
+            "properties": {
+                "type": "false_positive",
+                "image": row.get(tile_name_prediction, "unknown"),
+                "score": float(row.get('scores', 0)),
+                "color": "#FF0000",  # Red
+                "marker-color": "#FF0000",
+                "marker-size": "medium",
+                "marker-symbol": "cross"
+            }
+        })
+
+    # Add False Negative points (ORANGE)
+    for idx, row in gdf_false_negatives.iterrows():
+        features.append({
+            "type": "Feature",
+            "geometry": mapping(row.geometry),
+            "properties": {
+                "type": "false_negative",
+                "image": row.get(tile_name, "unknown"),
+                "gt_id": row.get('id', None),
+                "color": "#FFA500",  # Orange
+                "marker-color": "#FFA500",
+                "marker-size": "medium",
+                "marker-symbol": "circle"
+            }
+        })
+
+    # Add True Positive prediction points (GREEN)
+    for idx, row in gdf_true_positives.iterrows():
+        features.append({
+            "type": "Feature",
+            "geometry": mapping(row.geometry),
+            "properties": {
+                "type": "true_positive_pred",
+                "image": row.get(tile_name_prediction, "unknown"),
+                "score": float(row.get('scores', 0)),
+                "color": "#00FF00",  # Green
+                "marker-color": "#00FF00",
+                "marker-size": "small"
+            }
+        })
+
+    # Create GeoJSON structure
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features,
+        "properties": {
+            "total_gt": len(gdf_ground_truth),
+            "total_pred": len(gdf_detections),
+            "total_tp": len(gdf_true_positives),
+            "total_fp": len(gdf_false_positives),
+            "total_fn": len(gdf_false_negatives),
+            "radius_m": radius_m
+        }
+    }
+
+    # Write to file
+    with open(output_path, 'w') as f:
+        json.dump(geojson, f, indent=2)
+
+    logger.info(f"Visualization GeoJSON saved to {output_path}")
+    logger.info(f"Summary: GT={len(gdf_ground_truth)}, Pred={len(gdf_detections)}, "
+                f"TP={len(gdf_true_positives)}, FP={len(gdf_false_positives)}, FN={len(gdf_false_negatives)}")
+
+    return output_path
+
+
+from scipy.optimize import linear_sum_assignment
+import numpy as np
+
+
+def analyse_point_detections_geospatial_hungarian(gdf_detections: gpd.GeoDataFrame,
+                                                  gdf_ground_truth: gpd.GeoDataFrame,
+                                                  radius_m=1,
+                                                  tile_name="tile_name",
+                                                  tile_name_prediction="tile_name_right",
+labels_column = 'labels', scores_column = 'scores',
+
+                                                  confidence_threshold=0.5) -> (pd.DataFrame, pd.DataFrame,
+                                                                                pd.DataFrame):
+    """
+    Analyse detections using RADIUS-CONSTRAINED Hungarian matching:
+    1. Build cost matrix with ONLY pairs within radius (rest set to infinity)
+    2. Apply Hungarian algorithm
+    3. This ensures we only match pairs that are actually within radius
+
+
+
+    """
+
+    gdf_detections['buffer'] = gdf_detections.geometry.buffer(radius_m)
+    gdf_detections_all = gdf_detections.copy()
+
+    # Get unique images from BOTH datasets
+    gt_images = set(gdf_ground_truth[tile_name].dropna().unique())
+    pred_images = set(gdf_detections_all[tile_name_prediction].dropna().unique())
+    image_list = gt_images.union(pred_images)
+
+    logger.info(f"Processing {len(image_list)} unique images")
+
+    # Containers for results
+    l_fp = []  # false positives
+    l_tp = []  # true positives
+    l_fn = []  # false negatives
+    image_errors = []
+
+    for image in image_list:
+        # Filter for the current image
+        gdf_gt = gdf_ground_truth[gdf_ground_truth[tile_name] == image].copy()
+        gdf_pred = gdf_detections_all[gdf_detections_all[tile_name_prediction] == image].copy()
+
+        # Remove predictions with NaN labels and scores
+        if len(gdf_pred) >= 1:
+            len_before = len(gdf_pred)
+            gdf_pred = gdf_pred[~(gdf_pred[labels_column].isna() & gdf_pred[scores_column].isna())]
+
+        # Extract coordinates (keep as floats for precision)
+        gt_coords = gdf_gt.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
+        pred_coords = gdf_pred.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
+
+        # If there are no predictions for the image, mark all ground truth as false negatives
+        if len(pred_coords) == 0:
+            if len(gt_coords) > 0:
+                gdf_gt['kind'] = 'false_negative'
+                if scores_column not in gdf_gt.columns:
+                    gdf_gt[scores_column] = 0.0
+                l_fn.append(gdf_gt)
+            continue
+
+        # If there are no ground truth points, mark all predictions as false positives
+        if len(gt_coords) == 0:
+            if len(pred_coords) > 0:
+                gdf_pred['kind'] = 'false_positive'
+                l_fp.append(gdf_pred)
+            continue
+
+        # Build cost matrix with radius constraint
+        gt_coords_array = np.array(gt_coords)
+        pred_coords_array = np.array(pred_coords)
+
+        # Calculate pairwise distances
+        # Shape: (n_gt, n_pred)
+        cost_matrix = np.linalg.norm(
+            gt_coords_array[:, np.newaxis, :] - pred_coords_array[np.newaxis, :, :],
+            axis=2
+        )
+
+        # CRITICAL: Set distances > radius to a very large value (infinity)
+        # This ensures Hungarian only considers matches within radius
+        cost_matrix_constrained = cost_matrix.copy()
+        cost_matrix_constrained[cost_matrix > radius_m] = 1e10  # Very large value instead of np.inf
+
+        # Apply Hungarian algorithm on the constrained cost matrix
+        gt_indices, pred_indices = linear_sum_assignment(cost_matrix_constrained)
+
+        # Only keep matches that are actually within radius
+        # (Hungarian might still assign some if there's no better option)
+        matched_gt = set()
+        matched_pred = set()
+
+        for gt_idx, pred_idx in zip(gt_indices, pred_indices):
+            original_distance = cost_matrix[gt_idx, pred_idx]
+
+            # Only accept if within radius
+            if original_distance <= radius_m:
+                matched_gt.add(gt_idx)
+                matched_pred.add(pred_idx)
+
+        # True positives: predictions that were matched
+        if len(matched_pred) > 0:
+            df_tp_img = gdf_pred.iloc[list(matched_pred)].copy()
+            df_tp_img['kind'] = 'true_positive'
+            l_tp.append(df_tp_img)
+
+        # False positives: predictions that were not matched
+        all_pred_indices = set(range(len(gdf_pred)))
+        false_positive_indices = all_pred_indices - matched_pred
+        if len(false_positive_indices) > 0:
+            df_fp_img = gdf_pred.iloc[list(false_positive_indices)].copy()
+            df_fp_img['kind'] = 'false_positive'
+            l_fp.append(df_fp_img)
+
+        # False negatives: ground truth points that were not matched
+        all_gt_indices = set(range(len(gdf_gt)))
+        false_negative_indices = all_gt_indices - matched_gt
+        if len(false_negative_indices) > 0:
+            df_fn_img = gdf_gt.iloc[list(false_negative_indices)].copy()
+            df_fn_img['kind'] = 'false_negative'
+            df_fn_img['scores'] = 0.0
+            l_fn.append(df_fn_img)
+
+        # Validation
+        num_tp = len(matched_pred)
+        num_fp = len(false_positive_indices)
+        num_fn = len(false_negative_indices)
+
+        assert num_tp + num_fp == len(gdf_pred), \
+            f"Image {image}: Prediction mismatch: {num_tp} + {num_fp} != {len(gdf_pred)}"
+        assert num_fn + num_tp == len(gdf_gt), \
+            f"Image {image}: GT mismatch: {num_fn} + {num_tp} != {len(gdf_gt)}"
+
+        # Track metrics
+        image_errors.append({
+            "image_name": image,
+            "err": num_fp - num_fn,
+            "num_gt": len(gdf_gt),
+            "num_pred": len(gdf_pred),
+            "num_tp": num_tp,
+            "num_fp": num_fp,
+            "num_fn": num_fn
+        })
+
+    logger.info(f"Aggregating results over {len(image_list)} images.")
+
+    # Concatenate the results from all images
+    df_false_positives = pd.concat(l_fp, ignore_index=True) if len(l_fp) > 0 else pd.DataFrame(
+        columns=gdf_detections.columns)
+    df_true_positives = pd.concat(l_tp, ignore_index=True) if len(l_tp) > 0 else pd.DataFrame(
+        columns=gdf_detections.columns)
+    df_false_negatives = pd.concat(l_fn, ignore_index=True) if len(l_fn) > 0 else pd.DataFrame(
+        columns=gdf_ground_truth.columns)
+
+    # Final validation
+    logger.info(f"Total: GT={len(gdf_ground_truth)}, Pred={len(gdf_detections_all)}, "
+                f"TP={len(df_true_positives)}, FP={len(df_false_positives)}, FN={len(df_false_negatives)}")
+
+    assert len(df_true_positives) + len(df_false_positives) == len(gdf_detections_all), \
+        f"Predictions not fully classified: {len(df_true_positives)} + {len(df_false_positives)} != {len(gdf_detections_all)}"
+    assert len(df_false_negatives) + len(df_true_positives) == len(gdf_ground_truth), \
+        f"GT not fully classified: {len(df_false_negatives)} + {len(df_true_positives)} != {len(gdf_ground_truth)}"
+
+    return df_false_positives, df_true_positives, df_false_negatives
+
+
 def analyse_point_detections_geospatial_single_image(gdf_detections: gpd.GeoDataFrame,
                                         gdf_ground_truth: gpd.GeoDataFrame,
                                         radius_m=1,
@@ -409,6 +790,8 @@ def analyse_point_detections_geospatial_single_image(gdf_detections: gpd.GeoData
       A tuple of three DataFrames:
         (df_false_positives, df_true_positives, df_false_negatives)
     """
+
+    # raise NotImplementedError("!use the same hungarian matching we used in the true geospatial case!")
 
     gdf_detections['buffer'] = gdf_detections.geometry.buffer(radius_m)
 
@@ -494,6 +877,146 @@ def analyse_point_detections_geospatial_single_image(gdf_detections: gpd.GeoData
 
     return df_false_positives, df_true_positives, df_false_negatives
 
+
+from scipy.optimize import linear_sum_assignment
+import numpy as np
+
+
+def analyse_point_detections_geospatial_single_image_hungarian(gdf_detections: gpd.GeoDataFrame,
+                                                     gdf_ground_truth: gpd.GeoDataFrame,
+                                                     radius_m=1,
+labels_column = 'labels', scores_column = 'scores',
+                                                     confidence_threshold=0.5) -> (gpd.GeoDataFrame, gpd.GeoDataFrame,
+                                                                                   gpd.GeoDataFrame):
+    """
+    Analyse detections and look into false positives, false negatives
+    using RADIUS-CONSTRAINED HUNGARIAN matching for a single image.
+
+    Each prediction can be assigned to at most one ground truth (if within the threshold)
+    and vice versa. Unmatched predictions are false positives;
+    unmatched ground truths are false negatives.
+
+    Parameters:
+      gdf_detections: gpd.GeoDataFrame
+         Must include at least geometry column
+      gdf_ground_truth: gpd.GeoDataFrame
+         Must include at least geometry column
+      radius_m: float, optional (default=1)
+         Maximum allowed distance to consider a prediction as matching a ground truth.
+      confidence_threshold: float
+         Confidence threshold for predictions (currently unused)
+
+    Returns:
+      A tuple of three DataFrames:
+        (df_false_positives, df_true_positives, df_false_negatives)
+    """
+
+    gdf_detections['buffer'] = gdf_detections.geometry.buffer(radius_m)
+
+    gdf_gt = gdf_ground_truth.copy()
+    gdf_pred = gdf_detections.copy()
+
+    # Edge case: No ground truth points
+    if len(gdf_gt) == 0:
+        logger.warning(f"No ground truth points provided, all predictions are false positives.")
+        df_false_negatives = gdf_gt
+        df_false_positives = gdf_pred.copy()
+        df_false_positives['kind'] = 'false_positive'
+        df_true_positives = gpd.GeoDataFrame(columns=gdf_detections.columns)
+        return df_false_positives, df_true_positives, df_false_negatives
+
+    # Remove predictions with NaN labels and scores
+    if len(gdf_pred) >= 1:
+        len_before = len(gdf_pred)
+        gdf_pred = gdf_pred[~(gdf_pred[labels_column].isna() & gdf_pred[scores_column].isna())]
+        if len(gdf_pred) < len_before:
+            logger.debug(f"Removed {len_before - len(gdf_pred)} predictions with NaN labels and scores")
+
+    # Extract coordinates (keep as floats for precision - NO int() conversion!)
+    gt_coords = gdf_gt.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
+    pred_coords = gdf_pred.geometry.apply(lambda geom: (geom.x, geom.y)).tolist()
+
+    # Edge case: No predictions for the image
+    if len(pred_coords) == 0:
+        gdf_gt['kind'] = 'false_negative'
+        df_false_negatives = gdf_gt
+        df_false_positives = gpd.GeoDataFrame(columns=gdf_detections.columns)
+        df_true_positives = gpd.GeoDataFrame(columns=gdf_detections.columns)
+        return df_false_positives, df_true_positives, df_false_negatives
+
+    # RADIUS-CONSTRAINED HUNGARIAN MATCHING
+    # Build cost matrix
+    gt_coords_array = np.array(gt_coords)
+    pred_coords_array = np.array(pred_coords)
+
+    # Calculate pairwise distances
+    # Shape: (n_gt, n_pred)
+    cost_matrix = np.linalg.norm(
+        gt_coords_array[:, np.newaxis, :] - pred_coords_array[np.newaxis, :, :],
+        axis=2
+    )
+
+    # CRITICAL: Constrain by radius - set distances > radius to very large value
+    cost_matrix_constrained = cost_matrix.copy()
+    cost_matrix_constrained[cost_matrix > radius_m] = 1e10
+
+    # Apply Hungarian algorithm
+    gt_indices, pred_indices = linear_sum_assignment(cost_matrix_constrained)
+
+    # Only keep matches that are actually within radius
+    matched_gt = set()
+    matched_pred = set()
+
+    for gt_idx, pred_idx in zip(gt_indices, pred_indices):
+        original_distance = cost_matrix[gt_idx, pred_idx]
+
+        # Only accept if within radius
+        if original_distance <= radius_m:
+            matched_gt.add(gt_idx)
+            matched_pred.add(pred_idx)
+
+    # True positives: predictions that were matched
+    if len(matched_pred) > 0:
+        df_tp_img = gdf_pred.iloc[list(matched_pred)].copy()
+        df_tp_img['kind'] = 'true_positive'
+    else:
+        df_tp_img = gpd.GeoDataFrame(columns=gdf_pred.columns)
+        df_tp_img['kind'] = 'true_positive'
+
+    # False positives: predictions that were not matched
+    all_pred_indices = set(range(len(gdf_pred)))
+    false_positive_indices = all_pred_indices - matched_pred
+    if len(false_positive_indices) > 0:
+        df_fp_img = gdf_pred.iloc[list(false_positive_indices)].copy()
+        df_fp_img['kind'] = 'false_positive'
+    else:
+        df_fp_img = gpd.GeoDataFrame(columns=gdf_pred.columns)
+        df_fp_img['kind'] = 'false_positive'
+
+    # False negatives: ground truth points that were not matched
+    all_gt_indices = set(range(len(gdf_gt)))
+    false_negative_indices = all_gt_indices - matched_gt
+    if len(false_negative_indices) > 0:
+        df_fn_img = gdf_gt.iloc[list(false_negative_indices)].copy()
+        df_fn_img['kind'] = 'false_negative'
+        df_fn_img[scores_column] = 0.0
+    else:
+        df_fn_img = gpd.GeoDataFrame(columns=gdf_gt.columns)
+        df_fn_img['kind'] = 'false_negative'
+        if scores_column not in df_fn_img.columns:
+            df_fn_img[scores_column] = 0.0
+
+    # Validation
+    assert len(df_tp_img) + len(df_fp_img) == len(gdf_pred), \
+        f"Prediction count mismatch: {len(df_tp_img)} + {len(df_fp_img)} != {len(gdf_pred)}"
+    assert len(df_fn_img) + len(df_tp_img) == len(gdf_gt), \
+        f"GT count mismatch: {len(df_fn_img)} + {len(df_tp_img)} != {len(gdf_gt)}"
+
+    df_true_positives = df_tp_img
+    df_false_positives = df_fp_img
+    df_false_negatives = df_fn_img
+
+    return df_false_positives, df_true_positives, df_false_negatives
 
 def analyse_multiple_user_point_detections_geospatial(dict_gdf_detections: typing.Dict[str, gpd.GeoDataFrame],
                                                       radius_m=1, N_agree=2) -> typing.Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
@@ -883,12 +1406,3 @@ def get_agreement_summary(gdf_agreement: gpd.GeoDataFrame,
 
 
 
-
-###########
-
-
-
-
-
-if __name__ == "__main__":
-    pass

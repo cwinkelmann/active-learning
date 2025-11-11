@@ -1,6 +1,8 @@
 """
 HUMAN IN THE LOOP
 
+single image correction
+
 Take prediction we don't have a ground truth for and double check if the prediction is right.
 There are two options: 1. mark it as iguanas or 2. mark it as a partial iguana
 

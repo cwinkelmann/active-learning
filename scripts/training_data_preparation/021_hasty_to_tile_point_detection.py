@@ -22,11 +22,12 @@ from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 from com.biospheredata.visualization.visualize_result import visualise_polygons, visualise_image
 
 iguana_special_stats = False
-# import dataset_configs_hasty_point_iguanas as dataset_configs
+import dataset_configs_hasty_point_iguanas as dataset_configs
 
 # import dataset_configs_AED as dataset_configs
-import dataset_configs_delplanque as dataset_configs
+# import dataset_configs_delplanque as dataset_configs
 # import dataset_configs_eikelboom as dataset_configs
+
 
 
 
@@ -168,7 +169,7 @@ if __name__ == "__main__":
                 #             "No labels but there should be one full iguana and some blacked out edge partial")
 
                 filename = vis_path / (f"cropped_"
-                                       f"{image.image_name}.png")
+                                       f"{image.image_name}_{image.labels[0].class_name}.png")
 
                 if AnnotationType.BOUNDING_BOX in dataset_configs.annotation_types:
                     ax_s = visualise_polygons(polygons=[p.bbox_polygon for p in image.labels],
@@ -180,7 +181,7 @@ if __name__ == "__main__":
                 plt.close()
                 # if AnnotationType.KEYPOINT in dataset_configs.annotation_types:
                 filename_point = vis_path / (f"cropped_point_"
-                                       f"{image.image_name}.png")
+                                       f"{image.image_name}_{image.labels[0].class_name}.png")
                 ax_s = visualise_image(
                     image_path=output_path_dset / f"crops_{dataset_configs.crop_size}" / image.image_name,
                     show=False, figsize=(9, 9))

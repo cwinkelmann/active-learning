@@ -175,8 +175,8 @@ class ImageLabel(BaseModel):
             if self.keypoints[0].keypoint_class_id == 'ed18e0f9-095f-46ff-bc95-febf4a53f0ff':
                 center_point = shapely.Point(self.keypoints[0].x, self.keypoints[0].y)
             else:
-                logger.warning("Not properly implemented yet. It is a bit of a hack")
-                # TODO implement this with the keypoint schema
+                # logger.warning("Not properly implemented yet. It is a bit of a hack")
+                # TODO this is a bit of a hack, we assume that the first keypoint is the center
                 return shapely.Point(self.keypoints[0].x, self.keypoints[0].y)
         elif self.bbox_polygon is not None:
             center_point = self.bbox_polygon.centroid
@@ -198,6 +198,23 @@ class ImageLabel(BaseModel):
     def bbox_polygon(self, value):
         self._bbox_polygon = value
         self.bbox = [int(value.bounds[0]), int(value.bounds[1]), int(value.bounds[2]), int(value.bounds[3])]
+
+    def shift_label(self, x, y):
+        """
+
+        :param x:
+        :param y:
+        :return:
+        """
+        if self.keypoints is not None:
+            for kp in self.keypoints:
+                kp.x += int(x)
+                kp.y += int(x)
+        else:
+            logger.info(f"Label {self.id} was not moved")
+
+        if self.bbox is not None:
+            self.bbox = [self.bbox[0] + x, self.bbox[1] + y, self.bbox[2] + x, self.bbox[3] + y]
 
     def __hash__(self) -> int:
         # Convert to JSON string (handles nested structures)
@@ -348,30 +365,56 @@ class HastyAnnotationV2(BaseModel):
 
     def dataset_statistics(self):
         """
-        Print statistics about the datasets in the project.
+        Print statistics about the datasets in the project, including per-class breakdown.
         """
         dataset_stats = {}
+
         for image in self.images:
             dataset_name = image.dataset_name if isinstance(image, AnnotatedImage) else "unknown"
+
+            # Initialize dataset if not exists
             if dataset_name not in dataset_stats:
                 dataset_stats[dataset_name] = {
                     'num_images': 0,
                     'num_labels': 0,
                     'num_point_labels': 0,
-                    'num_box_labels': 0
+                    'num_box_labels': 0,
+                    'classes': {}  # Per-class statistics
                 }
+
             dataset_stats[dataset_name]['num_images'] += 1
 
             if len(image.labels) > 0:
+                for label in image.labels:
+                    # Get class name
+                    class_name = label.class_name if hasattr(label, 'class_name') else 'unknown'
 
-                num_boxes = sum(1 for label in image.labels if label.bbox_polygon is not None)
-                num_points = sum(1 for label in image.labels if label.keypoints is not None and len(label.keypoints) > 0)
-                dataset_stats[dataset_name]['num_box_labels'] += num_boxes
-                dataset_stats[dataset_name]['num_point_labels'] += num_points
-                dataset_stats[dataset_name]['num_labels'] += len(image.labels)
+                    # Initialize class if not exists
+                    if class_name not in dataset_stats[dataset_name]['classes']:
+                        dataset_stats[dataset_name]['classes'][class_name] = {
+                            'num_labels': 0,
+                            'num_point_labels': 0,
+                            'num_box_labels': 0
+                        }
 
-        # for dataset, stats in dataset_stats.items():
-        #     logger.info(f"Dataset: {dataset}, Images: {stats['num_images']}, Labels: {stats['num_labels']}")
+                    # Count at dataset level
+                    dataset_stats[dataset_name]['num_labels'] += 1
+
+                    # Count at class level
+                    dataset_stats[dataset_name]['classes'][class_name]['num_labels'] += 1
+
+                    # Check label type and count accordingly
+                    is_box = label.bbox_polygon is not None
+                    is_point = label.keypoints is not None and len(label.keypoints) > 0
+
+                    if is_box:
+                        dataset_stats[dataset_name]['num_box_labels'] += 1
+                        dataset_stats[dataset_name]['classes'][class_name]['num_box_labels'] += 1
+
+                    if is_point:
+                        dataset_stats[dataset_name]['num_point_labels'] += 1
+                        dataset_stats[dataset_name]['classes'][class_name]['num_point_labels'] += 1
+
 
         return dataset_stats
 
@@ -430,7 +473,7 @@ class HastyAnnotationV2(BaseModel):
     def get_flat_df(self):
         return get_flat_df(self)
 
-    def add_labels_to_image(self, image_id: str, dataset_name: str, label: ImageLabel):
+    def add_labels_to_image(self, image_id: str, label: ImageLabel):
         """
         add a label to an image in the project
         :param image_id:
@@ -440,19 +483,19 @@ class HastyAnnotationV2(BaseModel):
         """
 
         # find the image in queston
-
+        image = self.get_image_by_id(image_id)
         # add the label to the
 
-        for image in self.images:
-            if image.image_id == image_id and image.dataset_name == dataset_name:
-                if isinstance(image, AnnotatedImage):
-                    image.labels.append(label)
-                elif isinstance(image, ImageLabelCollection):
-                    image.labels.append(label)
-                else:
-                    raise ValueError("Image type not supported")
-                return
-        raise ValueError("image id not found in project")
+        # for image in self.images:
+            # if image.image_id == image_id:  and image.dataset_name == dataset_name:
+        if isinstance(image, AnnotatedImage):
+            image.labels.append(label)
+        elif isinstance(image, ImageLabelCollection):
+            image.labels.append(label)
+        else:
+            raise ValueError("Image type not supported")
+
+
 
     def add_labels_to_image_by_image_name(self, image_name: str, dataset_name: str, label: ImageLabel):
         """
@@ -497,9 +540,31 @@ class HastyAnnotationV2(BaseModel):
         :param image_name: The name of the image to retrieve.
         :return: The AnnotatedImage object if found, otherwise None.
         """
+        stash = []
         for image in self.images:
             if image.image_id == id:
-                return image
+                stash.append(image)
+
+        if len(stash) == 1:
+            return stash[0]
+        elif len(stash) > 1:
+            logger.warning(f"Multiple images found with the same id: {id}")
+            return stash[0]
+        else:
+            raise ValueError(f"Image with id {id} not found in project")
+
+
+    def get_label_by_id(self, label_id: str) -> Optional[ImageLabel]:
+        """
+        Get a label by its id from the project.
+
+        :param label_id: The id of the label to retrieve.
+        :return: The ImageLabel object if found, otherwise None.
+        """
+        for image in self.images:
+            for label in image.labels:
+                if label.id == label_id:
+                    return label
         return None
 
 

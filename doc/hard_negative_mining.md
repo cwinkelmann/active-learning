@@ -6,7 +6,9 @@ Kellenberger 2018
 
 Use the augmentation of ObjectAwareRandomCrop which returns a tile with at least one object in it with a probability p -1, or a an empty tile with a probablity of p.
 
-## Mining for Hard Negatives without correction
+
+## Hard Negative Mining
+### Mining for Hard Negatives without correction
 
 Delplanque et al. (2024) present a comprehensive study on the importance of hard negative mining in improving the performance of machine learning models, particularly in the context of image recognition and natural language processing tasks.
 
@@ -28,6 +30,18 @@ human_in_the_loop/091_HIT_simple_merge_hasty
 
 ```
 
+### Mining for hard negatives by using the HITL process
+```shell 
+# create the correction jobs in CVAT
+061_HIT_1_geospatial_batched_1
+
+# download the corrected annotations
+061_HIT_2_geospatial
+
+# merge the annotations into the original annotations
+090_HIT_merge_hasty
+
+```
 ### Inferencing Detections
 Use a config, which applies patched inference using the right evaluator config. 
 

@@ -5,7 +5,8 @@ import typing
 import shapely
 from shapely import affinity
 
-from com.biospheredata.types.HastyAnnotationV2 import ImageLabel
+from active_learning.config.mapping import keypoint_id_mapping
+from com.biospheredata.types.HastyAnnotationV2 import ImageLabel, Keypoint
 
 from shapely import Polygon, affinity, box
 from loguru import logger
@@ -81,6 +82,10 @@ def project_point_to_crop(point: shapely.Point, crop_box: shapely.Polygon) -> sh
     Returns:
         shapely.geometry.Point: The point in the crop's coordinate system.
     """
+
+    if not point.intersects(crop_box):
+        return None
+
     # Get the lower-left corner coordinates of the crop box.
     minx, miny, maxx, maxy = crop_box.bounds
 
@@ -95,7 +100,17 @@ def project_label_to_crop(label: ImageLabel, crop_box: shapely.Polygon) -> Image
     :param crop_box:
     :return:
     """
-    raise NotImplementedError("Not yet implemented")
+    pp = project_point_to_crop(label.incenter_centroid, crop_box)
+    if pp is None:
+        return None
+    keypoints = [Keypoint(
+        x=int(pp.x),
+        y=int(pp.y),
+        keypoint_class_id=keypoint_id_mapping.get(label.class_name.lower(), "body"),
+    )]
+
+    label.keypoints = keypoints
+    return label
 
 def reframe_bounding_box(cutout_box: typing.Union[shapely.Polygon, shapely.box],
                          label: typing.Union[shapely.Polygon, ImageLabel, shapely.Point],

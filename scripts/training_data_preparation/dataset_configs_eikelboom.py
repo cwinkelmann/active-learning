@@ -1,30 +1,18 @@
-import json
-
-import gc
-
-import shutil
-import yaml
-from loguru import logger
 from pathlib import Path
-from matplotlib import pyplot as plt
 
-from active_learning.config.dataset_filter import DatasetFilterConfig, DataPrepReport
-from active_learning.filter import ImageFilterConstantNum
-from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from active_learning.util.visualisation.annotation_vis import visualise_points_only
-from com.biospheredata.types.status import LabelingStatus, AnnotationType
-from com.biospheredata.converter.HastyConverter import HastyConverter
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
-from com.biospheredata.visualization.visualize_result import (visualise_image, visualise_polygons)
+from pathlib import Path
+
+from active_learning.config.dataset_filter import DatasetFilterConfig
+from com.biospheredata.types.status import AnnotationType
 
 base_path = Path("/raid/cwinkelmann/training_data/eikelboom2019")
 
-labels_full_path_name = base_path / "eikelboom_hasty.json"
+labels_name = base_path / "eikelboom_hasty.json"
 images_path = base_path
 annotation_types = [AnnotationType.BOUNDING_BOX]
 class_filter = ["Giraffe", "Elephant", "Zebra"]
 label_mapping = {"Giraffe":1, "Elephant":2, "Zebra":3}
-crop_size = 700
+crop_size = 512
 empty_fraction = 0.0
 overlap = 200
 VISUALISE_FLAG = False

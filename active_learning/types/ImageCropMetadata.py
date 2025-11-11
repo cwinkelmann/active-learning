@@ -1,4 +1,5 @@
 import json
+import shapely
 
 from pathlib import Path
 
@@ -13,15 +14,15 @@ from uuid import UUID
 from com.biospheredata.types.HastyAnnotationV2 import Keypoint
 
 
+
 class ImageCropMetadata(BaseModel):
     parent_image: str
     parent_image_id: Union[str, UUID]  # Assuming the image ID is a string or UUID
-    parent_label_id: Union[str, UUID]  # Assuming the label ID is a string or UUID
+
     cropped_image: str
     cropped_image_id: Union[str, UUID]
     bbox: Optional[List[typing.Union[int, float]]] = Field(None, alias='bbox')  # Shapely polygon for bounding box
-    local_coordinate: Optional[List[Keypoint]]  # Point within the cropped image
-    global_coordinate: Optional[List[Keypoint]]  # Original coordinate before cropping
+
 
     class Config:
         arbitrary_types_allowed = True  # Required to support shapely types
@@ -43,3 +44,15 @@ class ImageCropMetadata(BaseModel):
             data = json.load(f)
             iCM = ImageCropMetadata(**data)
         return iCM
+
+    @property
+    def bbox_polygon(self) -> shapely.Polygon:
+        x1, y1, x2, y2 = self.bbox
+        poly = shapely.Polygon([(x1, y1), (x2, y1), (x2, y2), (x1, y2)])
+        return poly
+
+
+class ImageLabelCropMetadata(ImageCropMetadata):
+    parent_label_id: Union[str, UUID]  # Assuming the label ID is a string or UUID
+    local_coordinate: Optional[List[Keypoint]]  # Point within the cropped image
+    global_coordinate: Optional[List[Keypoint]]  # Original coordinate before cropping

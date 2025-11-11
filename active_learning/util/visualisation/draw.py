@@ -29,7 +29,10 @@ def draw_text(
     return image
 
 
-def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None, DETECTECTED_COLOR='blue', GT_COLOR='red'):
+def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None,
+                   DETECTECTED_COLOR='blue',
+                   GT_COLOR='red',
+                   title_flag = False):
     ts_path = images_path / f"thumbnails_{suffix}"
     ts_path.mkdir(exist_ok=True)
 
@@ -71,7 +74,8 @@ def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None, DETECTECTED
                                   text_buffer=True, font_size=15,
                                   show=False, markersize=10,
                                   filename=ts_path / f"{Path(i.name).stem}_{suffix}_{idx}.JPG",
-                                  title=f"{i.name} Points", colors=DETECTECTED_COLOR,
+                                  title=f"{i.name} Points" if title_flag else None,
+                                         colors=DETECTECTED_COLOR,
                                   ax=ax_i)
 
 

@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import shutil
 import typing
 import uuid
@@ -379,9 +380,9 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
 
 def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
                                 images_path: Path,
-                                dataset_name:str,
+                                dataset_name: str | None = None,
                                 hA_reference: typing.Optional[HastyAnnotationV2] = None,
-                                ) -> typing.List[ImageLabelCollection]:
+                                ) -> typing.List[AnnotatedImage]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
     assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
@@ -399,6 +400,10 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
         annotations: typing.List[PredictedImageLabel, ImageLabel] = []
         # Iterate over DataFrame rows
         for _, row in df_group.iterrows():
+            if row.x is None or row.y is None or np.isnan(row.x) or np.isnan(row.y) :
+                logger.warning(f"Skipping row with missing x or y coordinates for image {image_name}")
+                continue
+
             try:
                 annotation = PredictedImageLabel(
                     score=float(row["scores"]),
@@ -409,7 +414,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
                     keypoints = [Keypoint(
                         x=int(row.x),
                         y=int(row.y),
-                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("Body")),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("body")),
                     )],  # you can store extra information if needed
                     kind=row.get("kind", None)
                 )
@@ -423,7 +428,7 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
                     keypoints=[Keypoint(
                         x=int(row.x),
                         y=int(row.y),
-                        keypoint_class_id=keypoint_id_mapping.get(row.species, None),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("body")),
                     )],  # you can store extra information if needed
 
                 )
@@ -434,19 +439,21 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
             # ilC.labels.extend(annotations)
             # get the image from the reference
 
-            ilC = ImageLabelCollection(
+            ilC = AnnotatedImage(
                 image_id=ilC.image_id,
                 image_name=str(image_name),
                 labels=annotations,
                 width=w,
-                height=h
+                height=h,
+                dataset_name=dataset_name,
             )
         else:
-            ilC = ImageLabelCollection(
+            ilC = AnnotatedImage(
             image_name=str(image_name),
             labels=annotations,
             width=w,
-            height=h
+            height=h,
+                dataset_name=dataset_name,
         )
         ILC_list.append( ilC )
 
@@ -495,10 +502,14 @@ def hasty_to_shp(tif_path: Path,
                 score = None
             data.append({
                 "img_name": img_name,
-                "label": label.class_name ,
+                "img_id": img.image_id,
+                "label": label.class_name,
+                "label_id": label.id,
                 "score": score,
                 "geometry": p,
-                "on_edge": _is_with_edge(x, y, img.width, img.height, edge_threshold=edge_threshold)
+                "on_edge": _is_with_edge(x, y, img.width, img.height, edge_threshold=edge_threshold),
+                "local_x": int(x),
+                "local_y": int(y),
             })
 
     return gpd.GeoDataFrame(data, crs=crs)

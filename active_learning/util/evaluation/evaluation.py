@@ -322,13 +322,18 @@ class Evaluator():
                 image_list = self.image_list
             )
 
-            precision = self.precision(df_true_positives, df_false_positives)
+
             recall = self.recall(df_true_positives, df_false_negatives)
-            f1 = self.f1(precision, recall)
+            if recall == 0:
+                precision = 1.0
+                f1 = 0.0
+            else:
+                precision = self.precision(df_true_positives, df_false_positives)
+                f1 = self.f1(precision, recall)
 
             num_fp = len(df_false_positives)
             num_tp = len(df_true_positives)
-            num_fn = len(df_false_positives)
+            num_fn = len(df_false_negatives)
 
             metrics = {
                 'confidence_threshold': confidence_threshold,
@@ -404,6 +409,7 @@ class Evaluator():
 
 def plot_confidence_density(df: pd.DataFrame,
                             title="Confidence Score Density Distribution",
+                            title_flag=False,
                             xlabel="Confidence Score",
                             ylabel="Density",
                             figsize=(12, 6),
@@ -457,7 +463,8 @@ def plot_confidence_density(df: pd.DataFrame,
     # Set labels and title
     ax.set_xlabel(xlabel, fontsize=12)
     ax.set_ylabel(ylabel, fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight='bold')
+    if title_flag:
+        ax.set_title(title, fontsize=14, fontweight='bold')
 
     # Set x-axis limits to [0, 1] for confidence scores
     ax.set_xlim(0, 1)
@@ -468,14 +475,15 @@ def plot_confidence_density(df: pd.DataFrame,
     # Add legend
     ax.legend(loc='best')
 
-    # Add text box with statistics
-    stats_text = f'Count: {len(scores)}\n'
-    stats_text += f'Mean: {scores.mean():.3f}\n'
-    stats_text += f'Std: {scores.std():.3f}\n'
-
-    ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
-            fontsize=10, verticalalignment='top',
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    # # Add text box with statistics
+    # stats_text = f'Count: {len(scores)}\n'
+    # stats_text += f'Mean: {scores.mean():.3f}\n'
+    # stats_text += f'Std: {scores.std():.3f}\n'
+    #
+    # ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+    #         fontsize=10, verticalalignment='top',
+    #         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+    #          )
 
     plt.tight_layout()
 
@@ -619,6 +627,7 @@ def plot_species_detection_analysis(df_recall_curve: dict,
 def plot_error_curve(df_recall_curve,
                      x_label="confidence_threshold",
                      y_label="mean_error",
+                    title_flag=False,
                      title="Error Curve",
                      save_path=None):
     """
@@ -634,7 +643,9 @@ def plot_error_curve(df_recall_curve,
 
     # Create figure with subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-    fig.suptitle(title, fontsize=16, fontweight='bold')
+
+    if title_flag:
+        fig.suptitle(title, fontsize=16, fontweight='bold')
 
     # Find confidence threshold where mean_error is closest to zero
     optimal_idx = df_recall_curve['f1'].abs().idxmax()
@@ -700,7 +711,9 @@ def plot_single_metric_curve(df_recall_curve,
                              x_label="confidence_threshold",
                              y_label="mean_error",
                              title="Error Curve",
-                             save_path=None):
+                             save_path=None,
+                             title_flag = False,
+                             x_range = None, y_range= None):
     """
     Plot a single metric vs confidence threshold.
 
@@ -719,8 +732,15 @@ def plot_single_metric_curve(df_recall_curve,
 
     plt.xlabel(x_label.replace('_', ' ').title())
     plt.ylabel(y_label.replace('_', ' ').title())
-    plt.title(title)
+    if title_flag:
+        plt.title(title)
     plt.grid(True, alpha=0.3)
+
+    # Set axis ranges
+    if x_range is not None:
+        plt.xlim(x_range)
+    if y_range is not None:
+        plt.ylim(y_range)
 
     # Add zero line if plotting error metrics
     if 'error' in y_label.lower():
@@ -736,13 +756,14 @@ def plot_single_metric_curve(df_recall_curve,
 
 
 
-def plot_comprehensive_curves(df_recall_curve, save_path=None):
+def plot_comprehensive_curves(df_recall_curve, save_path=None, title_flag = True):
     """
     Create a comprehensive 2x2 plot showing all metrics.
     """
 
-    fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(15, 12))
-    fig.suptitle('Comprehensive Performance Analysis vs Confidence Threshold', fontsize=16, fontweight='bold')
+    fig, ax1 = plt.subplots(1, 1, figsize=(8, 6))
+    if title_flag:
+        fig.suptitle('Comprehensive Performance Analysis vs Confidence Threshold', fontsize=16, fontweight='bold')
 
     x = df_recall_curve['confidence_threshold']
 
@@ -752,18 +773,18 @@ def plot_comprehensive_curves(df_recall_curve, save_path=None):
     ax1.plot(x, df_recall_curve['f1'], 'g-', label='F1 Score', linewidth=2)
     ax1.set_xlabel('Confidence Threshold')
     ax1.set_ylabel('Score')
-    ax1.set_title('Classification Metrics')
+
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim(0, 1)
 
-    # Plot 2: Mean Error
-    ax2.plot(x, df_recall_curve['mean_error'], 'purple', linewidth=2, marker='o')
-    ax2.axhline(y=0, color='red', linestyle='--', alpha=0.7)
-    ax2.set_xlabel('Confidence Threshold')
-    ax2.set_ylabel('Mean Error')
-    ax2.set_title('Mean Error (Bias)')
-    ax2.grid(True, alpha=0.3)
+    # # Plot 2: Mean Error
+    # ax2.plot(x, df_recall_curve['mean_error'], 'purple', linewidth=2, marker='o')
+    # ax2.axhline(y=0, color='red', linestyle='--', alpha=0.7)
+    # ax2.set_xlabel('Confidence Threshold')
+    # ax2.set_ylabel('Mean Error')
+    # ax2.set_title('Mean Error (Bias)')
+    # ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
 

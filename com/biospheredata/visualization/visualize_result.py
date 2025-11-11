@@ -332,7 +332,8 @@ def visualise_hasty_annotations(hA: HastyAnnotationV2, images_path: Path, output
 
 
 def visualise_hasty_annotation(image: ImageLabelCollection, images_path: Path,
-                               output_path: Path | None = None, show: bool = False, title: str | None = None):
+                               output_path: Path | None = None, show: bool = False, title: str | None = None,
+                               figsize=(5,5), dpi=150, show_axis=True) -> axes.Axes:
     if output_path is not None:
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -344,8 +345,12 @@ def visualise_hasty_annotation(image: ImageLabelCollection, images_path: Path,
         i_width, i_height = image.width, image.height
 
         ax_ig = visualise_image(image_path=images_path / image_name, show=False, title=title,
-                                figsize=(5, 5), dpi=150)
-
+                                figsize=figsize, dpi=dpi)
+        if not show_axis:
+            ax_ig.set_xticks([])  # Remove x ticks
+            ax_ig.set_yticks([])  # Remove y ticks
+            ax_ig.set_xlabel('')  # Remove x label
+            ax_ig.set_ylabel('')
         # segmentation masks
         ax = visualise_polygons([il.polygon_s for il in labels if il.polygon is not None],
                                 filename=None,
@@ -362,12 +367,27 @@ def visualise_hasty_annotation(image: ImageLabelCollection, images_path: Path,
                                 ax=ax)
 
         # dots
+        # When output path is already a full path,
+        filename = output_path
         ax = visualise_points_only(points=[il.incenter_centroid for il in labels if il.incenter_centroid is not None],
                                    ax=ax, show=show,
+                                   labels=[
+                                       il.class_name if il.class_name is not None else "undefined"
+                                       for il in labels
+                                       if il.incenter_centroid is not None  # Match the points filter!
+                                   ],
                                    markersize=4,
                                    font_size=7,
                                    filename=output_path / f"{image_name}_all_annotations.jpg",
                                    title=title)
+        if not show_axis:
+            ax.set_xticks([])  # Remove x ticks
+            ax.set_yticks([])  # Remove y ticks
+            ax.set_xlabel('')  # Remove x label
+            ax.set_ylabel('')
+
+        if title is None:
+            ax.set_title(None)
 
         plt.tight_layout()
 

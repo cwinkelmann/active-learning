@@ -13,14 +13,14 @@ from pathlib import Path
 
 from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig, \
     GeospatialDatasetCorrectionConfigCollection
-from active_learning.util.hit.geospatial import batched_main
+from active_learning.util.hit.geospatial import batched_geospatial_correction_upload
 
 
 def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
                                          # orthomosaics_base_path: Path,
 
                                          predictions_a_base_path: None | Path,
-                                         prediction_B_base_path: None | Path,
+                                         prediction_b_base_path: None | Path,
                                          hasty_reference_annotation_path: Path,
                                          output_path: Path,
                                          box_size=800
@@ -29,7 +29,7 @@ def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
     helper script to generate config files for multiple orthomosaics
     :param df_mapping:
     :param predictions_base_path:
-    :param prediction_B_base_path:
+    :param prediction_b_base_path:
     :param hasty_reference_annotation_path:
     :param output_path:
     :param box_size:
@@ -55,8 +55,9 @@ def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
         # usually the prediction of ml model, could be of a person too
 
 
-        prediction_a_path = predictions_a_base_path / row['island_code'] / Path(
-                row['shp_file_path']).with_suffix(".geojson").name
+        # prediction_a_path = predictions_a_base_path / row['island_code'] / Path(row['shp_file_path']).with_suffix(".geojson").name
+        # prediction_a_path = predictions_a_base_path / row['island_code'] / Path(row['shp_file_path']).with_suffix(".geojson").name
+        prediction_a_path = predictions_a_base_path / f"{Path(row['images_path']).stem}_detections.geojson"
         dataset_name = Path(row['images_path']).stem
         
         if not prediction_a_path.exists():
@@ -64,9 +65,10 @@ def config_generator_human_ai_correction(df_mapping: pd.DataFrame,
 
 
 
-        if prediction_B_base_path is not None:
-            predicton_b = prediction_B_base_path / f"{Path(row['images_path']).stem}_detections.geojson"
-            
+        if prediction_b_base_path is not None:
+            # predicton_b = prediction_b_base_path / f"{Path(row['images_path']).stem}_detections.geojson"
+            predicton_b = prediction_b_base_path / row['island_code'] / Path(row['shp_file_path']).with_suffix(".geojson").name
+
             dataset_name = predicton_b.stem
             
             if not predicton_b.exists():
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     # )
 
     # Name of the
-    dataset_name = "main_dataset_correction_2025_08_28"
+    dataset_name = "main_dataset_correction_2025_11_07"
 
     base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected")
 
@@ -127,7 +129,7 @@ if __name__ == "__main__":
         "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/corrected")
 
     hasty_reference_annotation_path = Path(
-        "/Users/christian/data/training_data/2025_08_10_label_correction/fernandina_s_correction_hasty_corrected_1.json")
+        "/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_11_07_labels.json")
 
     # config = GeospatialDatasetCorrectionConfig(
     #     dataset_name=f"Fer_FNA01_02_20122021_ds_correction",
@@ -166,26 +168,37 @@ if __name__ == "__main__":
 
     # df_mapping_csv = pd.read_csv(Path(
     #     '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/shapefile_orthomosaic_mapping.csv'))
+    # df_mapping_csv = pd.read_csv(Path(
+    #     '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
+
     df_mapping_csv = pd.read_csv(Path(
-        '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
-    df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Fernandina']
+        '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
+    # df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Fernandina']
+    df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Isabela']
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Floreana']
     # df_mapping_csv = df_mapping_csv[~df_mapping_csv['island'].isin(['Fernandina', 'Floreana', 'Genovesa'])]
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Flo_FLBB01_28012023 counts.shp']
     # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Fer_FWK01_20122021 counts']
-    # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Fer_FNA01-02_20122021 counts']
 
+    # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Isa_ISVP01_27012023 counts']
+    # df_mapping_csv = df_mapping_csv[df_mapping_csv['shp_name'] == 'Isa_ISVI01_27012023 counts']
+
+    exclude_values = ['Isa_ISVP01_27012023 counts', 'Isa_ISVI01_27012023 counts']
+    df_mapping_csv = df_mapping_csv[~df_mapping_csv['shp_name'].isin(exclude_values)]
     logger.info(f"Processing {len(df_mapping_csv)} orthomosaics")
 
     cc = config_generator_human_ai_correction(
         df_mapping=df_mapping_csv,
 
         # predictions_base_path=Path('/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection'),
-        predictions_a_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations'),
-        prediction_B_base_path=None,
+        # predictions_a_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations'),
+        predictions_a_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/AI_detection'),
+        # prediction_B_base_path=None,
+        # prediction_b_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/AI_detection'),
+        prediction_b_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations'),
         # prediction_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Geospatial_Annotations/Fer/Fer_FNA01-02_20122021 counts.geojson'),
         # orthomosaic_path=Path("/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog/Fer/Fer_FNA01-02_20122021.tif"),
-        output_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp_2"),
+        output_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp_Isabela"),
         hasty_reference_annotation_path=hasty_reference_annotation_path
     )
 
@@ -196,20 +209,19 @@ if __name__ == "__main__":
                                                           output_path=base_path,
                                                           corrected_path=base_path_corrected,
                                                           organization="IguanasFromAbove",
-                                                          project_name="Geospatial_Dataset_Correction_Batched_2025_09_24"
+                                                          project_name="Geospatial_Corr_Isabela_2025_11_06"
                                                           )
 
     vis_output_dir = base_path / "visualisation"
     vis_output_dir.mkdir(exist_ok=True)
 
-    report_configs = batched_main(configs,
-                                  output_dir=base_path,
-                                  vis_output_dir=vis_output_dir,
-                                  submit_to_CVAT=False,
-                                  include_reference=False,
-                                  delete_dataset_if_exists=False,
-                                  radius=0.4,
-                                  cvat_upload=False
-                                  )
+    # report_configs = batched_geospatial_correction_upload(configs,
+    #                               output_dir=base_path,
+    #                               vis_output_dir=vis_output_dir,
+    #                               submit_to_CVAT=True,
+    #                               include_reference=True,
+    #                               delete_dataset_if_exists=True,
+    #                               radius=0.5,
+    #                               )
 
     logger.info(f"Report saved to {report_configs}")

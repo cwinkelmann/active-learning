@@ -4,6 +4,12 @@ class InvalidLabelError(ValueError):
     def __init__(self, message: str = "Invalid labels") -> None:
         super().__init__(message)
 
+
+class NoChangesDetected(InvalidLabelError):
+    def __init__(self, message: str = "No Changes were detected") -> None:
+        super().__init__(message)
+
+
 class InvalidLabelCountError(InvalidLabelError):
     """Exception raised for invalid label numbers."""
 

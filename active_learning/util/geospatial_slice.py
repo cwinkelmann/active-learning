@@ -875,7 +875,18 @@ class GeoSlicer():
     Helper to slice geospational rasters into smaller parts
     """
 
-    def __init__(self, base_path: Path, image_name: str, grid: gpd.GeoDataFrame, output_dir: Path):
+    def __init__(self, base_path: Path,
+                 image_name: str,
+                 grid: gpd.GeoDataFrame,
+                 output_dir: Path):
+        """
+
+        :param base_path: geospatial image path
+        :param image_name: Orthomosaic name
+        :param grid: grid
+        :param output_dir:
+        """
+
         self.gdf_slices: gpd.GeoDataFrame = None
         self.sliced_paths: typing.List[Path] = []
         self.slice_dict: typing.List[typing.Dict[Path, Path]] = []
@@ -965,7 +976,8 @@ class GeoSlicer():
 
         return points_in_grid
 
-    def slice_annotations_regular_grid(self, points_gdf: gpd.GeoDataFrame,
+    def slice_annotations_regular_grid(self,
+                                       points_gdf: gpd.GeoDataFrame,
                                        grid_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         project the points into the local pixel coordinates of the raster cell. This assumes the grid was created around the points NOT as regular grid across the image

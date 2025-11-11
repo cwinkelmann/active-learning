@@ -83,7 +83,7 @@ keypoint_id_mapping = {
     "kob": "ed18e0f9-095f-46ff-bc95-febf4a53f0fc",
     "bufallo": "ed18e0f9-095f-46ff-bc95-febf4a53f0fc",
     "Alcelaphinae": "ed18e0f9-095f-46ff-bc95-febf4a53f0fc",
-    "Body": "ad18e0f9-095f-46ff-bc95-febf4a53f0fc",
+    "body": "ad18e0f9-095f-46ff-bc95-febf4a53f0fc",
     "hard_negative": "bb18e0f9-095f-46ff-bc95-febf4a53f0fd",
 
 }

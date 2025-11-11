@@ -1,0 +1,2235 @@
+{
+  'San_STJB03_12012023': {
+    'num_images': 79,
+    'num_labels': 60,
+    'num_point_labels': 19,
+    'num_box_labels': 41,
+    'classes': {
+      'iguana': {
+        'num_labels': 19,
+        'num_point_labels': 0,
+        'num_box_labels': 19
+      },
+      'iguana_point': {
+        'num_labels': 19,
+        'num_point_labels': 19,
+        'num_box_labels': 0
+      },
+      'fresh_lava': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'water': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'sand': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'vegetation': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'seal': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'flat_rock': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'Fer_FPM01-02_20122023': {
+    'num_images': 224,
+    'num_labels': 8014,
+    'num_point_labels': 4243,
+    'num_box_labels': 3772,
+    'classes': {
+      'iguana': {
+        'num_labels': 3564,
+        'num_point_labels': 0,
+        'num_box_labels': 3564
+      },
+      'iguana_point': {
+        'num_labels': 4242,
+        'num_point_labels': 4242,
+        'num_box_labels': 1
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 65,
+        'num_point_labels': 0,
+        'num_box_labels': 65
+      },
+      'iguana_edge_partial': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      },
+      'fresh_lava': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'sand': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'water': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'vegetation': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'seal': {
+        'num_labels': 91,
+        'num_point_labels': 0,
+        'num_box_labels': 91
+      },
+      'eroded_lava': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'flat_rock': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'turtle': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'bird': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      }
+    }
+  },
+  'SCris_SRIL02_04022023': {
+    'num_images': 47,
+    'num_labels': 37,
+    'num_point_labels': 0,
+    'num_box_labels': 37,
+    'classes': {
+      'trash': {
+        'num_labels': 14,
+        'num_point_labels': 0,
+        'num_box_labels': 14
+      },
+      'crab': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'seal': {
+        'num_labels': 21,
+        'num_point_labels': 0,
+        'num_box_labels': 21
+      }
+    }
+  },
+  'San_STJB06_12012023': {
+    'num_images': 39,
+    'num_labels': 137,
+    'num_point_labels': 62,
+    'num_box_labels': 75,
+    'classes': {
+      'iguana': {
+        'num_labels': 70,
+        'num_point_labels': 0,
+        'num_box_labels': 70
+      },
+      'iguana_point': {
+        'num_labels': 62,
+        'num_point_labels': 62,
+        'num_box_labels': 0
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      }
+    }
+  },
+  'Fer_FCD01-02-03_20122021_single_images': {
+    'num_images': 46,
+    'num_labels': 8061,
+    'num_point_labels': 3499,
+    'num_box_labels': 4565,
+    'classes': {
+      'iguana': {
+        'num_labels': 4383,
+        'num_point_labels': 0,
+        'num_box_labels': 4383
+      },
+      'iguana_point': {
+        'num_labels': 3497,
+        'num_point_labels': 3497,
+        'num_box_labels': 3
+      },
+      'seal': {
+        'num_labels': 39,
+        'num_point_labels': 0,
+        'num_box_labels': 39
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 91,
+        'num_point_labels': 0,
+        'num_box_labels': 91
+      },
+      'turtle': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'ugly_stone': {
+        'num_labels': 10,
+        'num_point_labels': 0,
+        'num_box_labels': 10
+      },
+      'sand': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'water': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'crab': {
+        'num_labels': 22,
+        'num_point_labels': 0,
+        'num_box_labels': 22
+      },
+      'trash': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'pebble_rocks': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'eroded_lava': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'iguana_edge_partial': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'San_STJB01_12012023': {
+    'num_images': 215,
+    'num_labels': 112,
+    'num_point_labels': 23,
+    'num_box_labels': 89,
+    'classes': {
+      'water': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 30,
+        'num_point_labels': 0,
+        'num_box_labels': 30
+      },
+      'seal': {
+        'num_labels': 21,
+        'num_point_labels': 0,
+        'num_box_labels': 21
+      },
+      'flat_rock': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'iguana_point': {
+        'num_labels': 23,
+        'num_point_labels': 23,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 23,
+        'num_point_labels': 0,
+        'num_box_labels': 23
+      },
+      'fresh_lava': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      }
+    }
+  },
+  'San_STJB02_12012023': {
+    'num_images': 85,
+    'num_labels': 21,
+    'num_point_labels': 6,
+    'num_box_labels': 15,
+    'classes': {
+      'iguana': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 6,
+        'num_point_labels': 0,
+        'num_box_labels': 6
+      },
+      'iguana_point': {
+        'num_labels': 6,
+        'num_point_labels': 6,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'Floreana_02.02.21_FMO01': {
+    'num_images': 39,
+    'num_labels': 2609,
+    'num_point_labels': 1230,
+    'num_box_labels': 1379,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1232,
+        'num_point_labels': 1230,
+        'num_box_labels': 2
+      },
+      'iguana': {
+        'num_labels': 1323,
+        'num_point_labels': 0,
+        'num_box_labels': 1323
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 37,
+        'num_point_labels': 0,
+        'num_box_labels': 37
+      },
+      'seal': {
+        'num_labels': 13,
+        'num_point_labels': 0,
+        'num_box_labels': 13
+      },
+      'eroded_lava': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'fresh_lava': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'pebble_rocks': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'SCruz_SCM01_06012023': {
+    'num_images': 46,
+    'num_labels': 136,
+    'num_point_labels': 45,
+    'num_box_labels': 91,
+    'classes': {
+      'eroded_lava': {
+        'num_labels': 14,
+        'num_point_labels': 0,
+        'num_box_labels': 14
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'iguana_point': {
+        'num_labels': 45,
+        'num_point_labels': 45,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 45,
+        'num_point_labels': 0,
+        'num_box_labels': 45
+      },
+      'water': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'flat_rock': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'vegetation': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'trash': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'pebble_rocks': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'San_STJB04_12012023': {
+    'num_images': 17,
+    'num_labels': 22,
+    'num_point_labels': 9,
+    'num_box_labels': 13,
+    'classes': {
+      'iguana': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'iguana_point': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'seal': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'Zooniverse_expert_phase_2': {
+    'num_images': 162,
+    'num_labels': 1349,
+    'num_point_labels': 651,
+    'num_box_labels': 698,
+    'classes': {
+      'iguana': {
+        'num_labels': 651,
+        'num_point_labels': 0,
+        'num_box_labels': 651
+      },
+      'iguana_point': {
+        'num_labels': 651,
+        'num_point_labels': 651,
+        'num_box_labels': 0
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 30,
+        'num_point_labels': 0,
+        'num_box_labels': 30
+      },
+      'bird': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'trash': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'seal': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'SCris_SRIL01_04022023': {
+    'num_images': 36,
+    'num_labels': 15,
+    'num_point_labels': 2,
+    'num_box_labels': 13,
+    'classes': {
+      'seal': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'trash': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'iguana': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'iguana_point': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'SCris_SRIL04_04022023': {
+    'num_images': 29,
+    'num_labels': 54,
+    'num_point_labels': 5,
+    'num_box_labels': 49,
+    'classes': {
+      'seal': {
+        'num_labels': 17,
+        'num_point_labels': 0,
+        'num_box_labels': 17
+      },
+      'iguana': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      },
+      'water': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'pebble_rocks': {
+        'num_labels': 6,
+        'num_point_labels': 0,
+        'num_box_labels': 6
+      },
+      'vegetation': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'bird': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'sand': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      }
+    }
+  },
+  'SRPB06 1053 - 1112 falcon_25.01.20': {
+    'num_images': 17,
+    'num_labels': 55,
+    'num_point_labels': 2,
+    'num_box_labels': 53,
+    'classes': {
+      'crab': {
+        'num_labels': 35,
+        'num_point_labels': 0,
+        'num_box_labels': 35
+      },
+      'iguana': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 15,
+        'num_point_labels': 0,
+        'num_box_labels': 15
+      },
+      'iguana_point': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'Zooniverse_expert_phase_3': {
+    'num_images': 111,
+    'num_labels': 45,
+    'num_point_labels': 22,
+    'num_box_labels': 23,
+    'classes': {
+      'iguana': {
+        'num_labels': 22,
+        'num_point_labels': 0,
+        'num_box_labels': 22
+      },
+      'iguana_point': {
+        'num_labels': 22,
+        'num_point_labels': 22,
+        'num_box_labels': 0
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'FPM01_24012023': {
+    'num_images': 14,
+    'num_labels': 1218,
+    'num_point_labels': 599,
+    'num_box_labels': 620,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 599,
+        'num_point_labels': 599,
+        'num_box_labels': 1
+      },
+      'iguana': {
+        'num_labels': 595,
+        'num_point_labels': 0,
+        'num_box_labels': 595
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 20,
+        'num_point_labels': 0,
+        'num_box_labels': 20
+      },
+      'bird': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'seal': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      }
+    }
+  },
+  'FLMO02_28012023': {
+    'num_images': 46,
+    'num_labels': 985,
+    'num_point_labels': 366,
+    'num_box_labels': 619,
+    'classes': {
+      'iguana': {
+        'num_labels': 384,
+        'num_point_labels': 0,
+        'num_box_labels': 384
+      },
+      'iguana_point': {
+        'num_labels': 366,
+        'num_point_labels': 366,
+        'num_box_labels': 0
+      },
+      'vegetation': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'fresh_lava': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'pebble_rocks': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'water': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'crab': {
+        'num_labels': 185,
+        'num_point_labels': 0,
+        'num_box_labels': 185
+      },
+      'eroded_lava': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'turtle': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'seal': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'trash': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'flat_rock': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'ugly_stone': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'Fer_FCD01-02-03_20122021': {
+    'num_images': 129,
+    'num_labels': 8792,
+    'num_point_labels': 3979,
+    'num_box_labels': 4813,
+    'classes': {
+      'turtle': {
+        'num_labels': 18,
+        'num_point_labels': 0,
+        'num_box_labels': 18
+      },
+      'iguana': {
+        'num_labels': 4328,
+        'num_point_labels': 0,
+        'num_box_labels': 4328
+      },
+      'iguana_point': {
+        'num_labels': 3971,
+        'num_point_labels': 3971,
+        'num_box_labels': 0
+      },
+      'seal': {
+        'num_labels': 244,
+        'num_point_labels': 0,
+        'num_box_labels': 244
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 193,
+        'num_point_labels': 8,
+        'num_box_labels': 185
+      },
+      'pebble_rocks': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'sand': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'flat_rock': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'vegetation': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'water': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'crab': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      }
+    }
+  },
+  'Floreana_03.02.21_FMO06': {
+    'num_images': 18,
+    'num_labels': 1170,
+    'num_point_labels': 557,
+    'num_box_labels': 613,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 557,
+        'num_point_labels': 557,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 561,
+        'num_point_labels': 0,
+        'num_box_labels': 561
+      },
+      'crab': {
+        'num_labels': 16,
+        'num_point_labels': 0,
+        'num_box_labels': 16
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 18,
+        'num_point_labels': 0,
+        'num_box_labels': 18
+      },
+      'ugly_stone': {
+        'num_labels': 13,
+        'num_point_labels': 0,
+        'num_box_labels': 13
+      },
+      'trash': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      }
+    }
+  },
+  'FMO03': {
+    'num_images': 22,
+    'num_labels': 1781,
+    'num_point_labels': 789,
+    'num_box_labels': 992,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 789,
+        'num_point_labels': 789,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 862,
+        'num_point_labels': 0,
+        'num_box_labels': 862
+      },
+      'seal': {
+        'num_labels': 33,
+        'num_point_labels': 0,
+        'num_box_labels': 33
+      },
+      'flat_rock': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 26,
+        'num_point_labels': 0,
+        'num_box_labels': 26
+      },
+      'water': {
+        'num_labels': 11,
+        'num_point_labels': 0,
+        'num_box_labels': 11
+      },
+      'pebble_rocks': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'eroded_lava': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'crab': {
+        'num_labels': 12,
+        'num_point_labels': 0,
+        'num_box_labels': 12
+      },
+      'ugly_stone': {
+        'num_labels': 13,
+        'num_point_labels': 0,
+        'num_box_labels': 13
+      },
+      'vegetation': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'trash': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      }
+    }
+  },
+  'FSCA02': {
+    'num_images': 3,
+    'num_labels': 205,
+    'num_point_labels': 92,
+    'num_box_labels': 113,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 92,
+        'num_point_labels': 92,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 92,
+        'num_point_labels': 0,
+        'num_box_labels': 92
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'trash': {
+        'num_labels': 19,
+        'num_point_labels': 0,
+        'num_box_labels': 19
+      }
+    }
+  },
+  'San_STJB01_10012023_DJI_0068': {
+    'num_images': 1,
+    'num_labels': 50,
+    'num_point_labels': 25,
+    'num_box_labels': 25,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 25,
+        'num_point_labels': 25,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 25,
+        'num_point_labels': 0,
+        'num_box_labels': 25
+      }
+    }
+  },
+  'Fer_FPE02_07052024': {
+    'num_images': 10,
+    'num_labels': 602,
+    'num_point_labels': 292,
+    'num_box_labels': 311,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 292,
+        'num_point_labels': 292,
+        'num_box_labels': 1
+      },
+      'iguana': {
+        'num_labels': 291,
+        'num_point_labels': 0,
+        'num_box_labels': 291
+      },
+      'vegetation': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'sand': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'fresh_lava': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'water': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'flat_rock': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'turtle': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      }
+    }
+  },
+  'FLBB01_28012023': {
+    'num_images': 18,
+    'num_labels': 442,
+    'num_point_labels': 34,
+    'num_box_labels': 408,
+    'classes': {
+      'seal': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'crab': {
+        'num_labels': 362,
+        'num_point_labels': 1,
+        'num_box_labels': 361
+      },
+      'turtle': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'iguana': {
+        'num_labels': 34,
+        'num_point_labels': 0,
+        'num_box_labels': 34
+      },
+      'trash': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'iguana_point': {
+        'num_labels': 33,
+        'num_point_labels': 33,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'FMO04': {
+    'num_images': 12,
+    'num_labels': 1968,
+    'num_point_labels': 945,
+    'num_box_labels': 1023,
+    'classes': {
+      'iguana': {
+        'num_labels': 944,
+        'num_point_labels': 0,
+        'num_box_labels': 944
+      },
+      'iguana_point': {
+        'num_labels': 945,
+        'num_point_labels': 945,
+        'num_box_labels': 0
+      },
+      'crab': {
+        'num_labels': 12,
+        'num_point_labels': 0,
+        'num_box_labels': 12
+      },
+      'seal': {
+        'num_labels': 26,
+        'num_point_labels': 0,
+        'num_box_labels': 26
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 30,
+        'num_point_labels': 0,
+        'num_box_labels': 30
+      },
+      'water': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'fresh_lava': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'ugly_stone': {
+        'num_labels': 6,
+        'num_point_labels': 0,
+        'num_box_labels': 6
+      },
+      'pebble_rocks': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'FMO05': {
+    'num_images': 14,
+    'num_labels': 417,
+    'num_point_labels': 181,
+    'num_box_labels': 236,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 181,
+        'num_point_labels': 181,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 181,
+        'num_point_labels': 0,
+        'num_box_labels': 181
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 17,
+        'num_point_labels': 0,
+        'num_box_labels': 17
+      },
+      'ugly_stone': {
+        'num_labels': 4,
+        'num_point_labels': 0,
+        'num_box_labels': 4
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'pebble_rocks': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'crab': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'vegetation': {
+        'num_labels': 10,
+        'num_point_labels': 0,
+        'num_box_labels': 10
+      },
+      'flat_rock': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'eroded_lava': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'water': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'FPA03 condor': {
+    'num_images': 3,
+    'num_labels': 81,
+    'num_point_labels': 37,
+    'num_box_labels': 44,
+    'classes': {
+      'iguana': {
+        'num_labels': 37,
+        'num_point_labels': 0,
+        'num_box_labels': 37
+      },
+      'iguana_point': {
+        'num_labels': 37,
+        'num_point_labels': 37,
+        'num_box_labels': 0
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      }
+    }
+  },
+  'floreana_FPE01_FECA01': {
+    'num_images': 11,
+    'num_labels': 903,
+    'num_point_labels': 440,
+    'num_box_labels': 463,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 440,
+        'num_point_labels': 440,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 439,
+        'num_point_labels': 0,
+        'num_box_labels': 439
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 12,
+        'num_point_labels': 0,
+        'num_box_labels': 12
+      },
+      'seal': {
+        'num_labels': 6,
+        'num_point_labels': 0,
+        'num_box_labels': 6
+      },
+      'crab': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'FMO02': {
+    'num_images': 5,
+    'num_labels': 133,
+    'num_point_labels': 50,
+    'num_box_labels': 83,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 50,
+        'num_point_labels': 50,
+        'num_box_labels': 0
+      },
+      'iguana': {
+        'num_labels': 50,
+        'num_point_labels': 0,
+        'num_box_labels': 50
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 9,
+        'num_point_labels': 0,
+        'num_box_labels': 9
+      },
+      'water': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'flat_rock': {
+        'num_labels': 8,
+        'num_point_labels': 0,
+        'num_box_labels': 8
+      },
+      'pebble_rocks': {
+        'num_labels': 6,
+        'num_point_labels': 0,
+        'num_box_labels': 6
+      },
+      'fresh_lava': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'eroded_lava': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'Floreana_22.01.21_FPC07': {
+    'num_images': 7,
+    'num_labels': 120,
+    'num_point_labels': 5,
+    'num_box_labels': 115,
+    'classes': {
+      'crab': {
+        'num_labels': 82,
+        'num_point_labels': 0,
+        'num_box_labels': 82
+      },
+      'fresh_lava': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'vegetation': {
+        'num_labels': 12,
+        'num_point_labels': 0,
+        'num_box_labels': 12
+      },
+      'eroded_lava': {
+        'num_labels': 7,
+        'num_point_labels': 0,
+        'num_box_labels': 7
+      },
+      'sand': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'turtle': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'water': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'iguana': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      },
+      'flat_rock': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'ugly_stone': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'trash': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'Genovesa': {
+    'num_images': 8,
+    'num_labels': 1808,
+    'num_point_labels': 882,
+    'num_box_labels': 926,
+    'classes': {
+      'iguana': {
+        'num_labels': 880,
+        'num_point_labels': 0,
+        'num_box_labels': 880
+      },
+      'iguana_point': {
+        'num_labels': 882,
+        'num_point_labels': 882,
+        'num_box_labels': 0
+      },
+      'bird': {
+        'num_labels': 33,
+        'num_point_labels': 0,
+        'num_box_labels': 33
+      },
+      'not_iguana_but_similar_look': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'flat_rock': {
+        'num_labels': 3,
+        'num_point_labels': 0,
+        'num_box_labels': 3
+      },
+      'water': {
+        'num_labels': 2,
+        'num_point_labels': 0,
+        'num_box_labels': 2
+      },
+      'fresh_lava': {
+        'num_labels': 5,
+        'num_point_labels': 0,
+        'num_box_labels': 5
+      },
+      'vegetation': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      },
+      'crab': {
+        'num_labels': 1,
+        'num_point_labels': 0,
+        'num_box_labels': 1
+      }
+    }
+  },
+  'ha_corrected_isa_isvp01_27012023': {
+    'num_images': 109,
+    'num_labels': 346,
+    'num_point_labels': 346,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 333,
+        'num_point_labels': 333,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 13,
+        'num_point_labels': 13,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isvi01_27012023': {
+    'num_images': 86,
+    'num_labels': 240,
+    'num_point_labels': 240,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 19,
+        'num_point_labels': 19,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 221,
+        'num_point_labels': 221,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf01_08_16122021': {
+    'num_images': 10,
+    'num_labels': 11,
+    'num_point_labels': 11,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 6,
+        'num_point_labels': 6,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf02_16122021': {
+    'num_images': 3,
+    'num_labels': 4,
+    'num_point_labels': 4,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf03_16122021': {
+    'num_images': 8,
+    'num_labels': 9,
+    'num_point_labels': 9,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 4,
+        'num_point_labels': 4,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf04_16122021': {
+    'num_images': 14,
+    'num_labels': 17,
+    'num_point_labels': 17,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf05_16122021': {
+    'num_images': 21,
+    'num_labels': 39,
+    'num_point_labels': 39,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 32,
+        'num_point_labels': 32,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf06_16122021': {
+    'num_images': 11,
+    'num_labels': 13,
+    'num_point_labels': 13,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 12,
+        'num_point_labels': 12,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf07_16122021': {
+    'num_images': 21,
+    'num_labels': 21,
+    'num_point_labels': 21,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 12,
+        'num_point_labels': 12,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf09_16122021': {
+    'num_images': 5,
+    'num_labels': 5,
+    'num_point_labels': 5,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf10_11_16122021': {
+    'num_images': 18,
+    'num_labels': 27,
+    'num_point_labels': 27,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 20,
+        'num_point_labels': 20,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf12_13_16122021': {
+    'num_images': 34,
+    'num_labels': 41,
+    'num_point_labels': 41,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 20,
+        'num_point_labels': 20,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 21,
+        'num_point_labels': 21,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispda01_17012023': {
+    'num_images': 48,
+    'num_labels': 88,
+    'num_point_labels': 88,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 80,
+        'num_point_labels': 80,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispda02_17012023': {
+    'num_images': 77,
+    'num_labels': 124,
+    'num_point_labels': 124,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 115,
+        'num_point_labels': 115,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isbb02_27012023': {
+    'num_images': 46,
+    'num_labels': 60,
+    'num_point_labels': 60,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 45,
+        'num_point_labels': 45,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 15,
+        'num_point_labels': 15,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isvb04_27012023': {
+    'num_images': 20,
+    'num_labels': 0,
+    'num_point_labels': 0,
+    'num_box_labels': 0,
+    'classes': {}
+  },
+  'ha_corrected_fer_fnj01_19122021': {
+    'num_images': 58,
+    'num_labels': 287,
+    'num_point_labels': 287,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 203,
+        'num_point_labels': 203,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 84,
+        'num_point_labels': 84,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fpe09_18122021': {
+    'num_images': 29,
+    'num_labels': 56,
+    'num_point_labels': 56,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 34,
+        'num_point_labels': 34,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 22,
+        'num_point_labels': 22,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnd02_19122021': {
+    'num_images': 71,
+    'num_labels': 350,
+    'num_point_labels': 350,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 252,
+        'num_point_labels': 252,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 98,
+        'num_point_labels': 98,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fni03_04_19122021': {
+    'num_images': 150,
+    'num_labels': 1069,
+    'num_point_labels': 1069,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 785,
+        'num_point_labels': 785,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 284,
+        'num_point_labels': 284,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fna01_02_20122021': {
+    'num_images': 247,
+    'num_labels': 5361,
+    'num_point_labels': 5361,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 3403,
+        'num_point_labels': 3403,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 1958,
+        'num_point_labels': 1958,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fef01_02_20012023': {
+    'num_images': 415,
+    'num_labels': 1746,
+    'num_point_labels': 1746,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1228,
+        'num_point_labels': 1228,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 518,
+        'num_point_labels': 518,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flpc06_22012021': {
+    'num_images': 9,
+    'num_labels': 14,
+    'num_point_labels': 14,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 6,
+        'num_point_labels': 6,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flpo02_04022021': {
+    'num_images': 16,
+    'num_labels': 26,
+    'num_point_labels': 26,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 13,
+        'num_point_labels': 13,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 13,
+        'num_point_labels': 13,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flpc04_22012021': {
+    'num_images': 25,
+    'num_labels': 56,
+    'num_point_labels': 56,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 31,
+        'num_point_labels': 31,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 25,
+        'num_point_labels': 25,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flpo01_04022021': {
+    'num_images': 4,
+    'num_labels': 5,
+    'num_point_labels': 5,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flpc03_22012021': {
+    'num_images': 8,
+    'num_labels': 15,
+    'num_point_labels': 15,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 12,
+        'num_point_labels': 12,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flbb01_28012023': {
+    'num_images': 44,
+    'num_labels': 76,
+    'num_point_labels': 76,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 16,
+        'num_point_labels': 16,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 60,
+        'num_point_labels': 60,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_flo_flbb02_28012023': {
+    'num_images': 28,
+    'num_labels': 50,
+    'num_point_labels': 50,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 41,
+        'num_point_labels': 41,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fwk01_20122021': {
+    'num_images': 269,
+    'num_labels': 6173,
+    'num_point_labels': 6173,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 3392,
+        'num_point_labels': 3392,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2781,
+        'num_point_labels': 2781,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fe01_02_20012023': {
+    'num_images': 369,
+    'num_labels': 2768,
+    'num_point_labels': 2768,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 795,
+        'num_point_labels': 795,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 1973,
+        'num_point_labels': 1973,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fwk02_03_20_21122021': {
+    'num_images': 248,
+    'num_labels': 2305,
+    'num_point_labels': 2305,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1450,
+        'num_point_labels': 1450,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 855,
+        'num_point_labels': 855,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnf01_19122021': {
+    'num_images': 23,
+    'num_labels': 81,
+    'num_point_labels': 81,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 81,
+        'num_point_labels': 81,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fne03_19122021': {
+    'num_images': 57,
+    'num_labels': 445,
+    'num_point_labels': 445,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 445,
+        'num_point_labels': 445,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fne02_19122021': {
+    'num_images': 24,
+    'num_labels': 142,
+    'num_point_labels': 142,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 142,
+        'num_point_labels': 142,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fne01_19122021': {
+    'num_images': 73,
+    'num_labels': 375,
+    'num_point_labels': 375,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 257,
+        'num_point_labels': 257,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 118,
+        'num_point_labels': 118,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnf02_19122021': {
+    'num_images': 62,
+    'num_labels': 278,
+    'num_point_labels': 278,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 278,
+        'num_point_labels': 278,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnj02_03_04_19122021': {
+    'num_images': 165,
+    'num_labels': 1488,
+    'num_point_labels': 1488,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1486,
+        'num_point_labels': 1486,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnb02_19122021': {
+    'num_images': 190,
+    'num_labels': 2177,
+    'num_point_labels': 2177,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 2177,
+        'num_point_labels': 2177,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnb03_19122021': {
+    'num_images': 117,
+    'num_labels': 816,
+    'num_point_labels': 816,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 811,
+        'num_point_labels': 811,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fwk04_21122021': {
+    'num_images': 163,
+    'num_labels': 1538,
+    'num_point_labels': 1538,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1536,
+        'num_point_labels': 1536,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_scris_srls04_10012020': {
+    'num_images': 6,
+    'num_labels': 10,
+    'num_point_labels': 10,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 10,
+        'num_point_labels': 10,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_scris_srls05_10012020': {
+    'num_images': 13,
+    'num_labels': 15,
+    'num_point_labels': 15,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 15,
+        'num_point_labels': 15,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_scris_srl12_10012021': {
+    'num_images': 28,
+    'num_labels': 76,
+    'num_point_labels': 76,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 76,
+        'num_point_labels': 76,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_egb03_12012021': {
+    'num_images': 7,
+    'num_labels': 9,
+    'num_point_labels': 9,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_egb04_12012021': {
+    'num_images': 4,
+    'num_labels': 7,
+    'num_point_labels': 7,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_em01_12012021': {
+    'num_images': 9,
+    'num_labels': 16,
+    'num_point_labels': 16,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 16,
+        'num_point_labels': 16,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_em05_26012021': {
+    'num_images': 19,
+    'num_labels': 24,
+    'num_point_labels': 24,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 24,
+        'num_point_labels': 24,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_em06_26012021': {
+    'num_images': 10,
+    'num_labels': 13,
+    'num_point_labels': 13,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 13,
+        'num_point_labels': 13,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_epcn02_26012021': {
+    'num_images': 34,
+    'num_labels': 50,
+    'num_point_labels': 50,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 50,
+        'num_point_labels': 50,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_esp_epcn03_26012021': {
+    'num_images': 32,
+    'num_labels': 41,
+    'num_point_labels': 41,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 41,
+        'num_point_labels': 41,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_fer_fnc01_19122021': {
+    'num_images': 222,
+    'num_labels': 1764,
+    'num_point_labels': 1764,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1252,
+        'num_point_labels': 1252,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 512,
+        'num_point_labels': 512,
+        'num_box_labels': 0
+      }
+    }
+  }
+}

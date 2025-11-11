@@ -14,6 +14,7 @@ from loguru import logger
 from pathlib import Path
 from shapely import affinity, unary_union
 
+from active_learning.config.mapping import keypoint_id_mapping
 from active_learning.types.filter import SpatialSampleStrategy
 from active_learning.types.Exceptions import WrongSpatialSamplingStrategy, LabelInconsistenyError
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
@@ -528,7 +529,7 @@ def crop_out_individual_object(i: ImageLabelCollection,
             # TODO project every keypoint, box or segmentation mask to the new crop
             projected_keypoint = project_point_to_crop(label.incenter_centroid, cutout_box)
 
-            logger.warning(f"implement the other projections")
+            # logger.warning(f"implement the other projections")
             # projected_label = project_label_to_crop(label, cutout_box) # TODO the code above and below can be outsourced into this.
 
             # TODO use these functions here:
@@ -536,17 +537,21 @@ def crop_out_individual_object(i: ImageLabelCollection,
 
             # reframe_polygon()
 
-            # TODO get the ids right and keep the projections
             if label.keypoints is not None and len(label.keypoints) > 0:
                 label_id = label.keypoints[0].id
             else:
                 label_id = label.id
 
+            if projected_keypoint is None:
+                logger.warning(f"Projected keypoint is None for label {label.id} in image {i.image_name}")
+                continue
+
             projected_keypoint = [Keypoint(
                 id=label_id,  # TODO get this right for cases when there are other label types other than points
                 x=int(projected_keypoint.x),
                 y=int(projected_keypoint.y),
-                keypoint_class_id="ed18e0f9-095f-46ff-bc95-febf4a53f0ff",
+                #keypoint_class_id="ed18e0f9-095f-46ff-bc95-febf4a53f0ff",
+                keypoint_class_id=keypoint_id_mapping.get(label.class_name.lower(), "body")
                 # TODO programmatically get the right class id
             )]  # you can store extra information if needed
 
@@ -560,7 +565,6 @@ def crop_out_individual_object(i: ImageLabelCollection,
             else:
                 raise NotImplementedError("Only ImageLabel and PredictedImageLabel are supported")
 
-            # TODO maybe do the cropping outside
             boxes.append(cutout_box)
             sliced = im.crop(cutout_box.bounds)
             image_id = get_image_id(image=sliced)
@@ -1108,7 +1112,7 @@ class RasterCropperPoints(RasterCropper):
                          sample_strategy)
 
 
-    def crop_out_images(self, masks):
+    def crop_out_images(self, masks = {}):
         """ iterate through rasters and crop out the tiles from the image return the new images and an annotations file
 
             :param include_empty:
@@ -1190,6 +1194,7 @@ class RasterCropperPoints(RasterCropper):
                         # keypoint is within the sliding window, project the keypoints to the sliding window and keep that
                         empty = False
                         box_keypoints = []
+                        # project the keypoints to the sliding window
                         for k in annotation.keypoints:
                             kc = copy.deepcopy(k)
                             kc.x = int(k.x - minx)
@@ -1206,6 +1211,7 @@ class RasterCropperPoints(RasterCropper):
                         )
 
                         full_slice_labels.append(il)
+
 
                     # is a keypoint but outside the sliding window
                     elif is_keypoint and not annotation.keypoints[0].coordinate.within(pol):
@@ -1240,10 +1246,10 @@ class RasterCropperPoints(RasterCropper):
             if not empty:
                 xx, yy = pol.exterior.coords.xy
                 slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
-                if (slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg"
-                        or slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg"
-                        or slice_path_jpg.name == "FMO04___DJI_0906_x2048_y3072.jpg"):
-                    pass # TODO do not commit
+                # if (slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x4480_y1120.jpg"
+                #         or slice_path_jpg.name == "Fer_FCD01-02-03_20122021_single_images___DJI_0126_x2464_y1120.jpg"
+                #         or slice_path_jpg.name == "FMO04___DJI_0906_x2048_y3072.jpg"):
+                #     pass # TODO do not commit
                 im = AnnotatedImage(
                     image_id=str(uuid.uuid4()),
                     dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
@@ -1320,6 +1326,172 @@ class RasterCropperPoints(RasterCropper):
         self.closest_pairs = closest_pairs
         self.annotated_images = annotated_images
         self.image_paths = image_paths
+
+        return annotated_images, image_paths
+    
+    
+class RasterCropperPointsMatching(RasterCropper):
+    """
+    Crop Point Predictions from a rasterized image into smaller images based
+    on the provided rasters (shapely polygons).
+    """
+
+    def __init__(self, 
+                 hi: AnnotatedImage, 
+                 rasters: Dict[str, shapely.Polygon], 
+                 full_image_path: Path, output_path: Path,
+                 dataset_name: str = DATA_SET_NAME, 
+
+                 sample_strategy=SpatialSampleStrategy.RANDOM):
+
+        super().__init__(hi, rasters, full_image_path, output_path, dataset_name,
+                         sample_strategy=sample_strategy)
+
+
+    def crop_out_images(self, masks = {}):
+        """ iterate through rasters and crop out the tiles from the image return the new images and an annotations file
+
+            :param include_empty:
+            :param dataset_name:
+            :param full_image_path:
+            :param rasters:
+            :param output_path:
+            :param full_images_path:
+
+            :param hi:
+            """
+        images_with_objects = []
+
+        self.output_path.mkdir(parents=True, exist_ok=True)
+        output_path_images = self.output_path
+        output_path_images.mkdir(parents=True, exist_ok=True)
+
+        image = PIL.Image.open(self.full_image_path)
+        # imr = np.array(image)
+
+        # Convert to string if you need a string representation
+        annotated_images: List[AnnotatedImage] = []
+        image_paths: typing.List[Path] = []
+        empty_rasters: List[shapely.Polygon] = []
+        partial_empty_rasters: List[shapely.Polygon] = []
+        occupied_rasters: dict[str, shapely.Polygon] = {}
+        # slice the image in tiles
+        image_mappings: List[ImageCropMetadata] = []
+
+
+        # sliding window of the image
+        for raster_id, pol in self.rasters.items():
+            assert isinstance(pol, shapely.Polygon)
+            minx, miny, maxx, maxy = pol.bounds
+            slice_width = maxx - minx
+            slice_height = maxy - miny
+            full_slice_labels = []
+
+            ## TODO extract this to another function
+            empty = True
+
+            sliced_image = image.crop(pol.bounds)
+
+            filename = str(Path(self.hi.image_name).stem)
+
+            # TODO this is a bit messy, I want to get tiles which are completely empty, partially empty and occupied
+            # Right now if the first label
+            for prediction in self.hi.labels:
+
+                is_keypoint = isinstance(prediction.keypoints, typing.List) and len(prediction.keypoints) > 0
+
+                is_point_inside = shapely.Point(prediction.incenter_centroid).within(pol)
+
+                # Process the keypoints
+                if is_keypoint and is_point_inside:
+                    # keypoint is within the sliding window, project the keypoints to the sliding window and keep that
+                    empty = False
+                    box_keypoints = []
+                    # project the keypoints to the sliding window
+                    for k in prediction.keypoints:
+                        kc = copy.deepcopy(k)
+                        kc.x = int(k.x - minx)
+                        kc.y = int(k.y - miny)
+                        box_keypoints.append(kc)
+
+                    # translated_keypoints = [Keypoint(x=int(k.x - minx), y=int(k.y - miny)) for k in box.keypoints]
+
+                    il = ImageLabel(
+                        id=prediction.id,
+                        class_name=prediction.class_name,
+                        keypoints=box_keypoints,
+                        attributes=prediction.attributes,
+                    )
+
+                    full_slice_labels.append(il)
+
+
+                # is a keypoint but outside the sliding window
+                elif is_keypoint and not is_point_inside:
+                    # The keypoint is outside of the sliding window
+                    # So far we do not do anything here
+                    pass
+
+
+                else:
+                    # logger.info(f"Box or polygon is not within the sliding window {annotation.id}")
+                    pass
+
+
+            # elif partial: # box contains partial iguanas and no single full one
+            #     partial_empty_rasters.append(pol)
+            if not empty:
+                occupied_rasters[raster_id] = pol
+
+                xx, yy = pol.exterior.coords.xy
+                slice_path_jpg = self.output_path / f"{filename}_x{int(xx[0])}_y{int(yy[0])}.jpg"
+
+
+                im = AnnotatedImage(
+                    image_id=str(uuid.uuid4()),
+                    dataset_name=self.dataset_name if self.dataset_name else DATA_SET_NAME,
+                    image_name=slice_path_jpg.name,
+                    labels=full_slice_labels,
+                    width=int(slice_width),
+                    height=int(slice_height))
+
+                # one mapping per label
+                # for il, label in zip(full_slice_labels, self.hi.labels):
+                # one mapping tile
+                image_mapping = ImageCropMetadata(
+                    parent_image=self.hi.image_name,
+                    parent_image_id=self.hi.image_id,
+                    # parent_label_id=il.id,
+                    cropped_image=slice_path_jpg.name,
+                    cropped_image_id=im.image_id,
+                    bbox=[int(pol.bounds[0]),
+                          int(pol.bounds[1]),
+                          int(pol.bounds[2]),
+                          int(pol.bounds[3])],  # Creates a Shapely bounding box
+                    # local_coordinate=il.keypoints,  # Example point inside crop
+                    # global_coordinate=label.keypoints  # Original image point
+                )
+                image_mappings.append(image_mapping)
+
+                annotated_images.append(im)
+
+                if not slice_path_jpg.exists():
+                    logger.info(f"Saving occupied raster {slice_path_jpg} with {len(full_slice_labels)} labels")
+                    sliced_im = sliced_image.convert("RGB")
+                    sliced_im.save(slice_path_jpg)
+                image_paths.append(slice_path_jpg)
+        ### Loooking for empties now!
+        closest_pairs = []
+        # for each occupied Raster find the closest empty raster and add it to the list
+
+
+        # Now save these results to a file
+        self.occupied_rasters = occupied_rasters
+        self.partial_empty_rasters = partial_empty_rasters
+        self.closest_pairs = closest_pairs
+        self.annotated_images = annotated_images
+        self.image_paths = image_paths
+        self.image_mappings = image_mappings
 
         return annotated_images, image_paths
 

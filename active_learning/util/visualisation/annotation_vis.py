@@ -325,6 +325,9 @@ def plot_image_grid_by_visibility(
 
 
 
+from adjustText import adjust_text
+from adjustText import adjust_text
+
 
 def visualise_points_only(points: List[shapely.Point],
                           labels: Optional[List[str]] = None,
@@ -332,9 +335,12 @@ def visualise_points_only(points: List[shapely.Point],
                           markersize: float = 5.0,
                           title: str | None = None,
                           filename: Optional[Path] = None,
-                          show: bool = True, text_buffer=True, font_size=10,
+                          show: bool = True,
+                          text_buffer=True,
+                          font_size=10,
                           ax=None,
-                          show_grid=False) -> axes:
+                          show_grid=False,
+                          adjust_labels=True) -> axes:  # New parameter
     """
     Simplified function to visualize just points.
     """
@@ -356,7 +362,6 @@ def visualise_points_only(points: List[shapely.Point],
     # Plot points
     if colors and len(colors) == len(x_coords):
         ax.scatter(x_coords, y_coords, c=colors, s=markersize ** 2, alpha=0.8, edgecolors='black')
-    # elif #colors is a string and colors:
     elif isinstance(colors, str):
         ax.scatter(x_coords, y_coords, s=markersize ** 2, alpha=0.8, edgecolors='black', color=colors)
     else:
@@ -366,18 +371,36 @@ def visualise_points_only(points: List[shapely.Point],
     if labels:
         x_min, x_max = ax.get_xlim()
         y_min, y_max = ax.get_ylim()
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+
+        texts = []  # Collect text objects for adjustment
+
         for i, (x, y) in enumerate(zip(x_coords, y_coords)):
             if i < len(labels):
+                # Place label left if x is in the rightmost 10% of the plot
+                x_offset = -45 if x > (x_min + 0.8 * x_range) else 35
+                y_offset = -5 if y > (y_min + 0.8 * y_range) else 5
+                ha = 'right' if x_offset < 0 else 'left'
 
-                # Adjust offset based on position
-                x_offset = 35 if x < (x_max - 100) else -35
-                y_offset = 5 if y < (y_max - 50) else -5
-                ha = 'left' if x_offset > 0 else 'right'
+                bbox_props = dict(facecolor='white', alpha=0.6, edgecolor='none',
+                                  boxstyle='round,pad=0.3') if text_buffer else None
 
-                if text_buffer:
-                    # add a small box around the text in white is it is easier to read
-                    ax.text(x + 35, y + 5, labels[i], fontsize=font_size,
-                            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+                txt = ax.text(x + x_offset, y + y_offset, labels[i],
+                              fontsize=font_size,
+                              ha=ha,
+                              bbox=bbox_props)
+                texts.append(txt)
+
+        # Adjust text positions to avoid overlaps
+        if adjust_labels and texts:
+            adjust_text(texts,
+                        x=x_coords, y=y_coords,  # Point locations
+                        # arrowprops=dict(arrowstyle='->', color='gray', lw=0.5, alpha=0.5),
+                        expand_points=(1.2, 1.2),  # Keep labels away from points
+                        force_text=(0.5, 0.5),  # Repulsion between labels
+                        force_points=(0.2, 0.2),  # Attraction to original position
+                        ax=ax)
 
     if title:
         ax.set_title(title)
@@ -390,11 +413,10 @@ def visualise_points_only(points: List[shapely.Point],
     if show:
         plt.show()
         plt.close()
-
     return ax
 
 
-def visualise_hasty_annotation_statistics(annotated_images: typing.List[AnnotatedImage]):
+def visualise_hasty_annotation_statistics(annotated_images: typing.List[AnnotatedImage], title_flag=True):
     """
         Create histograms for image dimensions and annotation counts
 
@@ -411,7 +433,8 @@ def visualise_hasty_annotation_statistics(annotated_images: typing.List[Annotate
     # Create figure with subplots - using GridSpec for custom layout
     fig = plt.figure(figsize=(15, 12))
     gs = fig.add_gridspec(2, 4, hspace=0.3, wspace=0.3)
-    fig.suptitle('Image Dataset Analysis', fontsize=16, fontweight='bold')
+    if title_flag:
+        fig.suptitle('Image Dataset Analysis', fontsize=16, fontweight='bold')
 
     # 1. Width Distribution (was position 2)
     ax1 = fig.add_subplot(gs[0, 0:2])
@@ -495,7 +518,7 @@ def visualise_hasty_annotation_statistics(annotated_images: typing.List[Annotate
 
 
 def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
-                             dataset_name: str, filename: Optional[Path] = None):
+                             dataset_name: str, filename: Optional[Path] = None, title_flag=False):
     """
     Create just the two main histograms requested with improved binning
     """
@@ -507,8 +530,9 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
 
     # Create figure with 2 subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    fig.suptitle(f'Bounding Box Size Analysis {dataset_name})',
-                 fontsize=16, fontweight='bold')
+    if title_flag:
+        fig.suptitle(f'Bounding Box Size Analysis {dataset_name})',
+                     fontsize=16, fontweight='bold')
     # 1. Image Dimensions Histogram
     dimension_strings = [f"{w}x{h}" for w, h in dimensions]
     dimension_counts = typing.Counter(dimension_strings)
@@ -588,7 +612,7 @@ def create_simple_histograms(annotated_images: typing.List[AnnotatedImage],
 def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage],
                     suffix,
                     bins: int = 50,
-                    plot_name: str = "box_sizes.png"):
+                    plot_name: str = "box_sizes.png", title_flag=True):
     """
     Create continuous histograms for bounding box sizes
 
@@ -623,8 +647,9 @@ def plot_bbox_sizes(annotated_images: typing.List[AnnotatedImage],
 
     # Create figure with subplots
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    fig.suptitle(f'Bounding Box Size Analysis ({len(bbox_widths)} boxes total, {suffix})',
-                 fontsize=16, fontweight='bold')
+    if title_flag:
+        fig.suptitle(f'Bounding Box Size Analysis ({len(bbox_widths)} boxes total, {suffix})',
+                     fontsize=16, fontweight='bold')
 
     # 1. Box Width Distribution
     axes[0, 0].hist(bbox_widths, bins=bins, alpha=0.7, color='skyblue', edgecolor='black')

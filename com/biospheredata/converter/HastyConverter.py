@@ -697,10 +697,11 @@ class HastyConverter(object):
                     # bounding box
                     if il.bbox is not None and AnnotationType.BOUNDING_BOX in annotation_types and il.polygon is None:
                         keep.append(il)
-                    if (il.keypoints is not None and len(il.keypoints) > 0 and il.keypoints[0].keypoint_class_id == 'ed18e0f9-095f-46ff-bc95-febf4a53f0ff'
+                    elif (il.keypoints is not None and len(il.keypoints) > 0
+                        # TODO, this is a bit dangerous, because keypoints can be used for other things too and if the filter is for boxes OR keypoints we might ad the label twice
                             and AnnotationType.KEYPOINT in annotation_types):
                         keep.append(il)
-                    if il.polygon is not None and AnnotationType.POLYGON in annotation_types:
+                    elif il.polygon is not None and AnnotationType.POLYGON in annotation_types:
                         keep.append(il)
                 image.labels = keep
 
@@ -829,24 +830,25 @@ def filter_by_image_name(hA, image_names: Optional[List[str]], exclude=False):
 
 
 def hasty_filter_pipeline(
-                            hA: HastyAnnotationV2,
+        hA: HastyAnnotationV2,
 
-                           dataset_filter: List[str] = None,
-                           status_filter: List[LabelingStatus] = None,
-                           class_filter: List[str] = None,
-                           image_tags: List[str] = None,
-                           images_filter: Optional[List[str]] = None,
-                           images_exclude: Optional[List[str]] = None,
+        dataset_filter: List[str] = None,
+        status_filter: List[LabelingStatus] = None,
+        class_filter: List[str] = None,
+        image_tags: List[str] = None,
+        images_filter: Optional[List[str]] = None,
+        images_exclude: Optional[List[str]] = None,
 
-                            annotation_types: Optional[List[AnnotationType]] = None,
-                            num_images: int = None,
-                            sample_strategy: str = None,
-                           default_dataset_name=HastyConverter.DEFAULT_DATASET_NAME,
+        annotation_types: Optional[List[AnnotationType]] = None,
+        num_images: int = None,
+        sample_strategy: str = None,
+        default_dataset_name=HastyConverter.DEFAULT_DATASET_NAME,
 
 ) -> HastyAnnotationV2:
     """
     process the hasty annotations format and filter it
 
+    :param annotation_types:
     :param labels_path:
     :param hasty_annotations_labels_zipped:
     :param hasty_annotations_images_zipped:

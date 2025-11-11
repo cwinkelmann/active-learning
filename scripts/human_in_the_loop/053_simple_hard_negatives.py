@@ -1,6 +1,7 @@
 """
 Take Detections from a model, compare them with ground truth and display them in a FiftyOne Dataset
-
+every detection which is not in the Ground Truth is considered a hard negative and can be used for
+hard negative mining in the next training round.
 
 """
 import numpy as np
