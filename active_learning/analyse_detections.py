@@ -910,7 +910,7 @@ labels_column = 'labels', scores_column = 'scores',
       A tuple of three DataFrames:
         (df_false_positives, df_true_positives, df_false_negatives)
     """
-
+    logger.info(f"Analysing detections and look into false positives, false negatives")
     gdf_detections['buffer'] = gdf_detections.geometry.buffer(radius_m)
 
     gdf_gt = gdf_ground_truth.copy()

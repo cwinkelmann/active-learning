@@ -13,6 +13,7 @@ import typing
 from loguru import logger
 from matplotlib_map_utils import inset_map, indicate_extent
 
+from active_learning.types.image_metadata import list_images
 from active_learning.util.mapping.helper import get_islands
 from active_learning.util.visualisation.drone_flights import visualise_flights
 
@@ -380,6 +381,8 @@ flight_database = gpd.read_parquet(flight_database_path).to_crs(epsg=EPSG_WGS84)
 
 full_hasty_annotation_file_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_hasty_annotation/labels.json")
 hasty_images_path = Path("/Users/christian/data/training_data/2025_04_18_all/unzipped_images")
+images_list = list_images(hasty_images_path, extension="JPG")
+images_list = [img for img in images_list if str(img) not in existing_files]
 
 gdf_hasty_image_metadata = images_data_extraction(hasty_images_path)
 

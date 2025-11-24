@@ -34,6 +34,8 @@ from active_learning.util.image_manipulation import convert_tiles_to
 # from active_learning.util.convenience_functions import get_tiles
 from active_learning.util.projection import get_geotransform, pixel_to_world_point, \
     get_orthomosaic_crs
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 from animaloc.utils.useful_funcs import mkdir
 from animaloc.vizual import draw_points, draw_text
 from com.biospheredata.types.status import ImageFormat
@@ -203,16 +205,21 @@ def get_config(config_name="config_2025_04_14_dla"):
 def geospatial_inference_pipeline(orthomosaic_path: Path,
                                   hydra_cfg: DictConfig,
                                   prediction_output_dir: typing.Optional[Path] = None,
-                                  min_score: float = 0.1):
+                                  min_score: float = 0.1,
+                                  tile_images_path: Path = None):
     """
     Main function to run the geospatial inference pipeline.
     :param orthomosaic_path: Path to the orthomosaic image.
     :return: None
     """
     logger.info(f"Running geospatial inference on {orthomosaic_path}")
-    tile_images_path = orthomosaic_path.with_name(orthomosaic_path.stem + '_tiles')
-    output_dir = orthomosaic_path.with_name(orthomosaic_path.stem)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if tile_images_path is None:
+        tile_images_path = orthomosaic_path.with_name(orthomosaic_path.stem + '_tiles')
+    else:
+        tile_images_path = tile_images_path / f"{orthomosaic_path.stem}_tiles"
+
+    # output_dir = orthomosaic_path.with_name(orthomosaic_path.stem)
+    tile_images_path.mkdir(parents=True, exist_ok=True)
 
     gdf_tiles, images_dir = get_tiles(
         orthomosaic_path=orthomosaic_path,
@@ -230,7 +237,7 @@ def geospatial_inference_pipeline(orthomosaic_path: Path,
     df_detections, dict_gdf_detections = herdnet_geospatial_inference(cfg=hydra_cfg,
                                                  images_dir=images_dir,
                                                  tiff_dir=Path(tile_images_path),
-                                                 output_dir=output_dir,
+                                                 output_dir=tile_images_path,
                                                  plain_inference=True,
                                                  ts=512)
 
@@ -245,7 +252,9 @@ def geospatial_inference_pipeline(orthomosaic_path: Path,
                                       crs=get_orthomosaic_crs(orthomosaic_path))
 
     gdf_detections.to_file(output_dir / f'{Path(orthomosaic_path).stem}_detections.geojson', driver='GeoJSON')
-    logger.info(tile_images_path / f'{Path(orthomosaic_path).stem}_detections.geojson')
+    logger.info(output_dir / f'{Path(orthomosaic_path).stem}_detections.geojson')
+
+
 
     return gdf_detections
 
@@ -264,17 +273,29 @@ if __name__ == '__main__':
     # run_with_config()
 
     # hydra_cfg = get_config(config_name="config_2025_08_08_dla34_train_val_inverted_val_corrected")
-    hydra_cfg = get_config(config_name="config_2025_08_10_dinov2_floreana_fernandia_all_val_fernandina")
+    # hydra_cfg = get_config(config_name="config_2025_08_10_dinov2_floreana_fernandia_all_val_fernandina")
+    hydra_cfg = get_config(config_name="config_2025_011_17_dla34")
+    prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dla_20251122")
+
+
+    # hydra_cfg = get_config(config_name="config_2025_011_17_dino")
+    # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dino_202511122")
+
+    dd_paths = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/")
+
     # hydra_cfg.device_name = random_device()
+    max_workers = 6
 
     # # # demo
     # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection")
+    # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/metashape/cw")
+    # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/metashape/IFA")
     # orthomosaic_path = Path(
-    #     '/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021.tif')
+    #     '/storage/cwinkelmann/Iguanas_From_Above/2020_2021_2022_2023_2024/Fernandina_processed/output/FPM05_24012023/FPM05_24012023.tif')
     # gdf_predictions = geospatial_inference_pipeline(orthomosaic_path,
     #                               hydra_cfg=hydra_cfg,
     #                               min_score = 0.1,
-    #                                                 prediction_output_dir = prediction_output_dir)
+    #                               prediction_output_dir = prediction_output_dir, tile_images_path=prediction_output_dir,)
 
     # gdf_predictions
 
@@ -285,26 +306,43 @@ if __name__ == '__main__':
     #     geospatial_inference_pipeline(o, hydra_cfg=hydra_cfg)
     #
 
-    from concurrent.futures import ProcessPoolExecutor
-    from pathlib import Path
 
-    prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection")
 
-    dd_paths = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/")
+    # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_DLA34")
+
+
+    # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detections_ms_cw")
+
+
+    # ms_paths = Path("/storage/cwinkelmann/Iguanas_From_Above/2020_2021_2022_2023_2024/Floreana_processed/output/")
+    # orthomosaic_list = [l for l in ms_paths.glob('*.tif') if l.is_file() and not l.name.startswith('.')]
+    # tile_images_path = Path("/raid/cwinkelmann/Manual_Counting/AI_detections_ms_cw_tiles")
+
+
+    orthomosaic_list = [l for l in dd_paths.glob('*.tif') if l.is_file() and not l.name.startswith('.')]
+    tile_images_path = None
+
+    # orthomosaic_list = [l for l in ms_paths.glob('*/*.tif') if l.is_file() and not l.name.endswith('dem.tif')]
     # dd_paths = Path("/raid/cwinkelmann/Counts Nov 2022/SCruz_Mosquera_C1211122")
     # dd_paths = Path("/raid/cwinkelmann/Counts Nov 2022/cog")
 
     prediction_output_dir.mkdir(exist_ok=True, parents=True)
-    orthomosaic_list = [l for l in dd_paths.glob('*.tif') if l.is_file() and not l.name.startswith('.')]
+    # orthomosaic_list = [l for l in dd_paths.glob('*.tif') if l.is_file() and not l.name.startswith('.')]
     # orthomosaic_list_2 = [l for l in dd_paths.glob('Flo_*.tif') if l.is_file() and not l.name.startswith('.')]
-
-    # orthomosaic_list_3 = [
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLBB01_28012023.tif",
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLBB02_28012023.tif",
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Esp_ESCK05_10022023.tif",
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Esp_ESCK04_10022023.tif",
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Esp_ESCK02-03_10022023.tif",
-    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Esp_ESCH01-02_10022023.tif",
+    
+    # orthomosaic_list = [
+    #     # "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Fer_FWK01_20122021.tif",
+    #     # "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Fer_FWK04_21122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Mar_MBBE02_09122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Mar_MBBE01_09122021.tif",
+    #     # "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Isa_ISVI01_27012023.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Gen_GES01to09_04122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Gen_GES10to15_05122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Fer_FPM01-02_20012023.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Fer_FNC01_19122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Fer_FNB02_19122021.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Isa_ISCWN02_18012023.tif",
+    #     "/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Isa_ISCWN02_18012023.tif",
     # ]
 
     orthomosaic_list_3 = [Path(o) for o in orthomosaic_list]
@@ -318,17 +356,18 @@ if __name__ == '__main__':
     # remove already finished predictions from the list of orthomosaics
     orthomosaic_list = [o for o in orthomosaic_list_3 if not any(o.stem in p.stem for p in already_finished_predictions)]
 
-    logger.info(f"Processing: {len(orthomosaic_list)}")
+    logger.info(f"Processing: {len(orthomosaic_list)} orthomosaics")
 
 
     def process_orthomosaic(args):
         orthomosaic_path, hydra_cfg, predictions_path = args
         return geospatial_inference_pipeline(orthomosaic_path,
                                              hydra_cfg=hydra_cfg,
-                                             prediction_output_dir=predictions_path)
+                                             prediction_output_dir=predictions_path,
+                                             tile_images_path=tile_images_path)
 
 
-    with ProcessPoolExecutor(max_workers=7) as executor:
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
         # hydra_cfg.device_name = random_device()
         args_list = [(o, hydra_cfg, prediction_output_dir) for o in orthomosaic_list]
         results = list(executor.map(process_orthomosaic, args_list))

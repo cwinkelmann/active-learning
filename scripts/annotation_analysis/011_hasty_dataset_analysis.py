@@ -171,8 +171,7 @@ if __name__ == '__main__':
 
 
     dataset_name_island_mapping = {
-        "Floreana_22.01.21_FPC07": "Floreana",
-        "Floreana_03.02.21_FMO06": "Floreana",
+
         "SRPB06 1053 - 1112 falcon_25.01.20": "Unknown",  # SRPB prefix unclear
         "San_STJB01_12012023": "Santiago",  # San prefix + STJ likely Santiago
         "Fer_FCD01-02-03_20122021": "Fernandina",  # Fer prefix
@@ -209,6 +208,8 @@ if __name__ == '__main__':
         'ha_corrected_flo_flbb02_28012023': "Floreana",
         'ha_flo_flbb02_28012023': "Floreana",
 
+        "Floreana_22.01.21_FPC07": "Floreana",
+        "Floreana_03.02.21_FMO06": "Floreana",
         "FLMO02_28012023": "Floreana",  # FL prefix + MO code
         "FLBB01_28012023": "Floreana",  # FL prefix + BB code
         "Floreana_02.02.21_FMO01": "Floreana",

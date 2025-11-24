@@ -1,6 +1,7 @@
 """
 Take Detections from a model, compare them with ground truth and display them in a FiftyOne Dataset
 
+see inference_test to get the detections
 
 """
 
@@ -17,8 +18,9 @@ from typing import Optional
 
 from active_learning.analyse_detections import analyse_point_detections_greedy
 from active_learning.util.converter import herdnet_prediction_to_hasty
-from active_learning.util.evaluation.evaluation import Evaluator, plot_confidence_density, \
-    plot_error_curve, plot_single_metric_curve, plot_comprehensive_curves
+from active_learning.util.evaluation.evaluation import Evaluator, plot_confidence_density, plot_single_metric_curve, \
+    plot_comprehensive_curves, plot_error_curve_2, plot_both_curves, plot_fp_tp_confidence_histogram
+from active_learning.util.visualisation.draw import draw_thumbnail
 
 
 # import pytest
@@ -298,8 +300,8 @@ def plot_precision_recall_by_species(df_detections, df_ground_truth, radius, vis
 
     return pr_plotter
 
-def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
-                              images_path, suffix, radius, box_size, CONFIDENCE_THRESHOLD):
+def evaluate_point_detections(base_path: Path, df_detections: pd.DataFrame, herdnet_annotation_name,
+                              images_path: Path, suffix, radius, box_size, CONFIDENCE_THRESHOLD):
     visualisations_path = base_path / "visualisations"
     visualisations_path.mkdir(exist_ok=True, parents=True)
     IL_detections = herdnet_prediction_to_hasty(df_detections, images_path)
@@ -310,7 +312,7 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
 
     images = list(images_path.glob(f"*.{suffix}"))
     if len(images) == 0:
-        raise FileNotFoundError("No images found in: " + images_path)
+        raise FileNotFoundError(f"No images found in: {images_path}" )
 
     df_detections = df_detections[df_detections.scores > CONFIDENCE_THRESHOLD]
 
@@ -326,9 +328,18 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
                                       save_path=visualisations_path / "false_positives_confidence_density.png")
     plt.show()
 
+
+
     fig, ax = plot_confidence_density(df_true_positives,
-                                      title="Confidence Score Density Distribution of True Positives",
+                                      title="Confidence Score Histogram Distribution of True Positives",
                                       save_path=visualisations_path / "true_positives_confidence_density.png")
+    plt.show()
+
+    plot_fp_tp_confidence_histogram(df_false_positives, df_true_positives,
+                                    title_flag=False,
+                                    show_stats=False,
+                                    bins=30, stacked=True,
+                                    save_path=visualisations_path / "fp_tp_histogram_stats.png")
     plt.show()
 
     # raise ValueError("Stop here to check the density plot of false positives")
@@ -347,9 +358,9 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
     ev = Evaluator(df_detections=df_detections, df_ground_truth=df_ground_truth, radius=radius)
     
     confidence_values = [0.0, 0.01, 0.05, 0.08,
-                                                            0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
+                                                            0.1, 0.2, 0.3, 0.4, 0.5, 0.6,
                                                             0.7, 0.72, 0.75, 0.78,
-                                                            0.8, 0.82, 0.85, 0.88, 
+                                                            0.8, 0.82, 0.85, 0.88,
                                                             0.9,
                                                             0.95,
                                                             0.96, 0.97, 0.98, 0.99,
@@ -361,14 +372,19 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
 
     # plot_species_detection_analysis(df_recall_curve, title="Performance Analysis", save_path=visualisations_path / "species_performance_analysis.png",)
     # Plot comprehensive view
-    plot_error_curve(df_recall_curve, title="Performance Analysis", title_flag=False,
-                     save_path=visualisations_path / "performance_analysis.png", )
+    plot_both_curves(df_recall_curve, title_flag=False, save_path_prefix="fwk_error_",
+                     visualisations_path=visualisations_path)
 
     # TODO plot that QQ Plot here to see if there is a bias depending on animals in the images
 
+    min_error_row = df_recall_curve.loc[df_recall_curve['mean_error'].abs().idxmin()]
+    optimal_threshold = min_error_row['confidence_threshold']
+    logger.info(f"Confidence threshold with minimum mean_error: {optimal_threshold}")
+    logger.info(f"Mean error: {min_error_row['mean_error']}")
+
     # Plot single metric
-    plot_single_metric_curve(df_recall_curve, y_label='mean_error',
-                             title="Mean Error Analysis", title_flag = False,
+    plot_error_curve_2(df_recall_curve, y_label='mean_error',
+                             title="Mean Error Analysis", title_flag = False, plot_error=True,
                              save_path=visualisations_path / "mean_error_curve.png", )
 
     # TODO plot Precison Score Curve
@@ -411,21 +427,22 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
         df_fn = df_false_negatives[df_false_negatives.images == i.name]
         gdf_gt = gdf_ground_truth[gdf_ground_truth.images == i.name]
 
-        # logger.info(f"Drawing high confidence false positives for {i.name}")
-        # draw_thumbnail(df_fp[df_fp.scores > 0.9], i,
-        #                suffix="fp_hc",
-        #                images_path=visualisations_path, box_size=box_size,
-        #                df_gt=gdf_gt,
-        #                title_flag=False)
+        logger.info(f"Drawing high confidence false positives for {i.name}")
+        draw_thumbnail(df_fp[df_fp.scores > 0.99], i,
+                       suffix="fp_hc",
+                       images_path=visualisations_path, box_size=box_size,
+                       df_gt=gdf_gt,
+                       title_flag=False)
         #
         # df_fp_hc = df_fp[df_fp.scores > 0.9]
         #
-        # logger.info(f"Drawing false positives to {visualisations_path} done.")
-        # #
-        # # high medium confidence false positives
-        # draw_thumbnail(df_fp[(df_fp.scores > 0.8) & (df_fp.scores < 0.9)], i, suffix="fp_hmc",
-        #                images_path=visualisations_path, box_size=box_size,
-        #                df_gt=gdf_gt)
+        logger.info(f"Drawing false positives to {visualisations_path} done.")
+        #
+        # high medium confidence false positives
+        draw_thumbnail(df_fp[(df_fp.scores > 0.8) & (df_fp.scores < 0.9)], i, suffix="fp_hmc",
+                       images_path=visualisations_path, box_size=box_size,
+                       df_gt=gdf_gt)
+        logger.info(f"Drawing false positives to {visualisations_path} done.")
         #
         # # low confidence false positives
         # draw_thumbnail(df_fp[(df_fp.scores > 0.4) & (df_fp.scores < 0.7)], i, suffix="fp_lc",
@@ -435,13 +452,13 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
         # # low confidence false positives
         # # draw_thumbnail(df_fp[df_fp.scores <= 0.4], i, suffix="fp_lc", images_path=visualisations_path, box_size=box_size)
         #
-        # # False negatives
-        # if len(df_fn) > 0:
-        #     draw_thumbnail(df_fn, i, suffix="fn",
-        #                    images_path=visualisations_path, box_size=box_size,
-        #                    DETECTECTED_COLOR="red",
-        #                    GT_COLOR="blue",
-        #                    df_gt=gdf_gt)
+        # False negatives
+        if len(df_fn) > 0:
+            draw_thumbnail(df_fn, i, suffix="fn",
+                           images_path=visualisations_path, box_size=box_size,
+                           DETECTECTED_COLOR="red",
+                           GT_COLOR="blue",
+                           df_gt=gdf_gt)
 
         # all true positives
         # draw_thumbnail(df_tp, i, suffix="tp", images_path=visualisations_path, box_size=box_size)
@@ -459,11 +476,12 @@ def evaluate_point_detections(base_path, df_detections, herdnet_annotation_name,
 
 
 if __name__ == "__main__":
-    ds= "delplanque2023"
-    ds= "Eikelboom2019_October_30"
-    ds= "Eikelboom2019_October_30_recall_90"
-    
-    
+    # ds= "delplanque2023"
+    # ds= "Eikelboom2019_October_30"
+    # ds= "Eikelboom2019_October_30_recall_90"
+    ds= "iguana_fwk"
+
+    suffix = "JPG"
     
     if ds == "Eikelboom2019":
         # Path of the base directory where the images and annotations are stored which we want to correct
@@ -524,7 +542,19 @@ if __name__ == "__main__":
         # hasty_annotation_name = 'hasty_format_full_size.json'
         herdnet_annotation_name = 'herdnet_format.csv'
         images_path = base_path / "Default"
-        
+
+    elif ds == "iguana_fwk":
+        # Path of the base directory where the images and annotations are stored which we want to correct
+        base_path = Path(f'/raid/cwinkelmann/training_data/iguana/2025_11_12/Fernandina_fwk/val')
+        ## On full size original images
+        df_detections = pd.read_csv('/raid/cwinkelmann/herdnet/outputs/2025-11-22/14-42-58/detections.csv') # dla34
+
+
+        # hasty_annotation_name = 'hasty_format_full_size.json'
+        herdnet_annotation_name = 'herdnet_format.csv'
+        images_path = base_path / "Default"
+        suffix = "jpg"
+
     elif ds == "Genovesa_crop":
         # Path of the base directory where the images and annotations are stored which we want to correct
         base_path = Path(f'/raid/cwinkelmann/training_data/iguana/2025_10_11/Genovesa_detection/val/')
@@ -549,7 +579,7 @@ if __name__ == "__main__":
     else:
         raise ValueError("Unknown dataset: " + ds)
         
-    suffix = "JPG"
+
 
     # hA_ground_truth_path = base_path / hasty_annotation_name
     # hA_ground_truth = HastyAnnotationV2.from_file(hA_ground_truth_path)

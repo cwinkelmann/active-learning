@@ -12,7 +12,7 @@ from active_learning.analyse_detections import analyse_point_detections_geospati
 from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig
 from active_learning.types.Exceptions import NoLabelsError
 from active_learning.util.convenience_functions import get_tiles
-from active_learning.util.evaluation.evaluation import plot_confidence_density, Evaluator, plot_error_curve
+from active_learning.util.evaluation.evaluation import plot_confidence_density, Evaluator, plot_error_metrics_curve
 from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGrid
 from active_learning.util.projection import project_gdfcrs
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
@@ -134,7 +134,10 @@ def estimate_geospatial_correction_factor(prediction_path,
     gdf_reference = project_gdfcrs(gdf_reference, orthomosaic_path)
 
     gdf_detections = gdf_detections[gdf_detections.scores > confidence_threshold]
-    gdf_detections.drop(columns=["x", "y", "count_1", "count_2", "count_3", "count_4", "count_5", "count_6", "count_7"], inplace=True)
+    try:
+        gdf_detections.drop(columns=["x", "y", "count_1", "count_2", "count_3", "count_4", "count_5", "count_6", "count_7"], inplace=True)
+    except KeyError:
+        logger.warning(f"some of the columns are not available.")
     grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
 
     gdf_grid = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0)

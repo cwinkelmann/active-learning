@@ -139,12 +139,17 @@ def get_aggregations(df_flat, group_by=['class_name']):
 
 
 if __name__ == "__main__":
+
+
+    #####  deplanque
     # base_path = Path("/Users/christian/data/training_data/2025_07_10_final_analysis/unzipped_hasty_annotation")
     # base_path = Path("/raid/cwinkelmann/training_data/eikelboom2019/")
-    base_path = Path("/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style")
-
+    # base_path = Path("/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style")
     # hA = HastyAnnotationV2.from_file(base_path / "eikelboom_hasty.json")
-    hA = HastyAnnotationV2.from_file(base_path / "/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style/delplanque_hasty.json")
+    # hA = HastyAnnotationV2.from_file(base_path / "/raid/cwinkelmann/training_data/delplanque/general_dataset/hasty_style/delplanque_hasty.json")
+
+    ##### iguanas
+    hA = HastyAnnotationV2.from_file(Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_11_12/2025_11_12_labels.json"))
     annotated_images = hA.images
 
     # annotated_images = [ai for ai in annotated_images if ai.dataset_name not in [
@@ -168,6 +173,32 @@ if __name__ == "__main__":
 
     df_flat = hA.get_flat_df()
     aggregation_stats = get_aggregations(df_flat, group_by=['class_name'])
+    dataset_names = ['Fer_FCD01-02-03_20122021', 'Fer_FCD01-02-03_20122021_single_images',]
+
+    dataset_names_fl = [
+        "Floreana_22.01.21_FPC07",
+        "Floreana_03.02.21_FMO06",
+        "Floreana_02.02.21_FMO01",
+
+        "FMO05",
+        "FMO04",
+        "FMO03",
+        "FMO02",
+        "FLMO02_28012023",
+        "FLBB01_28012023",
+
+    ]
+    df_filtered_fl = df_flat[df_flat['dataset_name'].isin(dataset_names_fl)]
+    aggregation_stats_fl = get_aggregations(df_filtered_fl, group_by=['class_name'])
+
+    dataset_names_fer_m = ["FPM01_24012023", "Fer_FCD01-02-03_20122021"]
+    df_filtered_fer_m = df_flat[df_flat['dataset_name'].isin(dataset_names_fer_m)]
+    aggregation_stats_fer_m = get_aggregations(df_filtered_fer_m, group_by=['class_name'])
+
+    dataset_names_fer = ["Fer_FCD01-02-03_20122021_single_images", "floreana_FPE01_FECA01"]
+    df_filtered_fer = df_flat[df_flat['dataset_name'].isin(dataset_names_fer)]
+    aggregation_stats_fer = get_aggregations(df_filtered_fer, group_by=['class_name'])
+
 
     for split in dataset_names:
         create_simple_histograms(annotated_images, dataset_name=split, title_flag=False)

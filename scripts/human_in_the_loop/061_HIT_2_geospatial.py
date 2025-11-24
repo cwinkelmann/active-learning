@@ -6,6 +6,8 @@ Take prediction we don't have a ground truth for and double check if the predict
 Then prepare the output for another training round
 
 """
+from time import sleep
+
 import shapely
 from loguru import logger
 from pathlib import Path
@@ -17,7 +19,7 @@ from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty, downlo
 from active_learning.types.Exceptions import TooManyLabelsError, NoLabelsError, NoChangesDetected
 from active_learning.types.ImageCropMetadata import ImageCropMetadata
 from active_learning.util.converter import hasty_to_shp
-from active_learning.util.hit.geospatial import batched_geospatial_correction_download
+from active_learning.util.hit.geospatial import batched_geospatial_correction_download, merged_corrected_annotations
 from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, Keypoint, HastyAnnotationV2, \
     ImageLabel
 
@@ -25,17 +27,9 @@ from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, Keypoint, Ha
 
 
 if __name__ == "__main__":
-    # report_path = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/Flo_FLPC03_22012021/FLPC03_correction_config.json")
-    # report_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/Fer_FNA01_02_20122021_ds_correction_config.json")
-    # dataset_correction_config = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/flo_flbb01_28012023_counts_config.json")
-    # dataset_correction_config = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/flo_flpc06_22012021_counts_config.json")
-    #
-    # config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
-    # r = main(config)
-    #
-    # logger.info(f"Processed {r} config")
 
-    prefixes_ready_to_analyse = [
+    # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected/')
+    # prefixes_ready_to_analyse = [
         # "flo_",
         # "fer_fni03_04_19122021",
         # "fer_fpe09_18122021",
@@ -47,7 +41,7 @@ if __name__ == "__main__":
         # "fer_fe01_02_20012023",
         # "fer_fwk01_20122021",
         # "fer_fe01_02_20012023",
-        "fer_fnc01_19122021",
+        # "fer_fnc01_19122021",
 
         # "fer_fwk02", # TODO not yet corrected
 
@@ -64,17 +58,49 @@ if __name__ == "__main__":
         # "isvb04_27012023",
         # "iscas01_08012023",
         # "iscna01_02_iscnb01_02_21012023",
+    # ]
+
+
+    # prefixes_ready_to_analyse = [
+    #     "isvb01_27012023",
+    #     "isbb01_22012023"
+    # ]
+    # configs_path = Path(
+    #     '/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected/') # THis looks like I got a dataloss
+
+
+    # prefixes_ready_to_analyse = [
+    #     "fpe01",
+    #     "fpe02",
+    #     "fpe03",
+    #     "isa_ispvr04_17122021",
+    #     # "isvb01_27012023", # these don't work
+    #     # "isbb01_22012023" # these don't work
+    # ]
+    # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting_2/Analysis_of_counts/all_drone_deploy_uncorrected/')
+
+    island_short_filter = "Isa"
+    island_full_name = "Isabela"
+    prefixes_ready_to_analyse = None
+    prefixes_ready_to_analyse = [
+        "mar_mnw03_07122021"
+        # "iscr02_26012023",
+        # "iseb05_19012023",
+        # "iseb03_19012023",
     ]
-    # prefixes_ready_to_analyse = None
+    # configs_path = Path(f"/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/correction_run_{island_full_name}")
+    configs_path = Path(f"/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Analysis_of_counts_2025_11_20/all_drone_deploy_uncorrected")
+    dataset_correction_configs = list(f for f in configs_path.glob("*_config.json") if not f.name.startswith("._"))
+    logger.info(f"Found: {len(dataset_correction_configs)} configs in {configs_path}")
 
-    configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy')
-    # configs_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected/')
-    hA_to_update = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_09_28_orthomosaic_data/2025_09_19_orthomosaic_data_combined_corrections_3.json")
-
+    base_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11")
+    # visualisation_path = Path("/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_11_08_orthomosaic_data/visualisation")
+    visualisation_path = None
+    target_images_path = base_path / "unzipped_images"
     annotations_to_update = Path(
-        "/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_11_09_labels_hn.json")
+        "/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_11_12_labels_debug.json")
 
-    for dataset_correction_config in (f for f in configs_path.glob("*_config.json") if not f.name.startswith("._")):
+    for dataset_correction_config in dataset_correction_configs:
 
         if prefixes_ready_to_analyse is not None and not any(dataset_correction_config.name.lower().startswith(p) for p in prefixes_ready_to_analyse):
             logger.debug(f"Skipping {dataset_correction_config} as it does not match any of the prefixes")
@@ -83,16 +109,25 @@ if __name__ == "__main__":
         try:
             config = GeospatialDatasetCorrectionConfig.load(dataset_correction_config)
 
-            # config.dataset_name = "isa_isvp01_27012023_counts"
-
             logger.info(f"Processing {dataset_correction_config} for dataset {config.dataset_name}")
-            r = batched_geospatial_correction_download(config, hA_to_update=annotations_to_update) # , configs_path=configs_path)
-    
-            logger.info(f"Processed {r} config")
+
+            correction_config_path = batched_geospatial_correction_download(config, hA_to_update=annotations_to_update) # , configs_path=configs_path)
+
+            config.hasty_reference_annotation_path = annotations_to_update
+            correction_config = GeospatialDatasetCorrectionConfig.load(correction_config_path)
+
+            correction_config.hasty_reference_annotation_path = annotations_to_update
+            images, uncorrected_images = merged_corrected_annotations(config=correction_config,
+                                                                      configs_path=configs_path,
+                                                                      target_images_path=target_images_path,
+                                                                      visualisation_path=visualisation_path)
+
+            logger.info(f"Processed {correction_config_path} config")
+
 
         except NoLabelsError as e:
             logger.warning(f"No labels found for {dataset_correction_config}, {e} skipping")
-
+            sleep(5)
         except NoChangesDetected as e:
             logger.warning(f"No changes detected for {dataset_correction_config}, {e} skipping")
 

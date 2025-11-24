@@ -832,11 +832,7 @@ class GeoSpatialRasterGrid(ImageGrid):
         return self.grid_gdf
 
 
-# Example usage:
-# grid_manager = GeoSpatialRasterGrid(Path("path/to/raster.tif"))
-# grid = grid_manager.create_grid(x_size=256, y_size=256, overlap_ratio=0.2)
-# points_gdf = gpd.read_file("path/to/points.shp")
-# filtered_grid = grid_manager.filter_by_points(points_gdf)
+
 
 def _process_grid_chunk(args) -> gpd.GeoDataFrame:
     """

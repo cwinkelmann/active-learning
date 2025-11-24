@@ -17,6 +17,7 @@ from active_learning.types.Exceptions import OrthomosaicNotSetError, AnnotationF
 from active_learning.util.hit.geospatial import batched_geospatial_correction_upload
 import geopandas as gpd
 
+
 def config_generator_human_ai_correction(
 
         df_mapping,
@@ -84,23 +85,41 @@ def config_generator_human_ai_correction(
 
 
 if __name__ == "__main__":
-
-    # Name of the
-    dataset_name = "main_dataset_correction_2025_11_09"
-    base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_uncorrected")
-    # base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy_zooniverse")
-    base_path_corrected = Path(
-        "/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/all_drone_deploy/corrected")
+    # input
+    predictions_a_base_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/AI_detection')
+    # source of AI detections
+    orthomosaics_base_path = Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog')
+    df_mapping_csv = pd.read_csv(Path(
+        '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
     hasty_reference_annotation_path = Path(
-        "/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_11_09_labels_hn.json")
+        "/Users/christian/PycharmProjects/hnee/HerdNet/data/2025_10_11/2025_11_12_labels.json")
 
-    orthomosaics_base_path = Path()
-    ai_predictions_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/AI_detection")
+    # Name of the run
+    dataset_name = "main_dataset_correction_2025_11_13"
+    island_short_filter = "Isa"
+    island_full_name = "Isabela"
+    # island_full_name = "Fernandina"
+    # base_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting_2/Analysis_of_counts/all_drone_deploy_uncorrected")
+    base_path = Path(f"/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/correction_run_{island_full_name}")
+    base_path.mkdir(parents=True, exist_ok=True)
+    # base_path_corrected = Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting_2/Analysis_of_counts/all_drone_deploy_corrected")
+    # base_path_corrected = Path("deprecated")
 
-    ai_predictions = [f for f in ai_predictions_path.glob("*.geojson") if not f.name.startswith("._")]
+
+
+    df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == island_full_name]
+    output_path = base_path / f"CVAT_corrected_{island_full_name}"
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    ai_predictions = [f for f in predictions_a_base_path.glob("*.geojson") if not f.name.startswith("._")]
     mission_folders = []
 
-    ai_predictions = [a for a in ai_predictions if a.name.startswith("Fer_FPE01-06_18122021_detections")]
+    # ai_predictions = [a for a in ai_predictions if a.name.startswith("Fer_FPE03-04-05_18122021")]
+    # ai_predictions = [a for a in ai_predictions if a.name.startswith("Isa_ISVB01_27012023")]
+    ai_predictions = [a for a in ai_predictions if a.name.startswith("Isa_ISEB05_19012023")]
+    ai_predictions = [a for a in ai_predictions if a.name.startswith(island_short_filter)]
+
+
 
     # mission_filter = ["ispp01_18012023", "ispda02_17012023", "ispce01_25012023", "ispc02_25012023", "ispc01_25012023",
     #                   "ispa11_12_13_15122021", "isncw02_25012023", "isncw01_25012023", "ismu01_04_05_16122021",
@@ -109,45 +128,44 @@ if __name__ == "__main__":
     #                   "iscw01_25012023", "iscna01_02_iscnb01_02_21012023",
     #                   "isbb03_22012023", "iscr02_26012023"
     #                   ]
-    mission_filter = ["FPE01-06_18122021",
-
-                      ]
+    orthomosaic_mission_filter = [x.lower() for x in [
+        # "FPE01-06_18122021",
+        # "Fer_FPE03-04-05_18122021",
+        # "Fer_FPM05_24012023"
+        "Isa_ISEB05_19012023"
+                      ]]
     # mission_filter = None
-    island_short_filter = "Fer"
+    # island_short_filter = "Fer"
 
-    df_mapping_csv = pd.read_csv(Path(
-        '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations/enriched_GIS_progress_report_with_stats_2025_08_30.csv'))
-    mission_folders
     mapping = []
-    df_mapping_csv = df_mapping_csv[df_mapping_csv['island'] == 'Fernandina']
-
     for ai_prediction in ai_predictions:
         gdf_ai_pred = gpd.read_file(ai_prediction)
         island_short, flight_code, flight_date, suffix = ai_prediction.name.split("_")
         mission_folder = f"{flight_code}_{flight_date}"
+        orthomosaic_name = f"{island_short}_{mission_folder}"
         dd, mm, year = flight_date[:2], flight_date[2:4], flight_date[4:] # '11012023'
         existing_flight_codes = list(df_mapping_csv["flight code"])
 
         # if island_short == island_short_filter and mission_folder not in existing_flight_codes and year == "2023":
         # if island_short == island_short_filter and mission_folder not in existing_flight_codes and mission_folder.lower() in mission_filter:
-        # if island_short == island_short_filter and mission_folder.lower() in mission_filter:
-        mapping.append({
-                "mission_folder": mission_folder,
-                "island_short": island_short,
-                "orthomosaic_name": f"{island_short}_{mission_folder}.tif",
-                "ai_prediction_name": f"{island_short}_{Path(mission_folder)}_detections.geojson",
-            }
-            )
-        pass
+        if island_short == island_short_filter and orthomosaic_name.lower() in orthomosaic_mission_filter:
+            mapping.append({
+                    "mission_folder": mission_folder,
+                    "island_short": island_short,
+                    "orthomosaic_name": f"{island_short}_{mission_folder}.tif",
+                    "ai_prediction_name": f"{island_short}_{Path(mission_folder)}_detections.geojson",
+                }
+                )
+            pass
 
     df_mapping = pd.DataFrame(mapping)
     logger.info(f"Processing {len(df_mapping_csv)} orthomosaics")
 
     cc = config_generator_human_ai_correction(
         df_mapping=df_mapping,
-        predictions_a_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/AI_detection'),
-        orthomosaics_base_path=Path('/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/Drone Deploy orthomosaics/cog'),
-        output_path=Path("/Volumes/G-DRIVE/Iguanas_From_Above/Manual_Counting/CVAT_temp_corr_Fernandina"),
+        predictions_a_base_path=predictions_a_base_path,
+        orthomosaics_base_path=orthomosaics_base_path,
+        output_path=output_path,
         hasty_reference_annotation_path=hasty_reference_annotation_path,
         box_size=1024
     )
@@ -157,9 +175,9 @@ if __name__ == "__main__":
     configs = GeospatialDatasetCorrectionConfigCollection(configs=cc,
                                                           dataset_name=dataset_name,
                                                           output_path=base_path,
-                                                          corrected_path=base_path_corrected,
+                                                          # corrected_path=base_path_corrected,
                                                           organization="IguanasFromAbove",
-                                                          project_name="Geospatial_Corr_Fernandina_2025_11_09"
+                                                          project_name=f"No_ref_{island_full_name}_2025_11_12"
                                                           )
 
     vis_output_dir = base_path / "visualisation"
@@ -170,7 +188,7 @@ if __name__ == "__main__":
                                   vis_output_dir=vis_output_dir,
                                   submit_to_CVAT=True,
                                   include_reference=False,
-                                  delete_dataset_if_exists=False,
+                                  delete_dataset_if_exists=True,
                                   radius=0.5,
                                   )
 

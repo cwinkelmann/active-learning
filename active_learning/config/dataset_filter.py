@@ -327,10 +327,10 @@ class GeospatialDatasetCorrectionConfigCollection(BasicConfig):
         None,
         description="Output path for object crops (derived from base_path if not provided)"
     )
-    corrected_path: typing.Optional[Path] = Field(
-        None,
-        description="Path for all labels"
-    )
+    # corrected_path: typing.Optional[Path] = Field(
+    #     None,
+    #     description="Path for all labels"
+    # )
 
 class DatasetCorrectionReportConfig(DatasetCorrectionConfig):
     report_path: typing.Optional[Path] = Field(

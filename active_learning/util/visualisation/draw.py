@@ -30,9 +30,11 @@ def draw_text(
 
 
 def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None,
-                   DETECTECTED_COLOR='blue',
+                   DETECTECTED_COLOR='yellow',
                    GT_COLOR='red',
-                   title_flag = False):
+                   title_flag = False,
+                   compression = 0.8
+                   , ):
     ts_path = images_path / f"thumbnails_{suffix}"
     ts_path.mkdir(exist_ok=True)
 
@@ -49,7 +51,7 @@ def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None,
                              position=(10, 5), font_size=int(0.08 * box_size))
 
 
-            ax_i = visualise_image(image=crop, show=False)
+            ax_i = visualise_image(image=crop, show=False, figsize=(8, 8), dpi=250)
             points_to_plot = None
             if df_gt is not None and len(df_gt) > 0:
                 # Find GT points that fall within the current crop box
@@ -76,7 +78,7 @@ def draw_thumbnail(df, i, suffix, images_path, box_size, df_gt=None,
                                   filename=ts_path / f"{Path(i.name).stem}_{suffix}_{idx}.JPG",
                                   title=f"{i.name} Points" if title_flag else None,
                                          colors=DETECTECTED_COLOR,
-                                  ax=ax_i)
+                                  ax=ax_i, compression=compression)
 
 
             ax_i.legend()

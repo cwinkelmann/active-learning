@@ -1382,283 +1382,6 @@
       }
     }
   },
-  'ha_corrected_isa_isvp01_27012023': {
-    'num_images': 109,
-    'num_labels': 346,
-    'num_point_labels': 346,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 333,
-        'num_point_labels': 333,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 13,
-        'num_point_labels': 13,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_isvi01_27012023': {
-    'num_images': 86,
-    'num_labels': 240,
-    'num_point_labels': 240,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 19,
-        'num_point_labels': 19,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 221,
-        'num_point_labels': 221,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf01_08_16122021': {
-    'num_images': 10,
-    'num_labels': 11,
-    'num_point_labels': 11,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 5,
-        'num_point_labels': 5,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 6,
-        'num_point_labels': 6,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf02_16122021': {
-    'num_images': 3,
-    'num_labels': 4,
-    'num_point_labels': 4,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 1,
-        'num_point_labels': 1,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 3,
-        'num_point_labels': 3,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf03_16122021': {
-    'num_images': 8,
-    'num_labels': 9,
-    'num_point_labels': 9,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 4,
-        'num_point_labels': 4,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 5,
-        'num_point_labels': 5,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf04_16122021': {
-    'num_images': 14,
-    'num_labels': 17,
-    'num_point_labels': 17,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 8,
-        'num_point_labels': 8,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 9,
-        'num_point_labels': 9,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf05_16122021': {
-    'num_images': 21,
-    'num_labels': 39,
-    'num_point_labels': 39,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 7,
-        'num_point_labels': 7,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 32,
-        'num_point_labels': 32,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf06_16122021': {
-    'num_images': 11,
-    'num_labels': 13,
-    'num_point_labels': 13,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 12,
-        'num_point_labels': 12,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 1,
-        'num_point_labels': 1,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf07_16122021': {
-    'num_images': 21,
-    'num_labels': 21,
-    'num_point_labels': 21,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 9,
-        'num_point_labels': 9,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 12,
-        'num_point_labels': 12,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf09_16122021': {
-    'num_images': 5,
-    'num_labels': 5,
-    'num_point_labels': 5,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 3,
-        'num_point_labels': 3,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 2,
-        'num_point_labels': 2,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf10_11_16122021': {
-    'num_images': 18,
-    'num_labels': 27,
-    'num_point_labels': 27,
-    'num_box_labels': 0,
-    'classes': {
-      'hard_negative': {
-        'num_labels': 7,
-        'num_point_labels': 7,
-        'num_box_labels': 0
-      },
-      'iguana_point': {
-        'num_labels': 20,
-        'num_point_labels': 20,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispf12_13_16122021': {
-    'num_images': 34,
-    'num_labels': 41,
-    'num_point_labels': 41,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 20,
-        'num_point_labels': 20,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 21,
-        'num_point_labels': 21,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispda01_17012023': {
-    'num_images': 48,
-    'num_labels': 88,
-    'num_point_labels': 88,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 80,
-        'num_point_labels': 80,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 8,
-        'num_point_labels': 8,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_ispda02_17012023': {
-    'num_images': 77,
-    'num_labels': 124,
-    'num_point_labels': 124,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 115,
-        'num_point_labels': 115,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 9,
-        'num_point_labels': 9,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_isbb02_27012023': {
-    'num_images': 46,
-    'num_labels': 60,
-    'num_point_labels': 60,
-    'num_box_labels': 0,
-    'classes': {
-      'iguana_point': {
-        'num_labels': 45,
-        'num_point_labels': 45,
-        'num_box_labels': 0
-      },
-      'hard_negative': {
-        'num_labels': 15,
-        'num_point_labels': 15,
-        'num_box_labels': 0
-      }
-    }
-  },
-  'ha_corrected_isa_isvb04_27012023': {
-    'num_images': 20,
-    'num_labels': 0,
-    'num_point_labels': 0,
-    'num_box_labels': 0,
-    'classes': {}
-  },
   'ha_corrected_fer_fnj01_19122021': {
     'num_images': 58,
     'num_labels': 287,
@@ -2066,6 +1789,24 @@
       }
     }
   },
+  'ha_corrected_fer_fnc01_19122021': {
+    'num_images': 222,
+    'num_labels': 1747,
+    'num_point_labels': 1747,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 1668,
+        'num_point_labels': 1668,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 79,
+        'num_point_labels': 79,
+        'num_box_labels': 0
+      }
+    }
+  },
   'ha_corrected_fer_fwk04_21122021': {
     'num_images': 163,
     'num_labels': 1538,
@@ -2214,20 +1955,490 @@
       }
     }
   },
-  'ha_corrected_fer_fnc01_19122021': {
-    'num_images': 222,
-    'num_labels': 1764,
-    'num_point_labels': 1764,
+  'ha_corrected_isa_isvp01_27012023': {
+    'num_images': 109,
+    'num_labels': 347,
+    'num_point_labels': 347,
     'num_box_labels': 0,
     'classes': {
       'iguana_point': {
-        'num_labels': 1252,
-        'num_point_labels': 1252,
+        'num_labels': 333,
+        'num_point_labels': 333,
         'num_box_labels': 0
       },
       'hard_negative': {
-        'num_labels': 512,
-        'num_point_labels': 512,
+        'num_labels': 14,
+        'num_point_labels': 14,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isvi01_27012023': {
+    'num_images': 86,
+    'num_labels': 240,
+    'num_point_labels': 240,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 19,
+        'num_point_labels': 19,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 221,
+        'num_point_labels': 221,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf01_08_16122021': {
+    'num_images': 10,
+    'num_labels': 11,
+    'num_point_labels': 11,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 6,
+        'num_point_labels': 6,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf02_16122021': {
+    'num_images': 3,
+    'num_labels': 4,
+    'num_point_labels': 4,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf03_16122021': {
+    'num_images': 8,
+    'num_labels': 9,
+    'num_point_labels': 9,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 4,
+        'num_point_labels': 4,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf04_16122021': {
+    'num_images': 14,
+    'num_labels': 17,
+    'num_point_labels': 17,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf05_16122021': {
+    'num_images': 21,
+    'num_labels': 39,
+    'num_point_labels': 39,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 32,
+        'num_point_labels': 32,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf06_16122021': {
+    'num_images': 11,
+    'num_labels': 13,
+    'num_point_labels': 13,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 12,
+        'num_point_labels': 12,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf07_16122021': {
+    'num_images': 21,
+    'num_labels': 21,
+    'num_point_labels': 21,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 12,
+        'num_point_labels': 12,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf09_16122021': {
+    'num_images': 5,
+    'num_labels': 5,
+    'num_point_labels': 5,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 3,
+        'num_point_labels': 3,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf10_11_16122021': {
+    'num_images': 18,
+    'num_labels': 27,
+    'num_point_labels': 27,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 20,
+        'num_point_labels': 20,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispf12_13_16122021': {
+    'num_images': 34,
+    'num_labels': 41,
+    'num_point_labels': 41,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 20,
+        'num_point_labels': 20,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 21,
+        'num_point_labels': 21,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispda01_17012023': {
+    'num_images': 48,
+    'num_labels': 88,
+    'num_point_labels': 88,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 80,
+        'num_point_labels': 80,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_ispda02_17012023': {
+    'num_images': 77,
+    'num_labels': 124,
+    'num_point_labels': 124,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 115,
+        'num_point_labels': 115,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 9,
+        'num_point_labels': 9,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isbb02_27012023': {
+    'num_images': 46,
+    'num_labels': 60,
+    'num_point_labels': 60,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 45,
+        'num_point_labels': 45,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 15,
+        'num_point_labels': 15,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isa_isvb04_27012023': {
+    'num_images': 20,
+    'num_labels': 0,
+    'num_point_labels': 0,
+    'num_box_labels': 0,
+    'classes': {}
+  },
+  'ha_corrected_iscas01_08012023': {
+    'num_images': 6,
+    'num_labels': 7,
+    'num_point_labels': 7,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 6,
+        'num_point_labels': 6,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_iscas02_08012023': {
+    'num_images': 6,
+    'num_labels': 6,
+    'num_point_labels': 6,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 5,
+        'num_point_labels': 5,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 1,
+        'num_point_labels': 1,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_isbb03_22012023': {
+    'num_images': 56,
+    'num_labels': 98,
+    'num_point_labels': 98,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 91,
+        'num_point_labels': 91,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 7,
+        'num_point_labels': 7,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_iscwn03_18012023': {
+    'num_images': 156,
+    'num_labels': 420,
+    'num_point_labels': 420,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 26,
+        'num_point_labels': 26,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 394,
+        'num_point_labels': 394,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_iseb04_19012023': {
+    'num_images': 60,
+    'num_labels': 98,
+    'num_point_labels': 98,
+    'num_box_labels': 0,
+    'classes': {
+      'hard_negative': {
+        'num_labels': 22,
+        'num_point_labels': 22,
+        'num_box_labels': 0
+      },
+      'iguana_point': {
+        'num_labels': 76,
+        'num_point_labels': 76,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispc01_25012023': {
+    'num_images': 215,
+    'num_labels': 694,
+    'num_point_labels': 694,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 677,
+        'num_point_labels': 677,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 17,
+        'num_point_labels': 17,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispc02_25012023': {
+    'num_images': 162,
+    'num_labels': 687,
+    'num_point_labels': 687,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 670,
+        'num_point_labels': 670,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 17,
+        'num_point_labels': 17,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispce01_25012023': {
+    'num_images': 67,
+    'num_labels': 162,
+    'num_point_labels': 162,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 152,
+        'num_point_labels': 152,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 10,
+        'num_point_labels': 10,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispda02_17012023': {
+    'num_images': 69,
+    'num_labels': 128,
+    'num_point_labels': 128,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 120,
+        'num_point_labels': 120,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 8,
+        'num_point_labels': 8,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispp01_18012023': {
+    'num_images': 130,
+    'num_labels': 376,
+    'num_point_labels': 376,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 374,
+        'num_point_labels': 374,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 2,
+        'num_point_labels': 2,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_ispvr04_17122021': {
+    'num_images': 90,
+    'num_labels': 582,
+    'num_point_labels': 582,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 582,
+        'num_point_labels': 582,
+        'num_box_labels': 0
+      }
+    }
+  },
+  'ha_corrected_iswspb01_26012023': {
+    'num_images': 87,
+    'num_labels': 232,
+    'num_point_labels': 232,
+    'num_box_labels': 0,
+    'classes': {
+      'iguana_point': {
+        'num_labels': 227,
+        'num_point_labels': 227,
+        'num_box_labels': 0
+      },
+      'hard_negative': {
+        'num_labels': 5,
+        'num_point_labels': 5,
         'num_box_labels': 0
       }
     }

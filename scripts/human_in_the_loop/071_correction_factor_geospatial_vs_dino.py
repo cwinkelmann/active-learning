@@ -23,7 +23,7 @@ from active_learning.config.dataset_filter import GeospatialDatasetCorrectionCon
 from active_learning.util.convenience_functions import get_tiles
 from active_learning.util.evaluation.correction_factor import estimate_geospatial_correction_factor, \
     simple_scaling_calibration, global_estimate_geospatial_correction_factor, plot_density_scaling_factors
-from active_learning.util.evaluation.evaluation import plot_confidence_density, Evaluator, plot_error_curve
+from active_learning.util.evaluation.evaluation import plot_confidence_density, Evaluator, plot_error_metrics_curve
 from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGrid
 from active_learning.util.projection import project_gdfcrs
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
@@ -43,11 +43,14 @@ if __name__ == '__main__':
     vis_output_dir.mkdir(parents=True, exist_ok=True)
     tile_size = 800  # Adjust as needed
 
-    island_of_interest = "Isa"
-    island_of_interest = "Gen"
-    island_of_interest = "Fer"
+    # island_of_interest = "Isa"
+    # island_of_interest = "Gen"
+    # island_of_interest = "Fer"
+    # island_of_interest = "Esp"
+    island_of_interest = "Mar"
 
-    model_predictions_path = Path("/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Counts AI")
+    # model_predictions_path = Path("/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Counts AI")
+    model_predictions_path = Path("/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection_dla_20251118")
     model_predictions = list(model_predictions_path.glob("*.geojson"))
     model_predictions.sort()
 
@@ -142,13 +145,13 @@ if __name__ == '__main__':
             gdf_concat.to_file(outputdir / f"pred_vs_gt_{assumed_orthomosaic_predictions_path.stem}.geojson",
                                driver='GeoJSON', index=False)
 
-            calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched)
+            # calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched)
 
-            density_scaling_factors = global_estimate_geospatial_correction_factor(gdf_grid_enriched)
+            # density_scaling_factors = global_estimate_geospatial_correction_factor(gdf_grid_enriched)
 
-            plot_density_scaling_factors(density_scaling_factors.T, overall_scaling_factor=scaling_factor,
-                                         title=f'Density-Based Prediction Bias Analysis for {prediction_path.stem}',
-                                         show=True, save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{prediction_path.stem}")
+            # plot_density_scaling_factors(density_scaling_factors.T, overall_scaling_factor=scaling_factor,
+            #                              title=f'Density-Based Prediction Bias Analysis for {prediction_path.stem}',
+            #                              show=True, save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{prediction_path.stem}")
 
             grid_enriched.append(gdf_grid_enriched)
         except Exception as e:
@@ -161,7 +164,7 @@ if __name__ == '__main__':
         ge.to_crs(epsg=32715, inplace=True)
     gdf_grid_enriched_all = gpd.GeoDataFrame(pd.concat(grid_enriched))
 
-    gdf_grid_enriched_all.to_file(outputdir / "grid_enriched_all.geojson", driver='GeoJSON', index=False)
+    gdf_grid_enriched_all.to_file(outputdir / f"grid_enriched_{island_of_interest}.geojson", driver='GeoJSON', index=False)
 
     density_scaling_factors = global_estimate_geospatial_correction_factor(gdf_grid_enriched_all)
     calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched_all)

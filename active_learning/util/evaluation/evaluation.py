@@ -493,6 +493,254 @@ def plot_confidence_density(df: pd.DataFrame,
     return fig, ax
 
 
+def plot_fp_tp_confidence_density(df_fp: pd.DataFrame,
+                                  df_tp: pd.DataFrame,
+                                  title="Confidence Score Density Distribution: True Positives vs False Positives",
+                                  title_flag=False,
+                                  xlabel="Confidence Score",
+                                  ylabel="Density",
+                                  figsize=(12, 6),
+                                  fp_color='red',
+                                  tp_color='blue',
+                                  fill=True,
+                                  show_stats=False,
+                                  show_histogram=False,
+                                  kde_bandwidth=None,
+                                  save_path=None):
+    """
+    Create overlaid density plots of confidence scores for false positives and true positives.
+
+    Args:
+        df_fp: DataFrame containing false positive detections with 'scores' column
+        df_tp: DataFrame containing true positive detections with 'scores' column
+        title: Plot title
+        title_flag: Whether to show the title
+        xlabel: X-axis label
+        ylabel: Y-axis label
+        figsize: Figure size tuple
+        fp_color: Color for false positives
+        tp_color: Color for true positives
+        fill: Whether to fill under the density curves
+        show_stats: Whether to show mean/median lines
+        show_histogram: Whether to show histograms in background
+        kde_bandwidth: Bandwidth adjustment for KDE
+        save_path: Path to save the figure
+    """
+
+    # Check if 'scores' column exists in both dataframes
+    if 'scores' not in df_fp.columns or 'scores' not in df_tp.columns:
+        raise ValueError("Both DataFrames must contain a 'scores' column")
+
+    # Extract scores and remove NaN values
+    fp_scores = df_fp['scores'].dropna()
+    tp_scores = df_tp['scores'].dropna()
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot histograms if requested (in background)
+    if show_histogram:
+        ax.hist(fp_scores, bins=30, density=True, alpha=0.2, color=fp_color,
+                edgecolor='darkred', label='FP Histogram')
+        ax.hist(tp_scores, bins=30, density=True, alpha=0.2, color=tp_color,
+                edgecolor='darkblue', label='TP Histogram')
+
+    # Create density plots
+    bw_adjust = kde_bandwidth if kde_bandwidth else 1.0
+
+    if fill:
+        sns.kdeplot(data=fp_scores, ax=ax, color=fp_color, fill=True, alpha=0.4,
+                    label=f'False Positives (n={len(fp_scores)})', bw_adjust=bw_adjust)
+        sns.kdeplot(data=tp_scores, ax=ax, color=tp_color, fill=True, alpha=0.4,
+                    label=f'True Positives (n={len(tp_scores)})', bw_adjust=bw_adjust)
+    else:
+        sns.kdeplot(data=fp_scores, ax=ax, color=fp_color, linewidth=2,
+                    label=f'False Positives (n={len(fp_scores)})', bw_adjust=bw_adjust)
+        sns.kdeplot(data=tp_scores, ax=ax, color=tp_color, linewidth=2,
+                    label=f'True Positives (n={len(tp_scores)})', bw_adjust=bw_adjust)
+
+    # Add statistics lines if requested
+    if show_stats:
+        fp_mean = fp_scores.mean()
+        tp_mean = tp_scores.mean()
+        fp_median = fp_scores.median()
+        tp_median = tp_scores.median()
+
+        ax.axvline(fp_mean, color=fp_color, linestyle='--', linewidth=2, alpha=0.7,
+                   label=f'FP Mean: {fp_mean:.3f}')
+        ax.axvline(tp_mean, color=tp_color, linestyle='--', linewidth=2, alpha=0.7,
+                   label=f'TP Mean: {tp_mean:.3f}')
+        ax.axvline(fp_median, color=fp_color, linestyle=':', linewidth=2, alpha=0.7,
+                   label=f'FP Median: {fp_median:.3f}')
+        ax.axvline(tp_median, color=tp_color, linestyle=':', linewidth=2, alpha=0.7,
+                   label=f'TP Median: {tp_median:.3f}')
+
+    # Set labels and title
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
+    if title_flag:
+        ax.set_title(title, fontsize=14, fontweight='bold')
+
+    # Set x-axis limits to [0, 1] for confidence scores
+    ax.set_xlim(0, 1)
+
+    # Add grid
+    ax.grid(True, alpha=0.3)
+
+    # Add legend
+    ax.legend(loc='best')
+
+    # Optional: Add text box with comparative statistics
+    if show_stats:
+        stats_text = f'False Positives:\n'
+        stats_text += f'  Mean: {fp_scores.mean():.3f}\n'
+        stats_text += f'  Median: {fp_scores.median():.3f}\n'
+        stats_text += f'  Std: {fp_scores.std():.3f}\n\n'
+        stats_text += f'True Positives:\n'
+        stats_text += f'  Mean: {tp_scores.mean():.3f}\n'
+        stats_text += f'  Median: {tp_scores.median():.3f}\n'
+        stats_text += f'  Std: {tp_scores.std():.3f}'
+
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+    return fig, ax
+
+
+def plot_fp_tp_confidence_histogram(df_fp: pd.DataFrame,
+                                    df_tp: pd.DataFrame,
+                                    title="Confidence Score Distribution: True Positives vs False Positives",
+                                    title_flag=False,
+                                    xlabel="Confidence Score",
+                                    ylabel="Count",
+                                    figsize=(12, 6),
+                                    fp_color='red',
+                                    tp_color='blue',
+                                    bins=30,
+                                    alpha=0.6,
+                                    show_stats=False,
+                                    density=False,
+                                    stacked=False,
+                                    save_path=None):
+    """
+    Create overlaid histograms of confidence scores for false positives and true positives.
+
+    Args:
+        df_fp: DataFrame containing false positive detections with 'scores' column
+        df_tp: DataFrame containing true positive detections with 'scores' column
+        title: Plot title
+        title_flag: Whether to show the title
+        xlabel: X-axis label
+        ylabel: Y-axis label (automatically adjusted if density=True)
+        figsize: Figure size tuple
+        fp_color: Color for false positives
+        tp_color: Color for true positives
+        bins: Number of bins or bin edges
+        alpha: Transparency of histogram bars
+        show_stats: Whether to show mean/median lines
+        density: If True, normalize to show probability density
+        stacked: If True, stack histograms instead of overlaying
+        save_path: Path to save the figure
+    """
+
+    # Check if 'scores' column exists in both dataframes
+    if 'scores' not in df_fp.columns or 'scores' not in df_tp.columns:
+        raise ValueError("Both DataFrames must contain a 'scores' column")
+
+    # Extract scores and remove NaN values
+    fp_scores = df_fp['scores'].dropna()
+    tp_scores = df_tp['scores'].dropna()
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot histograms
+    if stacked:
+        ax.hist([tp_scores, fp_scores], bins=bins,
+                color=[tp_color, fp_color],
+                label=[f'True Positives (n={len(tp_scores)})',
+                       f'False Positives (n={len(fp_scores)})'],
+                alpha=alpha, edgecolor='black', density=density, stacked=True)
+    else:
+        ax.hist(fp_scores, bins=bins, color=fp_color, alpha=alpha,
+                label=f'FP (n={len(fp_scores)})',
+                edgecolor='darkred', density=density)
+        ax.hist(tp_scores, bins=bins, color=tp_color, alpha=alpha,
+                label=f'TP (n={len(tp_scores)})',
+                edgecolor='darkblue', density=density)
+
+    # Add statistics lines if requested
+    # if show_stats:
+    # fp_mean = fp_scores.mean()
+    # tp_mean = tp_scores.mean()
+    fp_median = fp_scores.median()
+    tp_median = tp_scores.median()
+
+    # Get y-limit for vertical lines
+    y_max = ax.get_ylim()[1]
+
+    # ax.axvline(fp_mean, color='darkred', linestyle='--', linewidth=2, alpha=0.8,
+    #            label=f'FP Mean: {fp_mean:.3f}')
+    # ax.axvline(tp_mean, color='darkblue', linestyle='--', linewidth=2, alpha=0.8,
+    #            label=f'TP Mean: {tp_mean:.3f}')
+    ax.axvline(fp_median, color='darkred', linestyle=':', linewidth=2, alpha=0.8,
+               label=f'Confidence FP Median: {fp_median:.3f}')
+    ax.axvline(tp_median, color='darkblue', linestyle=':', linewidth=2, alpha=0.8,
+               label=f'Confidence TP Median: {tp_median:.3f}')
+
+    # Set labels and title
+    ax.set_xlabel(xlabel, fontsize=12)
+    if density:
+        ax.set_ylabel('Density' if ylabel == "Count" else ylabel, fontsize=12)
+    else:
+        ax.set_ylabel(ylabel, fontsize=12)
+
+    if title_flag:
+        ax.set_title(title, fontsize=14, fontweight='bold')
+
+    # Set x-axis limits to [0, 1] for confidence scores
+    ax.set_xlim(0, 1)
+
+    # Add grid
+    ax.grid(True, alpha=0.3, axis='y')
+
+    # Add legend
+    ax.legend(loc='best')
+
+    # Optional: Add text box with comparative statistics
+    if show_stats:
+        stats_text = f'False Positives:\n'
+        stats_text += f'  Count: {len(fp_scores)}\n'
+        stats_text += f'  Mean: {fp_scores.mean():.3f}\n'
+        stats_text += f'  Median: {fp_scores.median():.3f}\n'
+        stats_text += f'  Std: {fp_scores.std():.3f}\n\n'
+        stats_text += f'True Positives:\n'
+        stats_text += f'  Count: {len(tp_scores)}\n'
+        stats_text += f'  Mean: {tp_scores.mean():.3f}\n'
+        stats_text += f'  Median: {tp_scores.median():.3f}\n'
+        stats_text += f'  Std: {tp_scores.std():.3f}'
+
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+    return fig, ax
+
 def plot_species_detection_analysis(df_recall_curve: dict,
                                     save_path=None,
                                     title="Marine Iguana Detection Analysis - Galápagos Islands",
@@ -623,81 +871,44 @@ def plot_species_detection_analysis(df_recall_curve: dict,
     return fig, (ax1, ax2, ax3, ax4)
 
 
-
-def plot_error_curve(df_recall_curve,
-                     x_label="confidence_threshold",
-                     y_label="mean_error",
-                    title_flag=False,
-                     title="Error Curve",
-                     save_path=None):
+def plot_precision_recall_f1_curve(df_recall_curve,
+                                   x_label="confidence_threshold",
+                                   title_flag=False,
+                                   title="Precision, Recall, and F1 Score vs Confidence Threshold",
+                                   save_path=None):
     """
-    Plot error metrics vs confidence threshold with multiple y-axes for different scales.
+    Plot Precision, Recall, and F1 Score vs confidence threshold.
 
     Args:
-        df_recall_curve: DataFrame with columns including confidence_threshold and error metrics
+        df_recall_curve: DataFrame with columns including confidence_threshold and metrics
         x_label: Column name for x-axis (default: "confidence_threshold")
-        y_label: Primary metric to plot (default: "mean_error")
+        title_flag: Whether to show the title
         title: Plot title
         save_path: Optional path to save the plot
     """
-
-    # Create figure with subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-
-    if title_flag:
-        fig.suptitle(title, fontsize=16, fontweight='bold')
-
-    # Find confidence threshold where mean_error is closest to zero
-    optimal_idx = df_recall_curve['f1'].abs().idxmax()
+    # Find optimal threshold based on F1 score
+    optimal_idx = df_recall_curve['f1'].idxmax()
     optimal_threshold = df_recall_curve.loc[optimal_idx, x_label]
     optimal_f1_score = df_recall_curve.loc[optimal_idx, 'f1']
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot metrics
+    plt.plot(df_recall_curve[x_label], df_recall_curve['precision'], 'b-', label='Precision', linewidth=2)
+    plt.plot(df_recall_curve[x_label], df_recall_curve['recall'], 'r-', label='Recall', linewidth=2)
+    plt.plot(df_recall_curve[x_label], df_recall_curve['f1'], 'g-', label='F1 Score', linewidth=2)
+
     # Add vertical line at optimal threshold
-    ax1.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
+    plt.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
                 label=f'Optimal Threshold: {optimal_threshold:.3f}\n(F1 Score: {optimal_f1_score:.3f})')
 
-    # Top plot: Precision, Recall, F1
-    ax1.plot(df_recall_curve[x_label], df_recall_curve['precision'], 'b-', label='Precision', linewidth=2)
-    ax1.plot(df_recall_curve[x_label], df_recall_curve['recall'], 'r-', label='Recall', linewidth=2)
-    ax1.plot(df_recall_curve[x_label], df_recall_curve['f1'], 'g-', label='F1 Score', linewidth=2)
-
-    ax1.set_xlabel('Confidence Threshold')
-    ax1.set_ylabel('Score')
-    ax1.set_title('Precision, Recall, and F1 Score vs Confidence Threshold')
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    ax1.set_ylim(0, 1)
-
-
-    # Primary y-axis: Mean Error and MAE (similar scales)
-    line1 = ax2.plot(df_recall_curve[x_label], df_recall_curve['mean_error'], 'purple',
-                     label='Mean Error', linewidth=2, marker='o', markersize=4)
-    line2 = ax2.plot(df_recall_curve[x_label], df_recall_curve['mean_absolute_error'], 'orange',
-                     label='Mean Absolute Error', linewidth=2, marker='s', markersize=4)
-
-    # Find confidence threshold where mean_error is closest to zero
-    optimal_idx = df_recall_curve['mean_error'].abs().idxmin()
-    optimal_threshold = df_recall_curve.loc[optimal_idx, x_label]
-    optimal_error = df_recall_curve.loc[optimal_idx, 'mean_error']
-    # Add vertical line at optimal threshold
-    ax2.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
-                label=f'Optimal Threshold: {optimal_threshold:.3f}\n(Error: {optimal_error:.3f})')
-    # Add zero line for mean error
-    ax2.axhline(y=0, color='black', linestyle=':', alpha=0.5, label='Zero Error')
-
-
-
-    # Formatting
-    ax2.set_xlabel('Confidence Threshold')
-    ax2.set_ylabel('Mean Error & MAE', color='black')
-    ax2.set_title('Error Metrics vs Confidence Threshold')
-    ax2.grid(True, alpha=0.3)
-
-    # # Combine legends
-    # lines = line1 + line2
-    # labels = [l.get_label() for l in lines]
-    # ax2.legend(lines, labels, loc='upper left')
-    ax2.legend(loc='upper left')
-
+    plt.xlabel('Confidence Threshold')
+    plt.ylabel('Score')
+    if title_flag:
+        plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
 
     plt.tight_layout()
 
@@ -707,9 +918,145 @@ def plot_error_curve(df_recall_curve,
     plt.show()
 
 
+def plot_error_metrics_curve(df_recall_curve,
+                             x_label="confidence_threshold",
+                             title_flag=False,
+                             title="Error Metrics vs Confidence Threshold",
+                             save_path=None):
+    """
+    Plot error metrics vs confidence threshold.
+
+    Args:
+        df_recall_curve: DataFrame with columns including confidence_threshold and error metrics
+        x_label: Column name for x-axis (default: "confidence_threshold")
+        title_flag: Whether to show the title
+        title: Plot title
+        save_path: Optional path to save the plot
+    """
+    # Find confidence threshold where mean_error is closest to zero
+    optimal_idx = df_recall_curve['mean_error'].abs().idxmin()
+    optimal_threshold = df_recall_curve.loc[optimal_idx, x_label]
+    optimal_error = df_recall_curve.loc[optimal_idx, 'mean_error']
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot error metrics
+    plt.plot(df_recall_curve[x_label], df_recall_curve['mean_error'], 'purple',
+             label='Mean Error', linewidth=2, marker='o', markersize=4)
+    plt.plot(df_recall_curve[x_label], df_recall_curve['mean_absolute_error'], 'orange',
+             label='Mean Absolute Error', linewidth=2, marker='s', markersize=4)
+
+    # Add vertical line at optimal threshold
+    plt.axvline(x=optimal_threshold, color='red', linestyle='--', linewidth=2,
+                label=f'Optimal Threshold: {optimal_threshold:.3f}\n(Error: {optimal_error:.3f})')
+
+    # Add zero line for mean error
+    plt.axhline(y=0, color='black', linestyle=':', alpha=0.5, label='Zero Error')
+
+    plt.xlabel('Confidence Threshold')
+    plt.ylabel('Error')
+    if title_flag:
+        plt.title(title)
+    plt.legend(loc='upper left')
+    plt.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+
+
+def plot_both_curves(df_recall_curve,
+                     x_label="confidence_threshold",
+                     title_flag=False,
+                        visualisations_path = None,
+                     save_path_prefix=None):
+    """
+    Plot both precision/recall/F1 and error metrics curves.
+
+    Args:
+        df_recall_curve: DataFrame with all metrics
+        x_label: Column name for x-axis
+        title_flag: Whether to show titles
+        save_path_prefix: Optional path prefix for saving (will append '_pr.png' and '_error.png')
+    """
+    pr_save_path = visualisations_path / f"{save_path_prefix}_precision_recall.png" if save_path_prefix else None
+    error_save_path = visualisations_path / f"{save_path_prefix}_error.png" if save_path_prefix else None
+
+    plot_precision_recall_f1_curve(df_recall_curve, x_label, title_flag, save_path=pr_save_path)
+    plot_error_metrics_curve(df_recall_curve, x_label, title_flag, save_path=error_save_path)
+
+
+def plot_error_curve_2(df_recall_curve,
+                       x_label="confidence_threshold",
+                       y_label="mean_error",
+                       plot_error=False,
+                       title="Error Curve",
+                       save_path=None,
+                       title_flag=False,
+                       x_range=None, y_range=None):
+    """
+    Plot a single metric vs confidence threshold.
+
+    Args:
+        df_recall_curve: DataFrame with the data
+        x_label: Column name for x-axis
+        y_label: Column name for y-axis
+        title: Plot title
+        save_path: Optional path to save the plot
+    """
+
+    min_error_row = df_recall_curve.loc[df_recall_curve['mean_error'].abs().idxmin()]
+    optimal_threshold = min_error_row['confidence_threshold']
+    optimal_error = min_error_row['mean_error']
+    logger.info(f"Confidence threshold with minimum mean_error: {optimal_threshold}")
+    logger.info(f"Mean error: {optimal_error}")
+
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(df_recall_curve[x_label], df_recall_curve[y_label],
+             'b-', linewidth=2, marker='o', markersize=6, label='Mean Error')
+
+    plt.xlabel(x_label.replace('_', ' ').title())
+    plt.ylabel(y_label.replace('_', ' ').title())
+    if title_flag:
+        plt.title(title)
+    plt.grid(True, alpha=0.3)
+
+    # Set axis ranges
+    if x_range is not None:
+        plt.xlim(x_range)
+    if y_range is not None:
+        plt.ylim(y_range)
+
+    # Add zero line if plotting error metrics
+    if plot_error:
+        plt.axhline(y=0, color='red', linestyle='--', alpha=0.7, label='Zero Error')
+
+    # Add vertical line at optimal threshold
+    plt.axvline(x=optimal_threshold, color='green', linestyle='--', alpha=0.7,
+                label=f'Optimal Threshold: {optimal_threshold:.3f}\n(Error: {optimal_error:.2f})')
+
+    # Add marker at the optimal point
+    plt.plot(optimal_threshold, optimal_error, 'go', markersize=10,
+             markeredgecolor='darkgreen', markeredgewidth=2, zorder=5)
+
+    plt.legend()
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
 def plot_single_metric_curve(df_recall_curve,
                              x_label="confidence_threshold",
                              y_label="mean_error",
+                             plot_error = False,
                              title="Error Curve",
                              save_path=None,
                              title_flag = False,
@@ -743,7 +1090,7 @@ def plot_single_metric_curve(df_recall_curve,
         plt.ylim(y_range)
 
     # Add zero line if plotting error metrics
-    if 'error' in y_label.lower():
+    if plot_error:
         plt.axhline(y=0, color='red', linestyle='--', alpha=0.7, label='Zero Error')
         plt.legend()
 

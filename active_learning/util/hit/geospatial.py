@@ -1,4 +1,3 @@
-import shutil
 import typing
 from time import sleep
 
@@ -6,36 +5,31 @@ import fiftyone as fo
 import geopandas as gpd
 import hashlib
 import pandas as pd
+import shutil
+import typing
 from loguru import logger
+from matplotlib import pyplot as plt
 from pathlib import Path
+from time import sleep
+from typing import Optional
 
-from active_learning.analyse_detections import analyse_point_detections_geospatial_single_image, \
-    analyse_point_detections_geospatial_single_image_hungarian, analyse_point_detections_geospatial_hungarian
-from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig, \
-    GeospatialDatasetCorrectionConfigCollection
-from active_learning.types.Exceptions import NoLabelsError, NullRow, ProjectionError, DatasetsExistsError
+from active_learning.analyse_detections import analyse_point_detections_geospatial_single_image_hungarian
+from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig
+from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfigCollection
+from active_learning.reconstruct_hasty_annotation_cvat import download_cvat_annotations, foDataset2Hasty, \
+    determine_changes
+from active_learning.types.Exceptions import NoLabelsError
+from active_learning.types.Exceptions import NullRow, ProjectionError
+from active_learning.util.converter import hasty_to_shp
 from active_learning.util.converter import herdnet_prediction_to_hasty
 from active_learning.util.evaluation.evaluation import submit_for_cvat_evaluation
 from active_learning.util.geospatial_slice import GeoSpatialRasterGrid, GeoSlicer
 from active_learning.util.geospatial_transformations import get_geotiff_compression, get_gsd
 from active_learning.util.image_manipulation import convert_tiles_to
 from active_learning.util.projection import project_gdfcrs
-from com.biospheredata.types.status import ImageFormat
-from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
-import shapely
-from loguru import logger
-from pathlib import Path
-from typing import Optional
-
-from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig
-from active_learning.reconstruct_hasty_annotation_cvat import cvat2hasty, download_cvat_annotations, foDataset2Hasty, \
-    determine_changes
-from active_learning.types.Exceptions import TooManyLabelsError, NoLabelsError
-from active_learning.types.ImageCropMetadata import ImageCropMetadata
-from active_learning.util.converter import hasty_to_shp
-from com.biospheredata.types.HastyAnnotationV2 import hA_from_file, Keypoint, HastyAnnotationV2, \
-    ImageLabel
-from tests.test_analyse_detection import test_analyse_point_detections_geospatial_single_image_hungarian
+from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage, ImageLabel
+from com.biospheredata.types.status import ImageFormat, LabelingStatus
+from com.biospheredata.visualization.visualize_result import visualise_hasty_annotation
 
 
 def verfify_points(gdf_points, config: GeospatialDatasetCorrectionConfig):
@@ -163,7 +157,7 @@ def preppare_online_checkup(config: GeospatialDatasetCorrectionConfig,
         gdf_sliced_points
         occupied_tiles = slicer_occupied.slice_very_big_raster(num_chunks=len(gdf_prediction_points) // 20 + 1,
                                                                num_workers=5)
-
+        logger.info(f"Converting Tiles to {format.name} format")
         converted_tile_output_dir = tile_output_dir / "converted_tiles"
         converted_tiles = convert_tiles_to(tiles=list(slicer_occupied.gdf_slices.slice_path),
                                            format=format,
@@ -248,7 +242,7 @@ def retried_ds_annotate(
                 anno_key=config.dataset_name,
                 label_field=f"detection",
                 attributes=[],
-                launch_editor=True,
+                launch_editor=False,
                 organization=configs.organization,
                 project_name=configs.project_name,
                 # Optional: Add these parameters for better control
@@ -273,9 +267,6 @@ def retried_ds_annotate(
                 return False
 
     return False
-
-
-
 
 
 
@@ -366,6 +357,10 @@ def batched_geospatial_correction_upload(configs: GeospatialDatasetCorrectionCon
         except NullRow as e:
             logger.error(f"Null rows found for dataset {config.dataset_name}: {e}")
 
+        except FileNotFoundError as e:
+            logger.error(f"File not found: {e}")
+            logger.error(f"This should never happen")
+
         updated_config_path = configs.output_path / f"{config.dataset_name}_config.json"
         config.save(updated_config_path)
         logger.info(f"Updated config saved to {updated_config_path}")
@@ -419,6 +414,103 @@ def shift_keypoint_label(corrected_label: ImageLabel, hA_prediction: HastyAnnota
                     logger.info(f"Label {l.id} was not moved")
 
 
+def merged_corrected_annotations(config: GeospatialDatasetCorrectionConfig,
+                                    configs_path: Path,
+                                 target_images_path: Path,
+                                 visualisation_path: Path | None = None ):
+    """
+    Merge the hasty prediction and the corrected hasty annotation into the reference annotation file
+    :param config:
+    :param target_images_path:
+    :param visualisation_path:
+    :return:
+    """
+
+    hA_prediction_path = config.hasty_intermediate_annotation_path
+    if hA_prediction_path is None:
+        hA_prediction_path = configs_path / f"{config.dataset_name}_intermediate_hasty.json"  # in the current folder
+        if hA_prediction_path.exists():
+            logger.info(f"Guessing {hA_prediction_path} as hasty intermediate annotation path successful")
+        else:
+            raise NoLabelsError("hA_prediction_path is None")
+
+    hA_corrected_path = config.output_path / f"{config.dataset_name}_corrected_intermediate_hasty.json"
+
+    if not hA_corrected_path.exists():
+        raise NoLabelsError(f"hA_corrected_path {hA_corrected_path} does not exist")
+    # we need the prediction for the list of images
+    hA_prediction = HastyAnnotationV2.from_file(file_path=hA_prediction_path)
+    hA_correction = HastyAnnotationV2.from_file(file_path=hA_corrected_path)
+    hA_reference = HastyAnnotationV2.from_file(config.hasty_reference_annotation_path)
+
+    assert len(hA_prediction.images) == len(hA_correction.images)
+    # remove "_counts" from end of dataset name if present
+    dataset_name = config.dataset_name.replace("_counts", "")
+    hA_reference.delete_dataset(dataset_name=dataset_name)
+    hA_reference.delete_dataset(dataset_name=f"ha_corrected_{dataset_name}")
+    hA_reference.delete_dataset(dataset_name=f"ha_{dataset_name}")
+
+    images = []
+    uncorrected_images = []
+    total_labels = 0
+
+    for pred_image in hA_prediction.images:
+        # logger.info(f"Processing {pred_image.image_name}, dataset {dataset_name}")
+
+
+        # be careful to match the image ids
+        corr_image = hA_correction.get_image_by_id(pred_image.image_id)
+        corr_image.image_status = LabelingStatus.COMPLETED
+        try:
+            # The image were not AnnotatedImage before but ImageLabel Collection
+            pred_image = AnnotatedImage(**pred_image.model_dump(), dataset_name=dataset_name,
+                                        image_status=LabelingStatus.COMPLETED)
+        except:
+            pred_image.dataset_name = dataset_name
+            pred_image.image_status = LabelingStatus.COMPLETED
+            # pred_image = AnnotatedImage(**pred_image.model_dump())
+
+        if visualisation_path is not None and len(corr_image.labels) > 0:
+            logger.info(f"visualising {pred_image.image_name}, dataset {dataset_name} to {visualisation_path}")
+            visualise_hasty_annotation(image=corr_image, images_path=config.image_tiles_path / "converted_tiles",
+                                       output_path=visualisation_path,
+                                       # title = f"Prediction {dataset_name}, {pred_image.image_name}",
+                                       show=False)
+            plt.close()
+
+        pred_image.dataset_name = f"ha_{dataset_name}"
+        # uncorrected_images.append(pred_image)
+
+        # hA_reference.images.append(pred_image)
+        target_path = target_images_path / pred_image.dataset_name
+        target_path.mkdir(parents=True, exist_ok=True)
+
+        if not (target_path / pred_image.image_name).exists():
+            shutil.copy(config.image_tiles_path / "converted_tiles" / pred_image.image_name,
+                        target_path / pred_image.image_name)
+
+        corr_image.dataset_name = f"ha_corrected_{dataset_name}"
+        hA_reference.images.append(corr_image)
+        total_labels += len(corr_image.labels)
+        images.append(corr_image)
+
+        target_path = target_images_path / corr_image.dataset_name
+        target_path.mkdir(parents=True, exist_ok=True)
+
+        if not (target_images_path / corr_image.dataset_name / corr_image.image_name).exists():
+            shutil.copy(config.image_tiles_path / "converted_tiles" / corr_image.image_name,
+                        target_images_path / corr_image.dataset_name / corr_image.image_name)
+
+    # update the reference annotation file
+    logger.info(f"Kept {sum([len(img.labels) for img in images])} labels including hard negatives")
+    # hA_updated_path = config.hasty_reference_annotation_path.stem + f"_updated_with_{dataset_name}.json"
+    logger.info(f"Updated config.hasty_reference_annotation_path to {config.hasty_reference_annotation_path}")
+
+    hA_reference.save(config.hasty_reference_annotation_path)
+
+    logger.info(hA_reference.dataset_statistics())
+
+    return images, uncorrected_images
 
 
 def batched_geospatial_correction_download(config: GeospatialDatasetCorrectionConfig,
@@ -468,6 +560,7 @@ def batched_geospatial_correction_download(config: GeospatialDatasetCorrectionCo
 
     gdf_prediction = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_prediction)
     gdf_annotation = hasty_to_shp(tif_path=config.image_tiles_path, hA_reference=hA_updated)
+
 
     gdf_false_positives, gdf_true_positives, gdf_false_negatives = analyse_point_detections_geospatial_single_image_hungarian(
         gdf_ground_truth=gdf_annotation,

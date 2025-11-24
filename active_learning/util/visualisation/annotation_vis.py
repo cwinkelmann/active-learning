@@ -340,7 +340,7 @@ def visualise_points_only(points: List[shapely.Point],
                           font_size=10,
                           ax=None,
                           show_grid=False,
-                          adjust_labels=True) -> axes:  # New parameter
+                          adjust_labels=True, compression=0.9) -> axes:  # New parameter
     """
     Simplified function to visualize just points.
     """
@@ -409,7 +409,11 @@ def visualise_points_only(points: List[shapely.Point],
     ax.set_aspect('equal')
 
     if filename:
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        if filename.suffix.upper() in ['.JPG', '.JPEG']:
+            plt.savefig(filename, dpi=300, bbox_inches='tight',
+                        pil_kwargs={'quality': int(compression * 100)})
+        else:
+            plt.savefig(filename, dpi=300, bbox_inches='tight')
     if show:
         plt.show()
         plt.close()

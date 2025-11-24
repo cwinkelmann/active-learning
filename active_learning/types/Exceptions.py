@@ -5,6 +5,13 @@ class InvalidLabelError(ValueError):
         super().__init__(message)
 
 
+class FolderNotFound(ValueError):
+    """ Base class for exceptions in this module. """
+
+    def __init__(self, message: str = "FolderNotFound") -> None:
+        super().__init__(message)
+
+
 class NoChangesDetected(InvalidLabelError):
     def __init__(self, message: str = "No Changes were detected") -> None:
         super().__init__(message)

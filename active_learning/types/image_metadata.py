@@ -16,7 +16,7 @@ from shapely.geometry import Point
 from typing import Tuple, Optional
 import hashlib
 
-from active_learning.types.Exceptions import ImageNotValidException
+from active_learning.types.Exceptions import ImageNotValidException, FolderNotFound
 from active_learning.util.image import get_image_id, get_image_dimensions
 
 
@@ -425,6 +425,9 @@ def list_images(path: Path, extension, recursive=False):
     :param path:
     :return:
     """
+    if not path.exists():
+        raise FolderNotFound(f"{path} does not exist")
+
     if recursive:
         images_list = list(path.rglob(f"*.{extension}"))
     else:
