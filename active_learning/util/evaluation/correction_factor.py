@@ -43,7 +43,8 @@ def simple_scaling_calibration(gdf_enriched_grid,
 
 
 def global_estimate_geospatial_correction_factor(gdf_enriched_grid,
-                                                 pred_column='predictions', ref_column='reference'):
+                                                 pred_column='predictions',
+                                                 ref_column='reference'):
     """
     using a enriched grid estimate the needed correction factor by using the density
     :param gdf_enriched_grid:
@@ -60,6 +61,30 @@ def global_estimate_geospatial_correction_factor(gdf_enriched_grid,
             "avg_predictions": group[pred_column].mean(),
             "median_predictions": group[pred_column].median(),
             "diff_predictions": group[pred_column].mean() - reference_count,
+        }
+
+    df_group_stats = pd.DataFrame(group_stats)
+
+    return df_group_stats
+
+def global_estimate_geospatial_correction_factor_by_pred(gdf_enriched_grid,
+                                                 pred_column='predictions',
+                                                 ref_column='reference'):
+    """
+    using a enriched grid estimate the needed correction factor by using the density
+    :param gdf_enriched_grid:
+    :return:
+    """
+
+    # TODO group by prediction
+    group_stats = {}
+    for pred_count, group in gdf_enriched_grid.groupby(pred_column):
+        group_stats[pred_count] = {
+            "group_size": len(group),
+            "avg_avg_score": group["avg_score"].mean(),
+            "avg_reference_count": group[ref_column].mean(),
+            "pred_count": pred_count,
+            "diff_predictions": pred_count - group[ref_column].mean(), # overpredicting should be positive
         }
 
     df_group_stats = pd.DataFrame(group_stats)
@@ -201,6 +226,234 @@ def estimate_geospatial_correction_factor(prediction_path,
     }
 
 
+def plot_prediction_analysis(data_df, save_path=None, show=True, title=None, separate_plots=False):
+    """
+    Visualize prediction analysis showing bias and sample distribution.
+
+    Parameters:
+    -----------
+    data_df : DataFrame
+        Contains columns: 'pred_count', 'avg_reference_count', 'group_size',
+        'diff_predictions', 'median_predictions', 'avg_avg_score'
+    save_path : Path, optional
+        Path to save the figure(s). If separate_plots=True and save_path has extension,
+        it will be modified to save_path_1.png, save_path_2.png, save_path_3.png
+    show : bool
+        Whether to display the plot
+    title : str, optional
+        Overall title for the figure or prefix for separate plot titles
+    separate_plots : bool
+        If True, create 3 separate figures. If False, create one combined figure.
+
+    Returns:
+    --------
+    If separate_plots=False: fig, axes (single figure with 3 subplots)
+    If separate_plots=True: list of (fig, ax) tuples for each plot
+    """
+
+    # Set style
+    sns.set_style("white")
+    plt.rcParams['font.size'] = 10
+
+    # Extract data
+    pred_count = np.array(data_df['pred_count'])
+    avg_reference_count = np.array(data_df['avg_reference_count'])
+    diff_predictions = np.array(data_df['diff_predictions'])
+    group_size = np.array(data_df['group_size'])
+
+    # Calculate statistics
+    total_samples = group_size.sum()
+    mae = np.abs(diff_predictions).mean()
+    me = diff_predictions.mean()
+    rmse = np.sqrt(np.mean(diff_predictions ** 2))
+
+    if not separate_plots:
+
+        # Create figure with subplots
+        fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+        if title:
+            fig.suptitle(title, fontsize=16, fontweight='bold')
+
+        ax1, ax2, ax3 = axes
+
+    else:
+        # Create separate figures
+        figures = []
+
+        # Prepare save paths if provided
+        if save_path:
+            from pathlib import Path
+            save_path = Path(save_path)
+            save_path.mkdir(parents=True, exist_ok=True)
+            if save_path.suffix:
+                base_path = save_path.parent / save_path.stem
+                save_paths = [
+                    f"{base_path}_scatter{save_path.suffix}",
+                    f"{base_path}_bias{save_path.suffix}",
+                    f"{base_path}_samples{save_path.suffix}"
+                ]
+            else:
+                save_paths = [
+                    save_path / "scatter.png",
+                    save_path / "bias.png",
+                    save_path / "samples.png"
+                ]
+        else:
+            save_paths = [None, None, None]
+
+    # ===== Plot 1: Main scatter plot with perfect agreement line =====
+    if separate_plots:
+        fig1, ax1 = plt.subplots(figsize=(8, 6))
+        if title:
+            fig1.suptitle(f"{title} - Reference vs Predicted Count", fontsize=14, fontweight='bold')
+        figures.append((fig1, ax1))
+
+    # Plot perfect agreement line
+    max_val = max(pred_count.max(), avg_reference_count.max())
+    ax1.plot([0, max_val], [0, max_val], 'k--', alpha=0.5, linewidth=2,
+             label='Perfect Agreement (y=x)', zorder=1)
+
+    # Plot predictions with size based on group_size
+    sizes = (group_size / group_size.max()) * 500 + 50
+    scatter = ax1.scatter(pred_count, avg_reference_count, s=sizes,
+                          c=diff_predictions, cmap='RdYlGn_r', alpha=0.7,
+                          edgecolors='black', linewidth=1.5, zorder=3)
+
+    # Add colorbar
+    cbar = plt.colorbar(scatter, ax=ax1)
+    cbar.set_label('Prediction Bias\n(Pred - Ref)', rotation=270, labelpad=20)
+
+    ax1.set_xlabel('Predicted Count', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Average Reference Count', fontsize=12, fontweight='bold')
+    if title:
+        ax1.set_title('Reference vs Predicted Count\n(Bubble size = sample size)',
+                  fontsize=11, pad=10)
+    ax1.legend(loc='upper left')
+    ax1.grid(False, alpha=0.3)
+
+    if separate_plots:
+        plt.tight_layout()
+        if save_paths[0]:
+            plt.savefig(save_paths[0], dpi=300, bbox_inches='tight')
+            print(f"Figure saved to {save_paths[0]}")
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+    # ===== Plot 2: Bias vs Predicted Count =====
+    if separate_plots:
+        fig2, ax2 = plt.subplots(figsize=(8, 6))
+        if title:
+            fig2.suptitle(f"{title} - Prediction Bias", fontsize=14, fontweight='bold')
+        figures.append((fig2, ax2))
+
+    # Create bar plot of bias
+    colors = ['#d62728' if x < -0.5 else '#2ca02c' if x > 0.5 else '#ffcc00'
+              for x in diff_predictions]
+    bars = ax2.bar(range(len(pred_count)), diff_predictions, color=colors,
+                   alpha=0.7, edgecolor='black', linewidth=1.5)
+
+    # Add zero line
+    ax2.axhline(y=0, color='k', linestyle='--', linewidth=2, alpha=0.7)
+
+    # Add value labels on bars
+    for i, (bar, val) in enumerate(zip(bars, diff_predictions)):
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width() / 2., height,
+                 f'{val:.2f}', ha='center', va='bottom' if height > 0 else 'top',
+                 fontsize=8, fontweight='bold')
+
+    ax2.set_xlabel('Predicted Count', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Prediction Bias (Pred - Ref)', fontsize=12, fontweight='bold')
+
+    if title:
+        ax2.set_title('Bias at Different Prediction Levels\n(Green: over-predict, Red: under-predict)',
+                  fontsize=11, pad=10)
+    ax2.set_xticks(range(len(pred_count)))
+    ax2.set_xticklabels([f'{int(x)}' for x in pred_count], rotation=45)
+    ax2.grid(False, alpha=0.3, axis='y')
+
+    if separate_plots:
+        plt.tight_layout()
+        if save_paths[1]:
+            plt.savefig(save_paths[1], dpi=300, bbox_inches='tight')
+            print(f"Figure saved to {save_paths[1]}")
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+    # ===== Plot 3: Sample Size Distribution =====
+    if separate_plots:
+        fig3, ax3 = plt.subplots(figsize=(8, 6))
+        if title:
+            fig3.suptitle(f"{title} - Sample Distribution", fontsize=14, fontweight='bold')
+        figures.append((fig3, ax3))
+
+    # Log scale for better visualization if needed
+    use_log = group_size.max() / group_size[group_size > 0].min() > 100
+
+    bars = ax3.bar(range(len(pred_count)), group_size,
+                   color='mediumpurple', alpha=0.7, edgecolor='black', linewidth=1.5)
+
+    # Add value labels
+    for i, (bar, val) in enumerate(zip(bars, group_size)):
+        height = bar.get_height()
+        ax3.text(bar.get_x() + bar.get_width() / 2., height,
+                 f'{int(val)}', ha='center', va='bottom',
+                 fontsize=8, fontweight='bold')
+
+    if use_log:
+        ax3.set_yscale('log')
+
+    ax3.set_xlabel('Predicted Count', fontsize=12, fontweight='bold')
+    ax3.set_ylabel('Sample Size (Number of Images)', fontsize=12, fontweight='bold')
+    if title:
+        ax3.set_title('Sample Size Distribution per Prediction Level', fontsize=11, pad=10)
+    ax3.set_xticks(range(len(pred_count)))
+    ax3.set_xticklabels([f'{int(x)}' for x in pred_count], rotation=45)
+    ax3.grid(False, alpha=0.3, axis='y')
+
+    if separate_plots:
+        # Add statistics text box to the last plot
+        textstr = f'Overall Statistics:\n'
+        textstr += f'Total Samples: {int(total_samples)}\n'
+        textstr += f'MAE: {mae:.3f}\n'
+        textstr += f'RMSE: {rmse:.3f}\n'
+        textstr += f'Mean Error: {me:.3f}'
+
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+        ax3.text(0.98, 0.98, textstr, transform=ax3.transAxes, fontsize=10,
+                 verticalalignment='top', horizontalalignment='right',
+                 bbox=props, family='monospace')
+
+        plt.tight_layout()
+        if save_paths[2]:
+            plt.savefig(save_paths[2], dpi=300, bbox_inches='tight')
+            print(f"Figure saved to {save_paths[2]}")
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+        return figures
+
+    else:
+        # Combined plot
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Figure saved to {save_path}")
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+        return fig, axes
+
 def plot_density_scaling_factors(density_scaling_factors, overall_scaling_factor=None,
                                  save_path=None, show=True, title=None):
     """
@@ -256,7 +509,7 @@ def plot_density_scaling_factors(density_scaling_factors, overall_scaling_factor
 
     # Add colorbar
     cbar = plt.colorbar(scatter, ax=ax1)
-    cbar.set_label('Prediction Bias\n(Avg Pred - Reference)', rotation=270, labelpad=20)
+    cbar.set_label('Prediction Bias\n(Pred - Ref)', rotation=270, labelpad=20)
 
     ax1.set_xlabel('Reference Count (Ground Truth)', fontsize=12, fontweight='bold')
     ax1.set_ylabel('Average Predicted Count', fontsize=12, fontweight='bold')
@@ -285,7 +538,7 @@ def plot_density_scaling_factors(density_scaling_factors, overall_scaling_factor
                  fontsize=8, fontweight='bold')
 
     ax2.set_xlabel('Reference Count', fontsize=12, fontweight='bold')
-    ax2.set_ylabel('Prediction Bias (Avg Pred - Ref)', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Prediction Bias (Pred - Ref)', fontsize=12, fontweight='bold')
     ax2.set_title('Bias at Different Density Levels\n(Green: under-predict, Red: over-predict)',
                   fontsize=11, pad=10)
     ax2.set_xticks(range(len(reference_count)))

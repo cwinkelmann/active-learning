@@ -170,7 +170,7 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
             l_fp.append(gdf_pred)
             image_errors.append(
                 {"image_name": image, "err": len(gdf_pred), "num_gt": 0, "num_pred": len(gdf_pred)})
-
+            continue
 
         # If there are no predictions for the image, mark all as false negatives
         if len(pred_coords) == 0:
@@ -182,8 +182,11 @@ def analyse_point_detections_greedy(df_detections: pd.DataFrame,
 
         # Build a KD-tree on the prediction points
         pred_tree = cKDTree(pred_coords)
-        # For each ground truth point, get the nearest prediction (distance and prediction index)
-        distances, indices = pred_tree.query(gt_coords, k=1)
+        try:
+            # For each ground truth point, get the nearest prediction (distance and prediction index)
+            distances, indices = pred_tree.query(gt_coords, k=1)
+        except ValueError as e:
+            logger.error(e)
 
         # Build candidate matches: for each gt point, record (gt_index, distance, pred_index)
         candidate_matches = [(i_gt, d, i_pred)

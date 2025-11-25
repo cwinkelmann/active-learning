@@ -38,7 +38,7 @@ label_mapping = {"iguana_point": 1, "hard_negative": 2}
 # class_filter = ["iguana"]
 
 
-overlap = 0
+overlap = 160
 VISUALISE_FLAG = False
 empty_fraction = 0
 use_multiprocessing = True
@@ -199,7 +199,7 @@ train_floreana_Fernandina = DatasetFilterConfig(**{
     "dataset_filter": datasets_mapping["Floreana"] + datasets_mapping["Fernandina"],
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
-    "overlap": overlap,
+    "overlap": 160,
     "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
     "class_filter": class_filter,
@@ -504,7 +504,7 @@ train_all_extended = DatasetFilterConfig(**{
 
     "output_path": labels_path,
     "empty_fraction": empty_fraction,
-    "overlap": 0,
+    "overlap": overlap,
     "status_filter": [LabelingStatus.COMPLETED],
     "annotation_types": annotation_types,
     "class_filter": class_filter,
@@ -692,16 +692,16 @@ Fernandina_CVAT_val_class = DatasetFilterConfig(**{
 
 datasets = [
 
-    # train_floreana, val_floreana,
-    # train_fernandina_s1, val_fernandina_s2,
+    train_floreana, val_floreana,
+    train_fernandina_s1, val_fernandina_s2,
     # train_fernandina_m, val_fernandina_m,
 
     # train_genovesa, val_genovesa,
 
-    # train_floreana_Fernandina,
+    train_floreana_Fernandina,
 
     train_all_extended,
-    val_fwk,
+    # val_fwk,
 
     
     # train_genovesa_plus,

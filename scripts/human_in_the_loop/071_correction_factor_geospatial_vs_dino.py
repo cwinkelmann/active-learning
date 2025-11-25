@@ -22,7 +22,8 @@ from active_learning.analyse_detections import analyse_point_detections_geospati
 from active_learning.config.dataset_filter import GeospatialDatasetCorrectionConfig
 from active_learning.util.convenience_functions import get_tiles
 from active_learning.util.evaluation.correction_factor import estimate_geospatial_correction_factor, \
-    simple_scaling_calibration, global_estimate_geospatial_correction_factor, plot_density_scaling_factors
+    simple_scaling_calibration, global_estimate_geospatial_correction_factor, plot_density_scaling_factors, \
+    global_estimate_geospatial_correction_factor_by_pred, plot_prediction_analysis
 from active_learning.util.evaluation.evaluation import plot_confidence_density, Evaluator, plot_error_metrics_curve
 from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGrid
 from active_learning.util.projection import project_gdfcrs
@@ -43,16 +44,29 @@ if __name__ == '__main__':
     vis_output_dir.mkdir(parents=True, exist_ok=True)
     tile_size = 800  # Adjust as needed
 
-    # island_of_interest = "Isa"
-    # island_of_interest = "Gen"
-    # island_of_interest = "Fer"
-    # island_of_interest = "Esp"
-    island_of_interest = "Mar"
+    # island_of_interest = "isa"
+    # island_of_interest = "gen"
+    island_of_interest = "fer"
+    flight_of_interest = "fer_fwk01"
+    # island_of_interest = "esp"
+    # island_of_interest = "sanfe"
+    # island_of_interest = "scris"
+    # island_of_interest = "mar"
 
     # model_predictions_path = Path("/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Counts AI")
+    # confidence_threshold = 0.1
+
     model_predictions_path = Path("/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection_dla_20251118")
+    # model_predictions_path = Path("/Volumes/2TB/work/training_data_sync/Manual_Counting/AI_detection_dino_20251118")
+    confidence_threshold = 0.95
+
     model_predictions = list(model_predictions_path.glob("*.geojson"))
     model_predictions.sort()
+
+    mission_filter = []
+    model_predictions = [m for m in model_predictions if not m.name.startswith(".")]
+    model_predictions = [m for m in model_predictions if m.name.lower().startswith(island_of_interest)]
+    model_predictions = [m for m in model_predictions if m.name.lower().startswith(flight_of_interest)]
 
     human_predictions_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Geospatial_Annotations')
     human_predictions = list(human_predictions_path.glob("**/*.geojson"))
@@ -64,7 +78,7 @@ if __name__ == '__main__':
     # build the mapping
     for model_prediction in model_predictions:
         island_prefix = model_prediction.name.split("_")[0]
-        if island_of_interest is not None and not island_prefix == island_of_interest:
+        if island_of_interest is not None and not island_prefix.lower() == island_of_interest:
             continue
         assumed_human_predictions_path = human_predictions_path / island_prefix / model_prediction.name.replace("_detections",
                                                                                                  " counts")
@@ -82,6 +96,9 @@ if __name__ == '__main__':
         }
     )
 
+    if len(mapping) == 0:
+        raise ValueError(f"No data found for {island_of_interest}")
+
 
     simple_diff = []
     grid_enriched = []
@@ -94,7 +111,7 @@ if __name__ == '__main__':
         assumed_orthomosaic_predictions_path = m["assumed_orthomosaic_predictions_path"]
 
         simple_stats = {
-            # island
+            "island": island_of_interest,
             "mission": prediction_path.stem,
             "model_prediction": prediction_path,
             "human_prediction": reference_path,
@@ -105,6 +122,7 @@ if __name__ == '__main__':
         if prediction_path.exists():
             logger.info(f"Processing {prediction_path}")
             gdf_predictions = gpd.read_file(prediction_path)
+            gdf_predictions = gdf_predictions[gdf_predictions["scores"] > confidence_threshold]
             simple_stats["amount_prediction"] = len(gdf_predictions)
             simple_stats["avg_score"] = gdf_predictions.scores.mean()
 
@@ -134,9 +152,13 @@ if __name__ == '__main__':
             # predictions = Path(prediction_paths).glob("*.geojson")
 
             data = estimate_geospatial_correction_factor(prediction_path,
-                 reference_path,
-                 assumed_orthomosaic_predictions_path,
-                 outputdir, vis_output_dir, tile_size)
+                                     reference_path,
+                                     assumed_orthomosaic_predictions_path,
+                                     outputdir,
+                                     vis_output_dir,
+                                     tile_size,
+                                     confidence_threshold=confidence_threshold
+                                                         )
 
             gdf_grid_enriched = data["gdf_grid_enriched"]
             gdf_grid_enriched.to_file(vis_output_dir / f"grid_enriched_{assumed_orthomosaic_predictions_path.stem}.geojson",
@@ -145,13 +167,27 @@ if __name__ == '__main__':
             gdf_concat.to_file(outputdir / f"pred_vs_gt_{assumed_orthomosaic_predictions_path.stem}.geojson",
                                driver='GeoJSON', index=False)
 
-            # calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched)
+            calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched)
 
-            # density_scaling_factors = global_estimate_geospatial_correction_factor(gdf_grid_enriched)
+            density_scaling_factors = global_estimate_geospatial_correction_factor_by_pred(gdf_grid_enriched)
+            density_scaling_factors_ref = global_estimate_geospatial_correction_factor(gdf_grid_enriched)
 
-            # plot_density_scaling_factors(density_scaling_factors.T, overall_scaling_factor=scaling_factor,
+            # plot_prediction_analysis(density_scaling_factors.T,
+            #                                title=f'Density-Based Prediction Bias Analysis for {prediction_path.stem}',
+            #                           show=True, separate_plots=False,
+            #                          save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{prediction_path.stem}")
+
+            # plot_prediction_analysis(density_scaling_factors.T,
+            #                                title=False,
+            #                           show=True, separate_plots=True,
+            #                          save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{prediction_path.stem}")
+            #
+            # plot_density_scaling_factors(density_scaling_factors_ref.T, overall_scaling_factor=scaling_factor,
             #                              title=f'Density-Based Prediction Bias Analysis for {prediction_path.stem}',
             #                              show=True, save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{prediction_path.stem}")
+
+            # simple plot
+
 
             grid_enriched.append(gdf_grid_enriched)
         except Exception as e:
@@ -166,15 +202,21 @@ if __name__ == '__main__':
 
     gdf_grid_enriched_all.to_file(outputdir / f"grid_enriched_{island_of_interest}.geojson", driver='GeoJSON', index=False)
 
-    density_scaling_factors = global_estimate_geospatial_correction_factor(gdf_grid_enriched_all)
+    density_scaling_factors_ref = global_estimate_geospatial_correction_factor(gdf_grid_enriched_all)
+    density_scaling_factors = global_estimate_geospatial_correction_factor_by_pred(gdf_grid_enriched_all)
+
     calibrated_gdf, scaling_factor = simple_scaling_calibration(gdf_grid_enriched_all)
-    plot_density_scaling_factors(density_scaling_factors.T, overall_scaling_factor=scaling_factor, )
+    # plot_density_scaling_factors(density_scaling_factors_ref.T, overall_scaling_factor=scaling_factor, )
+
+    plot_prediction_analysis(density_scaling_factors.T,
+                             show=True, separate_plots=True,
+                             save_path=vis_output_dir / f"density_based_prediction_bias_analysis_{island_of_interest}")
 
     df_simple_diff = pd.DataFrame(simple_diff)
-    df_simple_diff["diff"] = df_simple_diff["amount_reference"] - df_simple_diff["amount_prediction"]
+    df_simple_diff["diff"] = df_simple_diff["amount_prediction"] - df_simple_diff["amount_reference"]
 
 
     # in percent
     df_simple_diff["diff_percent"] = df_simple_diff["diff"] / df_simple_diff["amount_reference"] * 100
-
-    df_simple_diff.to_csv(outputdir / "correction_summary.csv", index=False)
+    print(df_simple_diff)
+    df_simple_diff.to_csv(outputdir / f"correction_summary_{island_of_interest}.csv", index=False)

@@ -142,7 +142,7 @@ if __name__ == '__main__':
     hasty_data_path = Path(
         "/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/Datasets/IguanasFromAbove/Goldstandard Quality Analysis/2025_04_09/")
 
-    VISUALISE_ANNOTATIONS = False
+    VISUALISE_ANNOTATIONS = True
 
     coco_path = "coco_annotations.json"
     hasty_path = hasty_data_path / "annotations.json"
@@ -223,7 +223,7 @@ if __name__ == '__main__':
 
         print(f"images blank: {len(image_blank)}, images labelled: {len(image_labelled)}")
 
-        df_false_positives_amy, df_true_positives_amy, df_false_negatives_amy = analyse_point_detections_greedy(
+        df_false_positives_amy, df_true_positives_amy, df_false_negatives_amy, gdf_ground_truth_all = analyse_point_detections_greedy(
             df_detections=df_detections_amy,
             df_ground_truth=df_ground_truth,
             radius=radius,
