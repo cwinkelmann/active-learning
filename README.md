@@ -1,23 +1,30 @@
 # Human In the Loop Data Analytics (HILDA) active learning methods to improve machine learning for counting small infrequent Objects in drone Images
+This repository was developed around the Iguanas from Above Project to help with counting all the animals in on the Galapagos Islands. 
+Some of this code was used for the thesis project [Automated Marine Iguana Detection Using Drone Imagery and Deep Learning on the Galápagos Islands](https://figshare.com/articles/thesis/Automated_Marine_Iguana_Detection_Using_Drone_Imagery_and_Deep_Learning_on_the_Gal_pagos_Islands/30719999?file=59865122)
 
-This repository was developed around the Iguanas from Above Project to help with counting all the animals in on the Galapagsos Islands. 
+It was built around HerdNet developed by Alexandre Delplanque https://github.com/Alexandre-Delplanque/HerdNet, which was forked to extent it and experiment with its function: https://github.com/cwinkelmann/HerdNet
+
+
 
 ## Setup
+
+First checkout the Herdnet Repo alongside this.
+
 ```shell
 # delete the old environment if it exists
-conda env remove -n carrot_active_learning
+conda env remove -n active_learning
 
 # conda create -n active_learning python=3.11
 
-conda env create -n carrot_active_learning -f environment.yml
+conda env create -n active_learning -f environment.yml
 
-#conda install gdal==3.6.2
+# activate the environment
+conda activate active_learning
 
-#pip install -r requirements.txt
+# switch into the repo folder
+cd ../HerdNet
 
-# Now install the herdnet package
-in the root of the herdnet package
-conda env update -f environment.yml --dry-run
+conda env update -f environment.yml
 ```
 
 
