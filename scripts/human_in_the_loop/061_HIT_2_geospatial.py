@@ -82,14 +82,15 @@ if __name__ == "__main__":
     island_short_filter = "Isa"
     island_full_name = "Isabela"
     prefixes_ready_to_analyse = None
-    prefixes_ready_to_analyse = [
-        "mar_mnw03_07122021"
+    # prefixes_ready_to_analyse = [
+        # "mar_mnw03_07122021"
+        # "flo_flbb02"
         # "iscr02_26012023",
         # "iseb05_19012023",
         # "iseb03_19012023",
-    ]
+    # ]
     # configs_path = Path(f"/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Analysis_of_counts/correction_run_{island_full_name}")
-    configs_path = Path(f"/Volumes/u235425.your-storagebox.de/Iguanas_From_Above/Manual_Counting/Analysis_of_counts_2025_11_20/all_drone_deploy_uncorrected")
+    configs_path = Path(f"/Volumes/2TB/Manual_Counting/Analysis_of_counts_2025_11_20/all_drone_deploy_uncorrected")
     dataset_correction_configs = list(f for f in configs_path.glob("*_config.json") if not f.name.startswith("._"))
     logger.info(f"Found: {len(dataset_correction_configs)} configs in {configs_path}")
 
