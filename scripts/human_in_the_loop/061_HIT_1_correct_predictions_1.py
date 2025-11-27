@@ -183,13 +183,13 @@ if __name__ == "__main__":
     vis_output_dir = base_path / "visualisation"
     vis_output_dir.mkdir(exist_ok=True)
 
-    # report_configs = batched_geospatial_correction_upload(configs,
-    #                               output_dir=base_path,
-    #                               vis_output_dir=vis_output_dir,
-    #                               submit_to_CVAT=True,
-    #                               include_reference=False,
-    #                               delete_dataset_if_exists=False,
-    #                               radius=0.5,
-    #                               )
+    report_configs = batched_geospatial_correction_upload(configs,
+                                  output_dir=base_path,
+                                  vis_output_dir=vis_output_dir,
+                                  submit_to_CVAT=True,
+                                  include_reference=False,
+                                  delete_dataset_if_exists=False,
+                                  radius=0.5,
+                                  )
 
     logger.info(f"Report saved to {report_configs}")

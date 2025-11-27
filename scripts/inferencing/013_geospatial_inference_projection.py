@@ -350,7 +350,7 @@ if __name__ == '__main__':
     #
     #
     orthomosaic_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/.shortcut-targets-by-id/1u0tmSqWpyjE3etisjtWQ83r3cS2LEk_i/Manual Counting /Pix4D orthomosaics/Fer/FCD01-02-03_20122021.tif')
-    orthomosaic_path = Path('/Volumes/2TB/Manual_Counting/Pix4D Orthomosaics/FNE01-02-03_19122021/exports/FNE01-02-03_19122021-orthomosaic.tiff')
+    orthomosaic_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/4ms_gsd04-500.tif')
     # images_path = Path("Fer_FCD01-02-03_tiles")
     geospatial_inference_pipeline(orthomosaic_path, hydra_cfg=hydra_cfg)
 

@@ -38,70 +38,19 @@ def current_date():
     today = date.today().strftime('%Y%m%d')
     return today
 
-    # def get_tiles(orthomosaic_path,
-    #               output_dir,
-    #               tile_size=1250):
-    #     """
-    #     Helper to to create a grid of tiles from an orthomosaic and slice it into smaller images.
-    #     :param orthomosaic_path:
-    #     :param output_dir:
-    #     :param tile_size:
-    #     :return:
-    #     """
-    #     logger.info(f"Tiling {orthomosaic_path} into {tile_size}x{tile_size} tiles")
-    #     output_dir_metadata = output_dir / 'metadata'
-    #     output_dir_jpg = output_dir / 'jpg'
-    #     output_dir_metadata.mkdir(parents=True, exist_ok=True)
-    #     output_dir_jpg.mkdir(parents=True, exist_ok=True)
-    #
-    #     filename = Path(f'grid_{orthomosaic_path.with_suffix(".geojson").name}')
-    #     if not output_dir_metadata.joinpath(filename).exists():
-    #         grid_manager = GeoSpatialRasterGrid(Path(orthomosaic_path))
-    #
-    #         grid_gdf = grid_manager.create_regular_grid(x_size=tile_size, y_size=tile_size, overlap_ratio=0)
-    #         grid_gdf.to_file(output_dir_metadata / filename, driver='GeoJSON')
-    #         grid_manager.gdf_raster_mask.to_file(
-    #             output_dir_metadata / Path(f'raster_mask_{orthomosaic_path.with_suffix(".geojson").name}'),
-    #             driver='GeoJSON')
-    #
-    #     else:
-    #         logger.info(f"Grid file {filename} already exists, skipping grid creation")
-    #         grid_gdf = gpd.read_file(output_dir_metadata / filename)
-    #
-    #     slicer = GeoSlicer(base_path=orthomosaic_path.parent,
-    #                        image_name=orthomosaic_path.name,
-    #                        grid=grid_gdf,
-    #                        output_dir=output_dir)
-    #
-    #     gdf_tiles = slicer.slice_very_big_raster()
-    #
-    #     converted_tiles = convert_tiles_to(tiles=list(slicer.gdf_slices.slice_path),
-    #                                        format=ImageFormat.JPG,
-    #                                        output_dir=output_dir_jpg)
-    #     converted_tiles = [a for a in converted_tiles]
-    #     logger.info(f"created {len(converted_tiles)} tiles in {output_dir_jpg}")
-
-    def insert_jpg_folder(path_str):
-        p = Path(path_str)
-        new_dir = p.parent / "jpg"
-        new_filename = p.stem + ".jpg"
-        return str(new_dir / new_filename)
-
-    gdf_tiles["jpg"] = gdf_tiles["slice_path"].apply(insert_jpg_folder)
-
-    return gdf_tiles, output_dir_jpg
-
 
 def herdnet_geospatial_inference(cfg: DictConfig,
                                  images_dir: Path,
                                  tiff_dir: Path,
-                                 # gdf_tiles: gpd.GeoDataFrame,
                                  output_dir: Path,
                                  plain_inference=True,
                                  ts=256) -> tuple[DataFrame, dict[str, gpd.GeoDataFrame]]:
     """
     Inference on a geospatial dataset
 
+    :param output_dir:
+    :param tiff_dir:
+    :param images_dir:
     :param ts: Thumbnail size
     :param cfg:
     :param plain_inference:
@@ -179,7 +128,7 @@ def herdnet_geospatial_inference(cfg: DictConfig,
     return df_detections, dict_gdf_detections
 
 
-def get_config(config_name="config_2025_04_14_dla"):
+def get_config(config_name="config_2025_011_17_dla34"):
     # Initialize hydra
     hydra.initialize(config_path="../configs")
 
@@ -196,6 +145,7 @@ def geospatial_inference_pipeline(orthomosaic_path: Path,
                                   tile_images_path: Path = None):
     """
     Main function to run the geospatial inference pipeline.
+    :param prediction_output_dir:
     :param orthomosaic_path: Path to the orthomosaic image.
     :return: None
     """
@@ -259,11 +209,13 @@ if __name__ == '__main__':
     # hydra_cfg = get_config(config_name="config_2025_08_10_dinov2_floreana_fernandia_all_val_fernandina")
     hydra_cfg = get_config(config_name="config_2025_011_17_dla34")
     prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dla_20251122")
+    prediction_output_dir = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/AI_detection_dla_20251122')
 
     # hydra_cfg = get_config(config_name="config_2025_011_17_dino")
     # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dino_202511122")
 
     dd_paths = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/")
+    dd_paths = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/orthomosaics')
 
     # hydra_cfg.device_name = random_device()
     max_workers = 6

@@ -13,7 +13,6 @@ import pandas as pd
 from shapely.geometry import MultiPoint
 
 from com.biospheredata.types.GeoreferencedImage import GeoreferencedImage
-from com.biospheredata.types.ImageStatistics import ImageStatistics
 
 
 class GeoreferencedImageList(object):

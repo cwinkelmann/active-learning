@@ -201,22 +201,18 @@ def reorder_columns(df):
 
 if __name__ == "__main__":
     island_folder_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024")
-    # island_folder_path = Path("/Volumes/G-DRIVE/Iguanas_From_Above/2020_2021_2022_2023_2024")
-    # island_folder_path = Path("/Users/christian/data/missions/norway_db_test")
-    # island_folder_path = Path("/Users/christian/data/missions/norway_db_test_2/")
 
     # get_analysis_ready_image_metadata = main(base_folder=island_folder_path, local_epsg="25833")
-    database_path = '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready.parquet'
+    database_path = '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics'
 
-    current_date = "2024_06_10"
-    updated_database_path = f'/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/database/2020_2021_2022_2023_2024_database_analysis_ready_{current_date}.parquet'
-    gdf_db = gpd.read_parquet(database_path)
+    current_date = "2025_11_11"
+    updated_database_path = f'/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/2020_2021_2022_2023_2024_database_analysis_ready_{current_date}.parquet'
+    # gdf_db = gpd.read_parquet(database_path)
 
     # setting this to None will avoid re-processing existing images
-    island_folder_path = None
-
-    # gdf_db = gdf_db[gdf_db.folder_name == "FLMO06_23052024"]
-    # gdf_db = gdf_db[gdf_db.folder_name == "FLCC02_29012023"]
+    island_folder_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/flight_6')
+    island_folder_path = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Matrice 4e/Rerik')
+    gdf_db = None
     gdf_analysis_ready_image_metadata = create_image_db(images_path=island_folder_path,
                                                         local_epsg="32715",
                                                         gdf_preexisting_database=gdf_db)
@@ -228,7 +224,6 @@ if __name__ == "__main__":
     gdf_analysis_ready_image_metadata = reorder_columns(gdf_analysis_ready_image_metadata)
 
     # remove infitiy points
-
     gdf_analysis_ready_image_metadata = gdf_analysis_ready_image_metadata[
         ~gdf_analysis_ready_image_metadata.geometry.apply(lambda geom: np.isinf(geom.x) or np.isinf(geom.y))
     ]
@@ -236,6 +231,8 @@ if __name__ == "__main__":
 
     gdf_analysis_ready_image_metadata = convert_to_serialisable_dataframe(gdf_analysis_ready_image_metadata)
     gdf_analysis_ready_image_metadata.to_parquet(updated_database_path)
-
+    # save as geojson
+    geojson_path = str(updated_database_path).replace('.parquet', '.geojson')
+    gdf_analysis_ready_image_metadata.to_file(geojson_path, driver='GeoJSON')
 
     logger.info(f"Image metadata saved to {updated_database_path}")

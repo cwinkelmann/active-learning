@@ -28,6 +28,7 @@ def create_image_db(images_path: Path = None,
                     image_extension="JPG") -> gpd.GeoDataFrame:
     """
     Main function to create the image database from a folder of images.
+    :param images_path:
     :param image_extension:
     :param gdf_preexisting_database:
     :param local_epsg:
