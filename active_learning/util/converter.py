@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import shutil
 import typing
 import uuid
@@ -9,10 +10,15 @@ import pandas as pd
 import shapely
 from loguru import logger
 from shapely.geometry.point import Point
-from ultralytics.data.converter import convert_coco
+try:
+    from ultralytics.data.converter import convert_coco
+except ImportError:
+    logger.warning("ultralytics not installed, coco2yolo will not work")
 
 from active_learning.config.mapping import keypoint_id_mapping
-from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords
+from active_learning.util.image import get_image_id
+from active_learning.util.projection import project_gdfcrs, convert_gdf_to_jpeg_coords, get_geotransform, \
+    get_orthomosaic_crs, pixel_to_world_point
 from com.biospheredata.converter.HastyConverter import get_image_dimensions
 from com.biospheredata.types.COCOAnnotation import COCOAnnotations, Image, Category, Annotation
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, LabelClass, ImageLabel, AnnotatedImage, \
@@ -132,7 +138,6 @@ def coco2yolo(
     temp_dir = source_dir / "yolo_tmp"
 
     assert coco_annotations.exists(), f"{coco_annotations} does not exist"
-    # TODO this ultralytics COCO converter is crap
     convert_coco(
         labels_dir=coco_annotations.parent,
         save_dir=temp_dir,
@@ -373,7 +378,11 @@ def coco2hasty(coco_data: typing.Dict, images_path: Path, project_name="coco_con
     return hasty_annotation
 
 
-def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) -> typing.List[ImageLabelCollection]:
+def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame,
+                                images_path: Path,
+                                dataset_name: str | None = None,
+                                hA_reference: typing.Optional[HastyAnnotationV2] = None,
+                                ) -> typing.List[AnnotatedImage]:
     assert "images" in df_prediction.columns, "images column not found in the DataFrame"
     # assert labels
     assert "labels" in df_prediction.columns, "labels, integer 1,2... column not found in the DataFrame"
@@ -388,36 +397,122 @@ def herdnet_prediction_to_hasty(df_prediction: pd.DataFrame, images_path: Path) 
         image_name = str(image_name)
         w, h = get_image_dimensions(image_path= images_path / image_name)
 
-        annotations: typing.List[PredictedImageLabel] = []
+        annotations: typing.List[PredictedImageLabel, ImageLabel] = []
         # Iterate over DataFrame rows
         for _, row in df_group.iterrows():
-
-            if row["scores"] is None or pd.isna(row["scores"]):
+            if row.x is None or row.y is None or np.isnan(row.x) or np.isnan(row.y) :
+                logger.warning(f"Skipping row with missing x or y coordinates for image {image_name}")
                 continue
 
-            annotation = PredictedImageLabel(
-                score=float(row["scores"]),
-                class_name=row["species"],  # use species as the label/class_name
-                bbox=None,   # if not available, keep as None
-                polygon=None,
-                mask=[],     # or adjust if you have mask data
-                keypoints = [Keypoint(
-                    x=int(row.x),
-                    y=int(row.y),
-                    keypoint_class_id=keypoint_id_mapping.get(row.species, None),
-                )],  # you can store extra information if needed
-                kind=row.get("kind", None)
-            )
+            try:
+                annotation = PredictedImageLabel(
+                    score=float(row["scores"]),
+                    class_name=row["species"],  # use species as the label/class_name
+                    bbox=None,   # if not available, keep as None
+                    polygon=None,
+                    mask=[],     # or adjust if you have mask data
+                    keypoints = [Keypoint(
+                        x=int(row.x),
+                        y=int(row.y),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("body")),
+                    )],  # you can store extra information if needed
+                    kind=row.get("kind", None)
+                )
+            except Exception as e:
+                # logger.info(f"Error creating PredictedImageLabel image {image_name}, {e}")
+                annotation = ImageLabel(
+                    class_name=row["species"],  # use species as the label/class_name
+                    bbox=None,  # if not available, keep as None
+                    polygon=None,
+                    mask=[],  # or adjust if you have mask data
+                    keypoints=[Keypoint(
+                        x=int(row.x),
+                        y=int(row.y),
+                        keypoint_class_id=keypoint_id_mapping.get(row.species.lower(), keypoint_id_mapping.get("body")),
+                    )],  # you can store extra information if needed
+
+                )
             annotations.append(annotation)
 
-        ILC_list.append( ImageLabelCollection(
+        if hA_reference is not None:
+            ilC = hA_reference.get_image_by_name(image_name, dataset_name=dataset_name)
+            # ilC.labels.extend(annotations)
+            # get the image from the reference
+
+            ilC = AnnotatedImage(
+                image_id=ilC.image_id,
+                image_name=str(image_name),
+                labels=annotations,
+                width=w,
+                height=h,
+                dataset_name=dataset_name,
+            )
+        else:
+            ilC = AnnotatedImage(
             image_name=str(image_name),
             labels=annotations,
             width=w,
-            height=h
-        ))
+            height=h,
+                dataset_name=dataset_name,
+        )
+        ILC_list.append( ilC )
 
     return ILC_list
+
+def _is_with_edge(x: int, y: int, width: int, height: int, edge_threshold: int = 40):
+    return x < edge_threshold or x > (width - edge_threshold) or y < edge_threshold or y > (height - edge_threshold)
+
+def hasty_to_shp(tif_path: Path,
+                 hA_reference: HastyAnnotationV2,
+                 edge_threshold: int = 50,
+                 suffix=".tif"):
+    """
+    Convert Hasty Annotation to a GeoDataFrame with geometries in geospatial coordinates.
+    :param tif_path: 
+    :param hA_reference: 
+    :param suffix: 
+    :return: 
+    """
+    # TODO look at this: convert_jpeg_to_geotiff_coords from playground/052_shp2other.py
+    # convert_jpeg_to_geotiff_coords()
+
+    assert tif_path is not None, "tif_path is None"
+
+    data = []
+    if len(hA_reference.images) == 0:
+        raise ValueError("No images in Hasty Annotation")
+
+    # Mark objects on the edge
+    for img in hA_reference.images:
+        img_name = Path(img.image_name).with_suffix(suffix=suffix)
+        geo_transform = get_geotransform(tif_path / img_name)
+        crs = get_orthomosaic_crs(tif_path / img_name)
+
+        for label in img.labels:
+
+            # get the pixel coordinates
+            x, y = label.incenter_centroid.x, label.incenter_centroid.y
+            # get the world coordinates
+            p = pixel_to_world_point(geo_transform, x, y)
+            # set the new coordinates
+            # TODO add some more metadata
+            if isinstance(label, PredictedImageLabel):
+                score = label.score
+            else:
+                score = None
+            data.append({
+                "img_name": img_name,
+                "img_id": img.image_id,
+                "label": label.class_name,
+                "label_id": label.id,
+                "score": score,
+                "geometry": p,
+                "on_edge": _is_with_edge(x, y, img.width, img.height, edge_threshold=edge_threshold),
+                "local_x": int(x),
+                "local_y": int(y),
+            })
+
+    return gpd.GeoDataFrame(data, crs=crs)
 
 def ifa_point_shapefile_to_hasty(gdf: gpd.GeoDataFrame, images_path: Path,
                        labels=1, species="iguana") -> ImageLabelCollection:

@@ -1,0 +1,23 @@
+defaults:
+  - model: cnn
+  - dataset: mnist
+  - _self_
+
+# Hydra job configuration
+hydra:
+  job:
+    chdir: true
+
+# Experiment settings
+experiment:
+  name: "hydra_sweep"
+  project: "hydra-example"
+  entity: null  # your wandb entity
+  tags: ["hydra", "sweep"]
+  notes: "Hydra configuration example"
+
+# Training settings
+training:
+  epochs: 10
+  seed: 42
+  device: "cuda"

@@ -218,9 +218,6 @@ def visualise_flight_path(date: str,
         ax.text(scale_x + scale_length / 2, scale_y + y_range * 0.01,
                 f"{scale_length:.1f}m", ha='center', fontsize=8)
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 
@@ -385,9 +382,6 @@ def visualise_height_profile(date: str,
     fig.text(0.5, 0.02, flight_stats, ha='center', fontsize=12,
              bbox=dict(boxstyle="round,pad=0.5", fc="#f0f0f0", ec="#dddddd", alpha=0.9))
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.92, bottom=0.08, hspace=0.25)
@@ -776,6 +770,7 @@ def visualise_flights_speed_multiple_2(fcd_entries, date=None, site=None,
 
 def visualise_drone_model(gdf: gpd.GeoDataFrame,
                           title = "Drone Models Used by",
+                          legend_title = "Drone Model",
                           aggregation="day",
                           group_col_metric = 'drone_name', figure_path=None):
     """
@@ -816,10 +811,13 @@ def visualise_drone_model(gdf: gpd.GeoDataFrame,
         if all(col in gdf.columns for col in ['YYYYMMDD', 'flight_code', 'site_code']):
             gdf['flight_id'] = gdf['YYYYMMDD'] + '_' + gdf['flight_code'] + '_' + gdf['site_code']
             group_col = 'flight_id'
-        else:
-            raise ValueError("Flight aggregation requires 'YYYYMMDD', 'flight_code', and 'site_code' columns")
+    elif aggregation == "expedition_phase":
+        group_col = 'expedition_phase'
+
     else:
-        raise ValueError("Aggregation must be one of: 'day', 'month', 'year', or 'flight'")
+        pass
+    # else:
+    #     raise ValueError("Aggregation must be one of: 'day', 'month', 'year', or 'flight'")
 
     # Group by aggregation level and model, then count
     model_counts = gdf.groupby([group_col, group_col_metric]).size().unstack(fill_value=0)
@@ -841,7 +839,7 @@ def visualise_drone_model(gdf: gpd.GeoDataFrame,
     ax.tick_params(colors='#666666')
 
     # Add title and labels
-    ax.set_title(f"{title} {aggregation.capitalize()}",
+    ax.set_title(f"{title}",
                  fontsize=16, fontweight='bold', color='#333333', pad=20)
     ax.set_xlabel(f"{aggregation.capitalize()}", fontsize=12, color='#555555')
     ax.set_ylabel("Number of Images", fontsize=12, color='#555555')
@@ -850,7 +848,7 @@ def visualise_drone_model(gdf: gpd.GeoDataFrame,
     plt.xticks(rotation=45, ha='right')
 
     # Add legend with improved styling
-    leg = ax.legend(title="Drone Models", frameon=True, framealpha=0.9,
+    leg = ax.legend(title=legend_title, frameon=True, framealpha=0.9,
                     facecolor='white', edgecolor='#dddddd', fontsize=10)
     leg.get_title().set_fontsize(12)
 
@@ -880,17 +878,13 @@ def visualise_drone_model(gdf: gpd.GeoDataFrame,
     top_model_pct = top_model_count / total_images * 100
 
     stats_text = (f"Total Images: {total_images}\n"
-                  f"Unique Drone Models: {unique_models}\n"
+                  f"Unique Values: {unique_models}\n"
                   f"Most Used: {top_model} ({top_model_pct:.1f}%)")
 
     # Place the stats box in the upper left corner
     ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#dddddd", alpha=0.9))
-
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 
@@ -1128,9 +1122,6 @@ def visualize_height_distribution(gdf: gpd.GeoDataFrame,
             else:
                 ax_violin.set_visible(False)
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     # Adjust layout
     plt.tight_layout()
@@ -1231,9 +1222,6 @@ def visualize_height_boxplot(gdf: gpd.GeoDataFrame,
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#dddddd", alpha=0.9))
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
 
@@ -1333,9 +1321,6 @@ def visualize_height_ridgeplot(gdf: gpd.GeoDataFrame,
     # Add x-label to the bottom axis
     axes[-1].set_xlabel(f"{height_col} ({unit})", fontsize=12, color='#555555')
 
-    # Add watermark
-    fig.text(0.99, 0.01, "Generated with Python", ha='right', va='bottom',
-             fontsize=8, color='#cccccc', style='italic')
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.92)

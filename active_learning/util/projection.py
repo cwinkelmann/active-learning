@@ -12,7 +12,7 @@ from PIL import Image
 from loguru import logger
 
 from active_learning.types.Exceptions import ProjectionError
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import PredictedImageLabel
 
 def convert_gdf_to_jpeg_coords(gdf: gpd.GeoDataFrame, tiff_path: Path) -> gpd.GeoDataFrame:
@@ -102,7 +102,7 @@ def get_orthomosaic_crs(orthomosaic_path: Path):
     # Open the orthomosaic to get its CRS
     with rasterio.open(orthomosaic_path) as dataset:
         ortho_crs = dataset.crs  # Get the CRS of the orthomosaic
-
+        # logger.debug(f"Orthomosaic CRS: {ortho_crs}")
         return ortho_crs
 
 def get_orthomosaic_epsg(orthomosaic_path: Path):
@@ -161,7 +161,7 @@ def get_geotransform(orthomsoaic_path: Path):
     """
     if not Path.is_file(orthomsoaic_path):
         raise FileNotFoundError(f"File {orthomsoaic_path} does not exist")
-    orthophoto_raster = gdal.Open(orthomsoaic_path)
+    orthophoto_raster = gdal.Open(str(orthomsoaic_path))
     geo_transform = orthophoto_raster.GetGeoTransform()
     return geo_transform
 
@@ -214,7 +214,9 @@ def project_gdfcrs(gdf: gpd.GeoDataFrame, orthomosaic_path: Path) -> gpd.GeoData
     Returns:
     - gdf_proj (geopandas.GeoDataFrame): New GeoDataFrame with projected geometries.
     """
-
+    epsg=get_orthomosaic_epsg(orthomosaic_path)
+    if epsg is None:
+        raise ProjectionError(f"Could not determine EPSG code for orthomosaic at {orthomosaic_path}")
     gdf_proj = gdf.to_crs(epsg=get_orthomosaic_epsg(orthomosaic_path))
 
     return gdf_proj

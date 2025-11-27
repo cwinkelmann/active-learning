@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from active_learning.util.evaluation.evaluation import submit_for_cvat_evaluation, evaluate_predictions
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 import fiftyone as fo
 from loguru import logger

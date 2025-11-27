@@ -1,0 +1,236 @@
+[
+  {
+    "name": "hard_negative",
+    "id": 6210954,
+    "color": "#3294e5",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089979,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Alcelaphinae",
+    "id": 6210832,
+    "color": "#9d12d7",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089888,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Alcelaphinae_prediction",
+    "id": 6210833,
+    "color": "#8b707d",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089889,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Buffalo",
+    "id": 6210834,
+    "color": "#83b5eb",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089890,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Buffalo_prediction",
+    "id": 6210835,
+    "color": "#f2b5d3",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089891,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Elephant",
+    "id": 6210836,
+    "color": "#206000",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089892,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Elephant_prediction",
+    "id": 6210837,
+    "color": "#021739",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089893,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Kob",
+    "id": 6210838,
+    "color": "#4e2465",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089894,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Kob_prediction",
+    "id": 6210839,
+    "color": "#d07f39",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089895,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Warthog",
+    "id": 6210840,
+    "color": "#20cee3",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089896,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Warthog_prediction",
+    "id": 6210841,
+    "color": "#21e375",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089897,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Waterbuck",
+    "id": 6210842,
+    "color": "#063c02",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089898,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "Waterbuck_prediction",
+    "id": 6210843,
+    "color": "#e09252",
+    "type": "any",
+    "attributes": [
+      {
+        "id": 2089899,
+        "name": "label_id",
+        "input_type": "text",
+        "mutable": true,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  }
+]

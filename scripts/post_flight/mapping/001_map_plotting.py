@@ -12,7 +12,7 @@ import pyproj
 import numpy as np
 
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, format_lat_lon, \
-    draw_accurate_scalebar, get_geographic_ticks
+    draw_accurate_scalebar, get_geographic_ticks, draw_segmented_scalebar, draw_accurate_scalebar_v2
 
 web_mercator_projection_epsg = 3857
 
@@ -190,28 +190,10 @@ HNEE/Winkelmann, 2025"""
     # Note that you have to use .copy() here too!
     ax.add_artist(na.copy())
 
-    # # Add scale bar
-    # ax.add_artist(ScaleBar(1, dimension='si-length', length_fraction=0.25,
-    #                 scale_loc='top',
-    #                 units='m',
-    #                 location='lower left',
-    #                 color='black',
-    #                 box_color='white',
-    #                 box_alpha=0.8))
-
-    # Replace your draw_segmented_scalebar call with:
-    draw_accurate_scalebar(ax, islands_wm,
-                           location=(islands_wm.total_bounds[0] + 100,
-                                     islands_wm.total_bounds[1] + 100),
+    draw_accurate_scalebar_v2(ax,
                            length_km=100,  # Total length in km
-                           segments=3,
-                           height=6500)
+                           segments=4, height_relative=0.015)
 
-    # draw_segmented_scalebar(ax, start=(islands_wm.total_bounds[0], islands_wm.total_bounds[1]),
-    #                         segments=3, segment_length=30000,
-    #                         height=6500, units="km")
-
-    # TODO add legend
 
     # Cleanup main map
     # ax.set_axis_off()

@@ -6,6 +6,7 @@ import geopandas as gpd
 # Packages used by this tutorial
 import pandas as pd
 import pyproj
+import shapely
 from matplotlib.offsetbox import AnchoredText
 # Importing the main package
 from shapely.geometry import Polygon, MultiPolygon, box
@@ -26,7 +27,7 @@ def format_lat_lon(value, pos, is_latitude=True, rounding=1):
     return f"{value}°{direction}"
 
 # First convert the axis limits from Web Mercator to WGS84 for proper lat/lon labeling
-def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
+def get_geographic_ticks_old(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
     """Convert projected coordinates to geographic coordinates for axis ticks"""
     transformer = pyproj.Transformer.from_crs(epsg_from, epsg_to, always_xy=True)
 
@@ -52,10 +53,73 @@ def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
 
     return x_ticks_proj, x_ticks_geo, y_ticks_proj, y_ticks_geo
 
+def _nice_degree_step(span_deg, target_ticks=5):
+    """Pick a pleasant step size in degrees for ~target_ticks."""
+    candidates = np.array([0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0])
+    approx = span_deg / max(target_ticks - 1, 1)
+    return candidates[np.argmin(np.abs(candidates - approx))]
+
+def _frange(start, stop, step):
+    """Range for floats, inclusive of stop (with tolerance)."""
+    n = int(np.floor((stop - start) / step + 1e-9)) + 1
+    return np.round(start + step * np.arange(n), 10)
+
+def get_geographic_ticks(ax, epsg_from=3857, epsg_to=4326, n_ticks=5):
+    """
+    Choose 'nice' lon/lat ticks in geographic space (deg), force 0° lat if visible,
+    then transform those ticks back to the projected CRS for Matplotlib axes.
+    """
+    # Transformers
+    proj_to_geo = pyproj.Transformer.from_crs(epsg_from, epsg_to, always_xy=True)
+    geo_to_proj = pyproj.Transformer.from_crs(epsg_to, epsg_from, always_xy=True)
+
+    # Current limits (projected)
+    x_min, x_max = ax.get_xlim()
+    y_min, y_max = ax.get_ylim()
+
+    # Convert x-limits -> longitudes (lat doesn't matter for lon in Web Mercator)
+    lon_min, _ = proj_to_geo.transform(x_min, 0.0)
+    lon_max, _ = proj_to_geo.transform(x_max, 0.0)
+    if lon_min > lon_max:  # just in case of reversed limits
+        lon_min, lon_max = lon_max, lon_min
+
+    # Convert y-limits -> latitudes (lon doesn't matter for lat in Web Mercator)
+    _, lat_min = proj_to_geo.transform(0.0, y_min)
+    _, lat_max = proj_to_geo.transform(0.0, y_max)
+    if lat_min > lat_max:
+        lat_min, lat_max = lat_max, lat_min
+
+    # Pick 'nice' step sizes
+    lon_step = _nice_degree_step(lon_max - lon_min, n_ticks)
+    lat_step = _nice_degree_step(lat_max - lat_min, n_ticks)
+
+    # Snap to step grid
+    lon_start = np.floor(lon_min / lon_step) * lon_step
+    lon_stop  = np.ceil(lon_max / lon_step) * lon_step
+    lat_start = np.floor(lat_min / lat_step) * lat_step
+    lat_stop  = np.ceil(lat_max / lat_step) * lat_step
+
+    # Build degree tick arrays
+    x_ticks_geo = _frange(lon_start, lon_stop, lon_step)
+    y_ticks_geo = _frange(lat_start, lat_stop, lat_step)
+
+    # GUARANTEE 0° latitude tick if visible
+    if (lat_min <= 0.0 <= lat_max) and (not np.isclose(y_ticks_geo, 0.0).any()):
+        y_ticks_geo = np.sort(np.append(y_ticks_geo, 0.0))
+
+    # Transform back to projected for placement
+    x_ticks_proj = [geo_to_proj.transform(lon, 0.0)[0] for lon in x_ticks_geo]
+    y_ticks_proj = [geo_to_proj.transform(0.0, lat)[1] for lat in y_ticks_geo]
+
+    return x_ticks_proj, x_ticks_geo.tolist(), y_ticks_proj, y_ticks_geo.tolist()
+
 
 def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
-                           length_km=100, segments=4, height_fraction=0.015,
-                           web_mercator_projection_epsg=3857, WSG84_projection_epsg=4326):
+                           length_km=100,
+                           segments=4,
+                           height_fraction=0.015,
+                           web_mercator_projection_epsg=3857,
+                           WSG84_projection_epsg=4326):
     """
     Draw a scalebar that accounts for the scale variation in Web Mercator projection
     by using the center latitude of the map.
@@ -124,8 +188,111 @@ def draw_accurate_scalebar(ax, islands_wm, location=(0.1, 0.05),
             bbox=dict(boxstyle="round,pad=0.3", facecolor='white',
                       edgecolor='gray', alpha=0.9))
 
+def draw_accurate_scalebar_v2(ax,
+                           location_relative=(0.05, 0.05),  # Use relative positioning
+                           length_km=100,
+                           segments=4,
+                           height_relative=0.02,  # Height as fraction of map height
+                           web_mercator_projection_epsg=3857,
+                           WSG84_projection_epsg=4326):
+    """
+    Draw a scalebar that accounts for the scale variation in Web Mercator projection.
 
-def draw_segmented_scalebar(ax, start=(0.1, 0.05), segments=4, segment_length=1000, height=200,
+    Parameters:
+    - location_relative: tuple, position as (x_fraction, y_fraction) of map extent
+    - height_relative: float, height as fraction of map height
+    """
+    import numpy as np
+    import pyproj
+    import matplotlib.pyplot as plt
+
+    # Get the current axis limits (what's actually displayed)
+    ax_xlim = ax.get_xlim()
+    ax_ylim = ax.get_ylim()
+
+    # Calculate map dimensions from current view
+    map_width = ax_xlim[1] - ax_xlim[0]
+    map_height = ax_ylim[1] - ax_ylim[0]
+
+    # Calculate scalebar position using relative coordinates
+    x0 = ax_xlim[0] + location_relative[0] * map_width
+    y0 = ax_ylim[0] + location_relative[1] * map_height
+
+    # Calculate scalebar height as fraction of visible map height
+    scalebar_height = map_height * height_relative
+
+    # Get center point of current view for latitude calculation
+    center_x = (ax_xlim[0] + ax_xlim[1]) / 2
+    center_y = (ax_ylim[0] + ax_ylim[1]) / 2
+
+    # Transform center point to geographic coordinates
+    transformer = pyproj.Transformer.from_crs(
+        web_mercator_projection_epsg,
+        WSG84_projection_epsg,
+        always_xy=True
+    )
+    _, center_lat = transformer.transform(center_x, center_y)
+
+    # Calculate scale factor for Web Mercator at this latitude
+    scale_factor = 1.0 / np.cos(np.radians(center_lat))
+
+    # Calculate scalebar length in map units (meters for Web Mercator)
+    length_meters = length_km * 1000
+    scalebar_length = length_meters * scale_factor
+
+    # Draw scalebar segments
+    segment_length = scalebar_length / segments
+
+    for i in range(segments):
+        x = x0 + i * segment_length
+
+        # Alternate black and white segments
+        color = 'black' if i % 2 == 0 else 'white'
+
+        # Create rectangle for this segment
+        rect = plt.Rectangle(
+            (x, y0),
+            segment_length,
+            scalebar_height,
+            facecolor=color,
+            edgecolor='black',
+            linewidth=0.5,
+            zorder=10
+        )
+        ax.add_patch(rect)
+
+    # Add distance labels
+    label_y = y0 - scalebar_height * 0.3
+
+    # Label at start
+    ax.text(x0, label_y, '0',
+            ha='center', va='top', fontsize=8, fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                     edgecolor='none', alpha=0.8))
+
+    # Label at end
+    ax.text(x0 + scalebar_length, label_y, f'{length_km} km',
+            ha='center', va='top', fontsize=8, fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                     edgecolor='none', alpha=0.8))
+
+    # Add intermediate labels if more than 2 segments
+    if segments > 2:
+        for i in range(1, segments):
+            if i % 2 == 0:  # Only label every other segment to avoid crowding
+                x_label = x0 + i * segment_length
+                distance_label = int(i * length_km / segments)
+                ax.text(x_label, label_y, f'{distance_label}',
+                        ha='center', va='top', fontsize=7,
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white',
+                                 edgecolor='none', alpha=0.8))
+
+
+
+def draw_segmented_scalebar(ax, start=(0.1, 0.05),
+                            segments=4,
+                            segment_length=1000,
+                            height=200,
                             crs_transform=None, units="m", label_step=2):
     """
     Draws a segmented scale bar directly on a matplotlib axis.
@@ -449,11 +616,99 @@ def get_mission_flight_length(gdf_mission: gpd.GeoDataFrame) -> float:
     :return: flight length in meters
     """
     # Get the geometry of the mission
-    mission_geometry = gdf_mission.geometry.values[0]
+    # sort by timestamp if available
+    gdf_mission = gdf_mission.sort_values(by=['datetime_digitized'], ascending=True)
+    mission_geometry = shapely.LineString(gdf_mission.geometry)
+
+    # TODO remove outliers where distance > 10
 
     # Calculate the length of the mission in meters
     flight_length = mission_geometry.length
 
-    return flight_length
+    return mission_geometry, flight_length
+
+def get_mission_flight_duration(gdf_mission: gpd.GeoDataFrame) -> float:
+    """
+    Calculate the flight duration of the mission
+    :param gdf_mission: GeoDataFrame with the mission
+    :return: flight duration in seconds
+    """
+    # Get the geometry of the mission
+    # sort by timestamp if available
+    gdf_mission = gdf_mission.sort_values(by=['datetime_digitized'], ascending=True)
+
+    # Get first and last timestamps
+    start_time = gdf_mission['datetime_digitized'].iloc[0]
+    end_time = gdf_mission['datetime_digitized'].iloc[-1]
+
+    # Calculate duration in seconds
+    duration_seconds = (end_time - start_time).total_seconds()
+
+    return duration_seconds
+
+def get_mission_type(gdf_mission: gpd.GeoDataFrame) -> str:
+    """
+    Determine if the mission is a oblique cliff or nadir flights
+    """
+    # Get the geometry of the mission
+    # when most of the images are oblique, the mission is oblique
+    oblique_percentage = gdf_mission['is_oblique'].mean()
+
+    if oblique_percentage > 0.5:
+        return "oblique"
+    else:
+        return "nadir"
 
 
+def get_flight_route_type_old(df, reversal_threshold=120, min_reversals=15):
+    """
+    Classify based on number of significant bearing changes
+    """
+    # Calculate bearing differences
+    df['bearing_diff'] = df['bearing_to_prev'].diff().abs()
+
+    # Handle wrap-around (e.g., 350° to 10° should be 20°, not 340°)
+    df['bearing_diff'] = df['bearing_diff'].apply(lambda x: min(x, 360 - x) if pd.notna(x) else x)
+
+    # Count significant reversals (changes > threshold)
+    reversals = (df['bearing_diff'] > reversal_threshold).sum()
+
+    # Classify based on reversal frequency
+    reversal_rate = reversals / len(df) if len(df) > 0 else 0
+
+    if reversals > min_reversals:  # More than 10% of points show reversals
+        return 'zig_zag'
+    else:
+        return 'corridor'
+
+
+def get_flight_route_type(df):
+    """Simple flight pattern classification"""
+    if len(df) < 20:
+        return 'insufficient_data'
+
+    bearings = df['bearing_to_prev'].dropna()
+    if len(bearings) < 10:
+        return 'insufficient_data'
+
+    # Calculate bearing differences
+    bearing_diffs = bearings.diff().abs()
+    bearing_diffs = bearing_diffs.apply(lambda x: min(x, 360 - x) if pd.notna(x) else x)
+
+    # Key insight: True zig-zag has REGULAR large changes, irregular has RANDOM large changes
+    large_changes = bearing_diffs > 90
+
+    if large_changes.sum() < 5:  # Very few direction changes
+        return 'corridor'
+
+    # Check for systematic alternation (zig-zag indicator)
+    # Look at consecutive large changes - zig-zag should cluster them
+    large_change_positions = large_changes[large_changes].index
+    if len(large_change_positions) > 3:
+        gaps = np.diff(large_change_positions)
+        gap_consistency = gaps.std() / max(gaps.mean(), 1)  # Low = regular pattern
+
+        if gap_consistency < 0.8:  # Regular spacing between direction changes
+            return 'zig_zag'
+
+    return 'irregular'

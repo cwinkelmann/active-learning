@@ -6,10 +6,11 @@ import typing
 from loguru import logger
 from pathlib import Path
 
+from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilter
 from active_learning.types.Exceptions import LabelInconsistenyError
 from active_learning.util.converter import coco2hasty, hasty2coco
-from active_learning.util.image_manipulation import crop_by_regular_grid
+from active_learning.util.image_manipulation import crop_by_regular_grid, crop_by_regular_grid_two_stage
 from com.biospheredata.converter.HastyConverter import HastyConverter, hasty_filter_pipeline, unzip_files
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2, AnnotatedImage
 from com.biospheredata.types.serialisation import save_model_to_file
@@ -19,7 +20,7 @@ def process_image(args):
     """
     Create a regular grid and crop the images
     """
-    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out = args
+    train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out, annotated_types = args
     try:
         images, cropped_images_path = crop_by_regular_grid(
             crop_size,
@@ -30,12 +31,18 @@ def process_image(args):
             train_images_output_path=train_images_output_path,
             empty_fraction=empty_fraction,
             edge_black_out=edge_black_out,
-            visualisation_path=visualise_path
+            visualisation_path=visualise_path,
+            annotated_types=annotated_types,
+            keep_cut_box=True,
         )
         return images, cropped_images_path
     except LabelInconsistenyError as e:
         logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
         logger.warning(e)
+        return [], []
+    except OSError as e:
+        logger.error(f"OSError image {i.image_name}, skipping this image.")
+        logger.error(e)
         return [], []
 
 
@@ -205,8 +212,10 @@ class DataprepPipeline(object):
     images_filter_func: typing.List[typing.Callable]  = []
     grid_manager: typing.Callable
     _image_type = "jpg"
+    num_labels: int = 0
 
     def __init__(self,
+                 config: DatasetFilterConfig,
                  annotations_labels: HastyAnnotationV2,
                  images_path: Path,
                  output_path: Path,
@@ -216,7 +225,9 @@ class DataprepPipeline(object):
                  class_filter=None,
                  status_filter=None,
                  annotation_types=None,
-                 empty_fraction= False):
+                 empty_fraction= False,
+                 num_labels=None,
+                 ):
         """
 
         :param annotations_labels:
@@ -236,8 +247,8 @@ class DataprepPipeline(object):
         self.overlap = overlap
 
         self.hA = annotations_labels
-        self.hA_filtered = None
-        self.hA_crops = None
+        self.hA_filtered: HastyAnnotationV2 | None = None
+        self.hA_crops: HastyAnnotationV2 | None = None
         # self.images_path = None
         self.rename_dictionary = None
         self.output_path = output_path
@@ -251,6 +262,7 @@ class DataprepPipeline(object):
         self.status_filter = status_filter
         self.annotation_types = annotation_types
         self.tag_filter = None
+        self.num_labels = num_labels
 
         self.images_path = images_path
         self.empty_fraction = empty_fraction
@@ -258,7 +270,24 @@ class DataprepPipeline(object):
         self.edge_black_out = False
         self.use_multiprocessing = True
 
+        self.flat_images_path = None
+        self.config = config
+
     def run(self, flatten=True):
+        self.run_filter(flatten=flatten)
+
+        lables_before = len(self.hA_filtered.get_flat_df())
+        logger.info(f"labels before filter: {lables_before}")
+        self.sanity_check(self.hA_filtered)
+
+        if self.config.crop:
+            hA_crop = self.run_crop()
+            self.sanity_check(hA_crop)
+            return hA_crop
+        else:
+            return self.hA_filtered
+
+    def run_filter(self, flatten=True):
         """
         Run the data pipeline
 
@@ -268,7 +297,6 @@ class DataprepPipeline(object):
         """
         if self.hA is None:
             raise ValueError("HastyAnnotationV2 object is not set. Please provide it before running the pipeline.")
-        # order the images from the image with the least labels to the most labels
         # order the images from the image with the least labels to the most labels
         self.hA.images = sorted(self.hA.images, key=lambda image: len(image.labels))
 
@@ -283,7 +311,7 @@ class DataprepPipeline(object):
             annotation_types=self.annotation_types,
             num_images=self.num,
             sample_strategy=self.sample_strategy
-        ) # TODO implement this with the images_filter_func
+        )
 
 
         if len(self.images_filter_func) != 0:
@@ -292,10 +320,10 @@ class DataprepPipeline(object):
 
         if flatten:
             # flatten the dataset to avoid having subfolders and therefore quite some confusions later.
-            ## FIXME: These are not parts of the annotation conversion pipeline but rather a part of the data preparation right before training.md & copying so many images here is a waste of time
-            # TODO readd this
+
+
             default_dataset_name = "Default"
-            flat_images_path = self.output_path.joinpath(default_dataset_name)
+            flat_images_path = self.output_path / default_dataset_name
             hA_flat = HastyConverter.copy_images_to_flat_structure(hA=hA,
                                                                    base_bath=self.images_path,
                                                                    folder_path=flat_images_path)
@@ -304,24 +332,25 @@ class DataprepPipeline(object):
             for v in hA_flat.images:
                 v.dataset_name = default_dataset_name
                 v.image_name = f"{v.ds_image_name}"
-
-            # TODO saving sth in there is not good practice
-            # hastyfilename = f"hasty_format_{'_'.join(self.class_filter)}.json" if self.class_filter is not None else "hasty_format.json"
-            # hA_flat.save(self.output_path / hastyfilename)
-
+            self.flat_images_path = flat_images_path
             self.hA_filtered = copy.deepcopy(hA_flat)
         else:
             self.hA_filtered = copy.deepcopy(hA)
             flat_images_path = self.images_path
+            self.flat_images_path = flat_images_path
 
         if self.rename_dictionary is not None:
             for k, v in self.rename_dictionary.items():
                 self.hA_filtered.rename_label_class(k, v)
 
+
+
+    def run_crop(self):
+        assert self.flat_images_path is not None, "Please run the pipeline first to get the flat images path."
         hA_crop = self.data_crop_pipeline(crop_size=self.crop_size,
                                           overlap=self.overlap,
                                           hA=copy.deepcopy(self.hA_filtered),
-                                          images_path=flat_images_path,
+                                          images_path=self.flat_images_path,
                                           edge_black_out=self.edge_black_out,
                                           use_multiprocessing=self.use_multiprocessing)
 
@@ -365,10 +394,10 @@ class DataprepPipeline(object):
         if use_multiprocessing:
             # train_images_output_path, empty_fraction, crop_size, full_images_path_padded, i, images_path, overlap, visualise_path, edge_black_out
             args_list = [(self.train_images_output_path, self.empty_fraction, crop_size,
-                          full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out) for i in hA.images]
+                          full_images_path_padded, i, images_path, overlap, self.visualise_path, edge_black_out, self.annotation_types) for i in hA.images]
 
             # Use multiprocessing pool
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() + 5) as pool:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
                 results = pool.map(process_image, args_list)
 
             # Collect results
@@ -383,21 +412,42 @@ class DataprepPipeline(object):
                 # df_grid = self.grid_manager(i)
                 # TODO implement this
                 # annotated_images, cropped_images_path = self.cropper(df_grid, i, images_path, full_images_path_padded)
+                try:
+                    if len(self.annotation_types) == 2:
+                        annotated_images, cropped_images_path = crop_by_regular_grid_two_stage(
+                            crop_size=crop_size,
+                            full_images_path_padded=full_images_path_padded,
+                            i=i,
+                            images_path=images_path,
+                            overlap=overlap,
+                            train_images_output_path=self.train_images_output_path,
+                            empty_fraction=self.empty_fraction,
+                            edge_black_out=edge_black_out,
+                            visualisation_path=self.visualise_path,
+                            annotated_types=self.annotation_types
 
-                annotated_images, cropped_images_path = crop_by_regular_grid(
-                    crop_size=crop_size,
-                    full_images_path_padded=full_images_path_padded,
-                    i=i,
-                    images_path=images_path,
-                    overlap=overlap,
-                    train_images_output_path=self.train_images_output_path,
-                    empty_fraction=self.empty_fraction,
-                    edge_black_out=edge_black_out,
-                    visualisation_path=self.visualise_path,
+                        )
+                    else:
+                        annotated_images, cropped_images_path = crop_by_regular_grid(
+                            crop_size=crop_size,
+                            full_images_path_padded=full_images_path_padded,
+                            i=i,
+                            images_path=images_path,
+                            overlap=overlap,
+                            train_images_output_path=self.train_images_output_path,
+                            empty_fraction=self.empty_fraction,
+                            edge_black_out=edge_black_out,
+                            visualisation_path=self.visualise_path,
+                            annotated_types=self.annotation_types
 
-                    # TODO pass the grid manager here
-                    # grid_manager=self.grid_manager
-                )
+                            # TODO pass the grid manager here
+                            # grid_manager=self.grid_manager
+                        )
+                except LabelInconsistenyError as e:
+                    logger.warning(f"Label inconsistency in image {i.image_name}, skipping this image.")
+                    logger.warning(e)
+                    annotated_images = []
+                    cropped_images_path = []
 
                 all_images.extend(annotated_images)
                 all_images_path.extend(cropped_images_path)
@@ -441,3 +491,24 @@ class DataprepPipeline(object):
     def add_images_filter_func(self, ifcn_att: ImageFilter):
         assert isinstance(ifcn_att, ImageFilter)
         self.images_filter_func.append( ifcn_att )
+
+    def sanity_check(self, hA_filtered):
+        issues_found =  0
+
+        """ Check plausibility of the dataset """
+        for i in hA_filtered.images:
+            if i.width is None or i.height is None:
+                raise ValueError(f"Image {i.image_name} has no width or height")
+            valid_labels = []
+            for label in i.labels:
+
+                if label.incenter_centroid.x < 0 or label.incenter_centroid.y < 0 or label.incenter_centroid.x >= i.width or label.incenter_centroid.y >= i.height:
+                    logger.warning(f"Label {label.class_name} point ({label.incenter_centroid.x}, {label.incenter_centroid.y}) "
+                                   f"is out of bounds of image {i.image_name} ({i.width}x{i.height})")
+                    issues_found += 1
+                else:
+                    valid_labels.append(label)
+
+            i.labels = valid_labels
+
+

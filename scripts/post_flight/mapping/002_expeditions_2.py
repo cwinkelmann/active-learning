@@ -6,6 +6,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import pandas as pd
+from adjustText import adjust_text
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.patches import FancyArrowPatch
 from matplotlib_map_utils.core.inset_map import inset_map, indicate_extent
@@ -17,6 +18,7 @@ from loguru import logger
 
 from active_learning.util.mapping.helper import get_largest_polygon, add_text_box, get_geographic_ticks, format_lat_lon, \
     draw_accurate_scalebar, find_closest_island, island_utm_zones, get_utm_epsg
+from active_learning.util.rename import get_site_code
 
 
 def create_galapagos_map(
@@ -35,76 +37,76 @@ def create_galapagos_map(
 
     # Hardcoded island_plot_config with correct UTM zones but preserving original scalebar settings
     island_plot_config = {
-        "Bartolome": {
-            "utm_zone": island_utm_zones["Bartolome"],
-            "epsg": get_utm_epsg(island_utm_zones["Bartolome"]),
-            "scalebar": {"location": (1200, 30), "length_km": 4, "segments": 2, "height": 50},
-        },
-        "Caamaño": {
-            "utm_zone": island_utm_zones["Caamaño"],
-            "epsg": get_utm_epsg(island_utm_zones["Caamaño"]),
-            "scalebar": {"location": (0, 20), "length_km": 0.1, "segments": 4, "height": 50},
-        },
-        "Santiago": {
-            "utm_zone": island_utm_zones["Santiago"],
-            "epsg": get_utm_epsg(island_utm_zones["Santiago"]),
-            "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
-        },
-        "Wolf": {
-            "utm_zone": island_utm_zones["Wolf"],
-            "epsg": get_utm_epsg(island_utm_zones["Wolf"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "San Cristobal": {
-            "utm_zone": island_utm_zones["San Cristobal"],
-            "epsg": get_utm_epsg(island_utm_zones["San Cristobal"]),
-            "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
-        },
-        "Lobos": {
-            "utm_zone": island_utm_zones["Lobos"],
-            "epsg": get_utm_epsg(island_utm_zones["Lobos"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Santa Fé": {
-            "utm_zone": island_utm_zones["Santa Fé"],
-            "epsg": get_utm_epsg(island_utm_zones["Santa Fé"]),
-            "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
-        },
-        "Santa Cruz": {
-            "utm_zone": island_utm_zones["Santa Cruz"],
-            "epsg": get_utm_epsg(island_utm_zones["Santa Cruz"]),
-            "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
-        },
-        "Rabida": {
-            "utm_zone": island_utm_zones["Rabida"],
-            "epsg": get_utm_epsg(island_utm_zones["Rabida"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Pinzón": {
-            "utm_zone": island_utm_zones["Pinzón"],
-            "epsg": get_utm_epsg(island_utm_zones["Pinzón"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Pinta": {
-            "utm_zone": island_utm_zones["Pinta"],
-            "epsg": get_utm_epsg(island_utm_zones["Pinta"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Marchena": {
-            "utm_zone": island_utm_zones["Marchena"],
-            "epsg": get_utm_epsg(island_utm_zones["Marchena"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Isabela": {
-            "utm_zone": island_utm_zones["Isabela"],
-            "epsg": get_utm_epsg(island_utm_zones["Isabela"]),
-            "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
-        },
-        "Tortuga": {
-            "utm_zone": island_utm_zones["Tortuga"],
-            "epsg": get_utm_epsg(island_utm_zones["Tortuga"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
+        # "Bartolome": {
+        #     "utm_zone": island_utm_zones["Bartolome"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Bartolome"]),
+        #     "scalebar": {"location": (1200, 30), "length_km": 4, "segments": 2, "height": 50},
+        # },
+        # "Caamaño": {
+        #     "utm_zone": island_utm_zones["Caamaño"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Caamaño"]),
+        #     "scalebar": {"location": (0, 20), "length_km": 0.1, "segments": 4, "height": 50},
+        # },
+        # "Santiago": {
+        #     "utm_zone": island_utm_zones["Santiago"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Santiago"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+        # },
+        # "Wolf": {
+        #     "utm_zone": island_utm_zones["Wolf"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Wolf"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "San Cristobal": {
+        #     "utm_zone": island_utm_zones["San Cristobal"],
+        #     "epsg": get_utm_epsg(island_utm_zones["San Cristobal"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+        # },
+        # "Lobos": {
+        #     "utm_zone": island_utm_zones["Lobos"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Lobos"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Santa Fé": {
+        #     "utm_zone": island_utm_zones["Santa Fé"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Santa Fé"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+        # },
+        # "Santa Cruz": {
+        #     "utm_zone": island_utm_zones["Santa Cruz"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Santa Cruz"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
+        # },
+        # "Rabida": {
+        #     "utm_zone": island_utm_zones["Rabida"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Rabida"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Pinzón": {
+        #     "utm_zone": island_utm_zones["Pinzón"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Pinzón"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Pinta": {
+        #     "utm_zone": island_utm_zones["Pinta"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Pinta"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Marchena": {
+        #     "utm_zone": island_utm_zones["Marchena"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Marchena"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Isabela": {
+        #     "utm_zone": island_utm_zones["Isabela"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Isabela"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 10, "segments": 4, "height": 150},
+        # },
+        # "Tortuga": {
+        #     "utm_zone": island_utm_zones["Tortuga"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Tortuga"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
         "Genovesa": {
             "utm_zone": island_utm_zones["Genovesa"],
             "epsg": get_utm_epsg(island_utm_zones["Genovesa"]),
@@ -120,31 +122,31 @@ def create_galapagos_map(
             "epsg": get_utm_epsg(island_utm_zones["Floreana"]),
             "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
         },
-        "Gardner por Floreana": {
-            "utm_zone": island_utm_zones["Gardner por Floreana"],
-            "epsg": get_utm_epsg(island_utm_zones["Gardner por Floreana"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Caldwell": {
-            "utm_zone": island_utm_zones["Caldwell"],
-            "epsg": get_utm_epsg(island_utm_zones["Caldwell"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Albany": {
-            "utm_zone": island_utm_zones["Albany"],
-            "epsg": get_utm_epsg(island_utm_zones["Albany"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
-        "Española": {
-            "utm_zone": island_utm_zones["Española"],
-            "epsg": get_utm_epsg(island_utm_zones["Española"]),
-            "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
-        },
-        "Daphne Major": {
-            "utm_zone": island_utm_zones["Daphne Major"],
-            "epsg": get_utm_epsg(island_utm_zones["Daphne Major"]),
-            "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
-        },
+        # "Gardner por Floreana": {
+        #     "utm_zone": island_utm_zones["Gardner por Floreana"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Gardner por Floreana"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Caldwell": {
+        #     "utm_zone": island_utm_zones["Caldwell"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Caldwell"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Albany": {
+        #     "utm_zone": island_utm_zones["Albany"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Albany"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
+        # "Española": {
+        #     "utm_zone": island_utm_zones["Española"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Española"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 5, "segments": 4, "height": 150},
+        # },
+        # "Daphne Major": {
+        #     "utm_zone": island_utm_zones["Daphne Major"],
+        #     "epsg": get_utm_epsg(island_utm_zones["Daphne Major"]),
+        #     "scalebar": {"location": (100, 100), "length_km": 1, "segments": 4, "height": 150},
+        # },
     }
 
     # Load GeoPackage layers
@@ -172,7 +174,11 @@ def create_galapagos_map(
     }
     # Map the expedition phases
     flight_database['expedition_phase'] = flight_database['year_month'].map(expedition_mapping)
-
+    # flight_database["site_code"] = flight_database["folder_name"].apply(lambda x: get_site_code(x))
+    # # take the image name and split it by the underscore
+    # # Extract everything before the first underscore from folder_name to create site_code
+    # flight_database["flight_code"] = flight_database["folder_name"].apply(
+    #     lambda x: x.split('_')[0] if isinstance(x, str) and '_' in x else x)
     # Convert islands to WGS84 for easier reprojection later
     islands_wgs84 = islands.to_crs(epsg=4326)
     islands_isla = islands_wgs84[islands_wgs84['tipo'] == 'Isla']
@@ -242,17 +248,20 @@ def create_galapagos_map(
             continue
 
         # Create a figure with subplots - one for each year
-        fig, axes = plt.subplots(1, len(distinct_expedition), figsize=(6 * len(distinct_expedition), 8),
-                                 squeeze=False)
+        # fig, axes = plt.subplots(1, len(distinct_expedition), figsize=(6 * len(distinct_expedition), 8),
+        #                          squeeze=False)
+
 
         # Project the island to its UTM zone
         gdf_island_utm = gpd.GeoDataFrame(pd.DataFrame([isla]), geometry="geometry", crs=islands_wgs84_f.crs)
         gdf_island_utm = gdf_island_utm.to_crs(epsg=utm_epsg)
 
         # Loop through each year for this island
-        for i, expedition_phase in enumerate(distinct_expedition):
-            ax = axes[0, i]  # Get the appropriate subplot
 
+        for i, expedition_phase in enumerate(distinct_expedition):
+            # ax = axes[0, i]  # Get the appropriate subplot
+            # Create a figure with subplots - one for each year
+            fig, ax = plt.subplots(figsize=(10, 8))
             # Filter data for this year
             year_data = flight_database_island[flight_database_island['expedition_phase'] == expedition_phase]
 
@@ -262,10 +271,61 @@ def create_galapagos_map(
             # Plot the island in UTM coordinates
             gdf_island_utm.plot(ax=ax, alpha=0.7, edgecolor='black', color='lightgrey')
 
+            #get a color by hashing the folder name
+            def hash_color(name):
+                hash_value = abs(hash(name))
+                r = (hash_value & 0xFF0000) >> 16
+                g = (hash_value & 0x00FF00) >> 8
+                b = (hash_value & 0x0000FF)
+                return (r / 255, g / 255, b / 255)
+
             # Plot the points for this year in UTM coordinates
             if not year_data_utm.empty:
-                year_data_utm.plot(ax=ax, marker='o', color='red', markersize=5,
-                               label=f"{len(year_data_utm)} photos")
+                texts = []
+                # Group by mission_folder (or whatever identifies individual flights)
+                for site_code, mission_data in year_data_utm.groupby('site_code'):
+                    mission_data.plot(ax=ax,
+                                      marker='o',
+                                      color=hash_color(site_code),  # Pass the mission name here
+                                      markersize=5,
+                                      alpha=0.7,
+                                      label=f"{site_code} ({len(mission_data)} photos)")
+
+                    all_points = mission_data.geometry.union_all()  # Combine all points
+                    centroid = all_points.centroid
+
+                    text = ax.text(centroid.x, centroid.y,
+                                   f"{site_code}\n({len(mission_data)})",
+                                   fontsize=9,
+                                   ha='center',
+                                   va='center',
+
+                                 #   bbox=dict(boxstyle='round,pad=0.5',
+                                 # facecolor='white',
+                                 # edgecolor='black',
+                                 # alpha=0.8))
+                                   )
+                    texts.append(text)
+
+                # Adjust all text positions to avoid overlaps
+                adjust_text(texts,
+                            force_text=(20.0, 20.0),
+                            force_points=(10.0, 10.0),
+                            expand_points=(15.0, 15.0),
+                            expand_text=(12.0, 12.0),
+
+                            # Add explicit avoid parameters
+                            force_static=(1.0, 1.0),  # Static force pushing them apart
+                            force_explode=(2.0, 2.0),  # Explosive force from center
+
+                            lim=20000,
+
+                            arrowprops=dict(arrowstyle='->',
+                                            color='gray',
+                                            lw=0.8,  # Slightly thicker arrows
+                                            alpha=0.7),
+
+                            ax=ax)
 
             # Get scale bar configuration for this island
             scale_cfg = island_plot_config[island_name]["scalebar"]
@@ -314,35 +374,53 @@ def create_galapagos_map(
 
             # Set the reduced ticks
             ax.set_xticks(x_ticks)
-            ax.set_yticks(y_ticks)
+            ax.set_yticks(y_ticks )
+
+            # Style the tick labels
+            for tick in ax.get_xticklabels():
+                tick.set_fontsize(11)
+            for tick in ax.get_yticklabels():
+                tick.set_fontsize(11)
 
             # Format tick labels to show kilometers instead of meters
             ax.set_xticklabels([f"{x / 1000:.0f}" for x in x_ticks])
             ax.set_yticklabels([f"{y / 1000:.0f}" for y in y_ticks])
 
             # Set title and labels with UTM zone info
-            ax.set_title(f'Expedition Phase {expedition_phase}', fontsize=12)
-            ax.set_xlabel(f'Easting (km, UTM {utm_zone})')
-            ax.set_ylabel(f'Northing (km, UTM {utm_zone})')
+            # ax.set_title(f'Expedition Phase {expedition_phase}', fontsize=12)
+            ax.set_xlabel(f'Easting (km, UTM {utm_zone})', fontsize=12)
+            ax.set_ylabel(f'Northing (km, UTM {utm_zone})', fontsize=12)
 
-            ax.legend(loc='upper right')
+            # ax.legend(loc='upper right',
+            #           fontsize=12,
+            #           title_fontsize=13,
+            #           )
             ax.grid(alpha=0.3)
 
             # Add north arrow (already correct in UTM)
             na = NorthArrow(location="upper left", rotation={"degrees": 0}, scale=0.5)
             ax.add_artist(na.copy())
-
+            individual_output_path = f"island_{island_name.replace(' ', '_')}_phase_{expedition_phase}.png"
+            fig.savefig(individual_output_path, dpi=300, bbox_inches='tight')
+            print(f"Saved individual map: {individual_output_path}")
+            plt.show()
+            plt.close(fig)
         # Adjust title to include UTM zone
         # plt.suptitle(f'{island_name} (UTM Zone {utm_zone})', fontsize=16, y=0.98)
 
         plt.tight_layout()
 
         # Save the figure
-        output_file = f"island_{island_name.replace(' ', '_')}_by_year.png"
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        logger.info(f"Saved plot for {island_name} to {output_file}")
+        # output_file = f"island_{island_name.replace(' ', '_')}_by_year.png"
+        # plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        # logger.info(f"Saved plot for {island_name} to {output_file}")
         plt.show()
         plt.close(fig)  # Close the figure to free up memory
 
+        # break
+
 if __name__ == "__main__":
-    create_galapagos_map(gpkg_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/sampling_issues.gpkg")
+    create_galapagos_map(
+
+        gpkg_path="/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/sampling_issues.gpkg")
+         # gpkg_path="'/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/mapping/Iguanas_From_Above_all_data.gpkg'")

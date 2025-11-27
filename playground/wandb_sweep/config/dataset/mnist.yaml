@@ -1,0 +1,8 @@
+# @package _global_
+dataset:
+  name: "mnist"
+  data_dir: "./data"
+  num_workers: 4
+  pin_memory: true
+  train_split: 0.8
+  val_split: 0.2

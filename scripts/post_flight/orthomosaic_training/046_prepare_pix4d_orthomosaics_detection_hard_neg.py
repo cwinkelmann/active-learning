@@ -3,32 +3,19 @@ Prepare an orthomosaic for use with the Herdnet model. For now this includes sli
 This has some reasons: 1. empty tiles can be excluded easier 2. the model inferencing has difficulties with gigantic images
 
 """
-import gc
+from collections import defaultdict
 
-import copy
 import csv
-import geopandas as gpd
+import gc
 import pandas as pd
-import shapely
 from loguru import logger
-from matplotlib import pyplot as plt
+from osgeo import gdal
 from pathlib import Path
 
-from active_learning.pipelines.geospatial_data_gen import geospatial_data_to_detection_training_data, \
-    geospatial_data_to_detection_training_data_with_hard_neg
-from active_learning.types.Exceptions import ProjectionError, NoLabelsError, AnnotationFileNotSetError, \
-    OrthomosaicNotSetError, LabelsOverlapError
-from active_learning.util.geospatial_image_manipulation import create_regular_geospatial_raster_grid
-from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGrid
-from active_learning.util.image_manipulation import convert_tiles_to, remove_empty_tiles
-from active_learning.util.projection import convert_gdf_to_jpeg_coords, project_gdfcrs
-from active_learning.util.super_resolution import super_resolve, SuperResolution
-from com.biospheredata.converter.HastyConverter import ImageFormat
-from geospatial_transformations import get_gsd, get_geotiff_compression
-from util.util import visualise_image, visualise_polygons
+from active_learning.pipelines.geospatial_data_gen import geospatial_data_to_detection_training_data_with_hard_neg
+from active_learning.types.Exceptions import ProjectionError
+from com.biospheredata.types.status import ImageFormat
 
-from osgeo import gdal
-from collections import defaultdict
 gdal.UseExceptions()
 import geopandas as gpd
 
@@ -66,11 +53,6 @@ def save_tiles_to_csv(tiles, output_csv: Path, species="iguana", label=1):
     return output_csv
 
 
-
-
-
-
-# TODO maybe use the group_nearby_polygons_simple function to get the groups
 
 
 # Optional: Basic visualization check
@@ -276,7 +258,9 @@ if __name__ == "__main__":
     for split, annotations in herdnet_annotations.items():
         # Save the herdnet annotations to a CSV filep
         combined_df = pd.concat(herdnet_annotations[split], ignore_index=True)
-
+        raise ValueError(
+            "replace {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels} in the next line")
+        raise ValueError("convert labels to int")
         output_annotation_dir = base_path / "herdnet" / f"{split}"
         combined_df.to_csv(
             output_annotation_dir / f"herdnet_annotations_{split}.csv", index=False)

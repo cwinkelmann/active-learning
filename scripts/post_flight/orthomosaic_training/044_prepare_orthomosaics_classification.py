@@ -20,7 +20,7 @@ from active_learning.util.geospatial_slice import GeoSlicer, GeoSpatialRasterGri
 from active_learning.util.image_manipulation import convert_tiles_to, remove_empty_tiles
 from active_learning.util.projection import convert_gdf_to_jpeg_coords, project_gdfcrs
 from active_learning.util.super_resolution import super_resolve, SuperResolution
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 from geospatial_transformations import get_gsd, get_geotiff_compression
 from util.util import visualise_image, visualise_polygons
 
@@ -341,6 +341,19 @@ if __name__ == "__main__":
 
         # Save the herdnet annotations to a CSV filep
     combined_df = pd.concat(herdnet_annotations, ignore_index=True)
+
+    # replace the column names to match the Herdnet format {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels}
+    combined_df.rename(columns={
+        "tile_name": "images",
+        "local_pixel_x": "x",
+        "local_pixel_y": "y"
+    }, inplace=True)
+    combined_df["labels"] = combined_df["labels"].astype(int)  # convert labels to int
+
+
+    raise ValueError(
+        "replace {tile_name,local_pixel_x,local_pixel_y,species,labels} with {images,x,y,species,labels} in the next line")
+    raise ValueError("convert labels to int")
     combined_df.to_csv(
         analysis_output_dir / "herdnet_annotations.csv", index=False)
 

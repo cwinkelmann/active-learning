@@ -23,7 +23,7 @@ from active_learning.util.mapping.helper import get_largest_polygon, add_text_bo
     draw_accurate_scalebar, get_geographic_ticks
 from active_learning.util.mapping.plots import plot_orthomomsaic_training_data
 from active_learning.util.projection import project_gdfcrs
-from com.biospheredata.converter.HastyConverter import ImageFormat
+from com.biospheredata.types.status import ImageFormat
 from geospatial_transformations import get_geotiff_compression, get_gsd
 
 

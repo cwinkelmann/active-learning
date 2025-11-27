@@ -4,6 +4,19 @@ class InvalidLabelError(ValueError):
     def __init__(self, message: str = "Invalid labels") -> None:
         super().__init__(message)
 
+
+class FolderNotFound(ValueError):
+    """ Base class for exceptions in this module. """
+
+    def __init__(self, message: str = "FolderNotFound") -> None:
+        super().__init__(message)
+
+
+class NoChangesDetected(InvalidLabelError):
+    def __init__(self, message: str = "No Changes were detected") -> None:
+        super().__init__(message)
+
+
 class InvalidLabelCountError(InvalidLabelError):
     """Exception raised for invalid label numbers."""
 
@@ -51,6 +64,11 @@ class OrthomosaicNotSetError(ValueError):
 class ProjectionError(ValueError):
     pass
 
+class NullRow(ValueError):
+    pass
+
+class ImageNotValidException(ValueError):
+    pass
 
 class WrongSpatialSamplingStrategy(ValueError):
     """
@@ -61,4 +79,16 @@ class LabelInconsistenyError(TooManyLabelsError):
     """Exception raised when there is a label inconsistency."""
 
     def __init__(self, message: str = "Label inconsistency detected") -> None:
+        super().__init__(message)
+
+class FiftyOneException(Exception):
+    """Base class for exceptions in FiftyOne."""
+
+    def __init__(self, message: str = "An error occurred in FiftyOne") -> None:
+        super().__init__(message)
+
+class DatasetsExistsError(FiftyOneException):
+    """Exception raised when the dataset already exists."""
+
+    def __init__(self, message: str = "The dataset already exists") -> None:
         super().__init__(message)

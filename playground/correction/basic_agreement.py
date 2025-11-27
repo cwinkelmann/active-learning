@@ -1,3 +1,11 @@
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+import seaborn as sns
+
+
 def analyze_counts(df):
     """
     Simple count analysis for bounding box dataset
@@ -91,6 +99,182 @@ def analyze_counts(df):
     }
 
     return summary
+
+
+def analyze_count_dependent_bias(df):
+    """
+    Analyzes whether annotators show count-dependent bias
+    (i.e., do they overcount more when there are more objects?)
+
+    Parameters:
+    df: DataFrame with columns 'image_name', 'class_name' (annotator name)
+    """
+
+    print("=== COUNT-DEPENDENT BIAS ANALYSIS ===\n")
+
+    # Get counts per image per annotator
+    counts_per_image = df.groupby(['image_name', 'class_name']).size().reset_index(name='count')
+
+    # Pivot to have annotators as columns
+    counts_pivot = counts_per_image.pivot(index='image_name',
+                                          columns='class_name',
+                                          values='count').fillna(0)
+
+    # Extract consensus and annotators
+    consensus_counts = counts_pivot['consensus']
+    annotators = [col for col in counts_pivot.columns if col.startswith('Annotator')]
+
+    # Filter to only images with consensus > 0 (labeled images)
+    labeled_images = consensus_counts > 0
+    consensus_counts_labeled = consensus_counts[labeled_images]
+
+    # Calculate errors for each annotator
+    results = {}
+
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    axes = axes.flatten()
+
+    for idx, annotator in enumerate(annotators):
+        annotator_counts = counts_pivot[annotator][labeled_images]
+        errors = annotator_counts - consensus_counts_labeled
+
+        # Calculate statistics
+        correlation, p_value = stats.pearsonr(consensus_counts_labeled, errors)
+
+        # Linear regression
+        slope, intercept, r_value, p_val_reg, std_err = stats.linregress(
+            consensus_counts_labeled, errors
+        )
+
+        # Absolute error correlation
+        abs_errors = np.abs(errors)
+        abs_correlation, abs_p_value = stats.pearsonr(consensus_counts_labeled, abs_errors)
+
+        results[annotator] = {
+            'correlation': correlation,
+            'p_value': p_value,
+            'slope': slope,
+            'intercept': intercept,
+            'r_squared': r_value ** 2,
+            'abs_correlation': abs_correlation,
+            'mean_error': errors.mean(),
+            'std_error': errors.std()
+        }
+
+        # Print statistics
+        print(f"\n{annotator}:")
+        print(f"  Error-Count Correlation: {correlation:.3f} (p={p_value:.4f})")
+        print(f"  |Error|-Count Correlation: {abs_correlation:.3f} (p={abs_p_value:.4f})")
+        print(f"  Regression slope: {slope:.3f} (error per additional object)")
+        print(f"  R²: {r_value ** 2:.3f}")
+        print(f"  Mean error: {errors.mean():.2f} ± {errors.std():.2f}")
+
+        if p_value < 0.05:
+            print(f"  ⚠️  SIGNIFICANT count-dependent bias detected!")
+            if slope > 0:
+                print(f"     → Tends to add {slope:.2f} extra annotations per additional object")
+            else:
+                print(f"     → Tends to miss {abs(slope):.2f} annotations per additional object")
+        else:
+            print(f"  ✓ No significant count-dependent bias")
+
+        # Scatter plot with regression line
+        ax = axes[idx]
+        ax.scatter(consensus_counts_labeled, errors, alpha=0.5, s=30)
+
+        # Add regression line
+        x_line = np.array([consensus_counts_labeled.min(), consensus_counts_labeled.max()])
+        y_line = slope * x_line + intercept
+        ax.plot(x_line, y_line, 'r--', linewidth=2,
+                label=f'y = {slope:.3f}x + {intercept:.3f}')
+
+        # Add zero line
+        ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
+
+        ax.set_xlabel('Consensus Count', fontsize=11)
+        ax.set_ylabel('Error (Annotator - Consensus)', fontsize=11)
+        ax.set_title(f'{annotator}\nr={correlation:.3f}, p={p_value:.4f}, R^2={r_value ** 2:.4f}', fontsize=12)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('count_bias_analysis.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+    # Additional analysis: binned error rates
+    print("\n" + "=" * 60)
+    print("BINNED ANALYSIS (Error Rate by Object Count)")
+    print("=" * 60)
+
+    bins = [0, 5, 10, 15, 20, 100]
+    bin_labels = ['1-5', '6-10', '11-15', '16-20', '20+']
+
+    for annotator in annotators:
+        print(f"\n{annotator}:")
+        annotator_counts = counts_pivot[annotator][labeled_images]
+        errors = annotator_counts - consensus_counts_labeled
+
+        # Bin the data
+        consensus_binned = pd.cut(consensus_counts_labeled, bins=bins, labels=bin_labels)
+        binned_data = pd.DataFrame({
+            'bin': consensus_binned,
+            'error': errors,
+            'abs_error': np.abs(errors),
+            'consensus': consensus_counts_labeled
+        })
+
+        # Calculate statistics per bin
+        bin_stats = binned_data.groupby('bin').agg({
+            'error': ['mean', 'std', 'count'],
+            'abs_error': 'mean',
+            'consensus': 'mean'
+        }).round(2)
+
+        print(bin_stats)
+
+    # Create comparison plot of all annotators
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+
+    # Plot 1: All annotators on same plot
+    for annotator in annotators:
+        annotator_counts = counts_pivot[annotator][labeled_images]
+        errors = annotator_counts - consensus_counts_labeled
+
+        ax1.scatter(consensus_counts_labeled, errors, alpha=0.4, s=20, label=annotator)
+
+    ax1.axhline(y=0, color='black', linestyle='--', linewidth=2)
+    ax1.set_xlabel('Consensus Count', fontsize=12)
+    ax1.set_ylabel('Error (Annotator - Consensus)', fontsize=12)
+    ax1.set_title('All Annotators: Error vs Consensus Count', fontsize=13, fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # Plot 2: Box plots by count bins
+    all_binned_data = []
+    for annotator in annotators:
+        annotator_counts = counts_pivot[annotator][labeled_images]
+        errors = annotator_counts - consensus_counts_labeled
+        consensus_binned = pd.cut(consensus_counts_labeled, bins=bins, labels=bin_labels)
+
+        temp_df = pd.DataFrame({
+            'Annotator': annotator,
+            'Bin': consensus_binned,
+            'Error': errors
+        })
+        all_binned_data.append(temp_df)
+
+    combined_binned = pd.concat(all_binned_data, ignore_index=True)
+    sns.boxplot(data=combined_binned, x='Bin', y='Error', hue='Annotator', ax=ax2)
+    ax2.axhline(y=0, color='black', linestyle='--', linewidth=2)
+    ax2.set_xlabel('Consensus Count Bin', fontsize=12)
+    ax2.set_ylabel('Error', fontsize=12)
+    ax2.set_title('Error Distribution by Count Range', fontsize=13, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig('count_bias_comparison.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+    return results, counts_pivot
 
 
 def count_user_annotations(hA_flat, username_1="Iguana_Andrea", username_2="concenso"):
@@ -1096,7 +1280,7 @@ def analyse_normal_distribution_expert(hA_flat: pd.DataFrame,
         'k2_test': k2_test,
         'is_normal_shapiro': shapiro_test.pvalue >= 0.05,
         'is_normal_k2': k2_test.pvalue >= 0.05
-    }
+    }, fig
 
 
 import pandas as pd
@@ -1107,7 +1291,7 @@ from collections import Counter
 
 def filter_by_agreement(hA_flat, expert_names=["Iguana_Andrea", "Iguana_Andres", "Iguana_Amy", "Iguana_Robin"],
                         agreement_threshold=3, consensus_name="consensus",
-                        agreement_type="exact", tolerance=0):
+                        agreement_type="exact", tolerance=0, image_column="images"):
     """
     Filter out images where a specified number of experts agree.
 
@@ -1133,14 +1317,14 @@ def filter_by_agreement(hA_flat, expert_names=["Iguana_Andrea", "Iguana_Andres",
         print(f"Tolerance: ±{tolerance}")
 
     # Get all unique images
-    all_images = sorted(hA_flat['image_name'].unique())
+    all_images = sorted(hA_flat[image_column].unique())
 
     # Get expert counts for each image
     expert_counts = {}
     for expert in expert_names:
         if expert in hA_flat['class_name'].unique():
             expert_data = hA_flat[hA_flat['class_name'] == expert]
-            expert_count_series = expert_data.groupby('image_name').size()
+            expert_count_series = expert_data.groupby(image_column).size()
             expert_counts[expert] = [expert_count_series.get(img, 0) for img in all_images]
         else:
             print(f"Warning: Expert '{expert}' not found in dataset!")
@@ -1150,7 +1334,7 @@ def filter_by_agreement(hA_flat, expert_names=["Iguana_Andrea", "Iguana_Andres",
     consensus_counts = None
     if consensus_name in hA_flat['class_name'].unique():
         consensus_data = hA_flat[hA_flat['class_name'] == consensus_name]
-        consensus_count_series = consensus_data.groupby('image_name').size()
+        consensus_count_series = consensus_data.groupby(image_column).size()
         consensus_counts = [consensus_count_series.get(img, 0) for img in all_images]
 
     # Analyze agreement for each image

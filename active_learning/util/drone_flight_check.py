@@ -2,11 +2,14 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-from active_learning.config.mapping import get_island_code, drone_mapping
+from active_learning.config.mapping import get_island_code, drone_mapping, expedition_mapping
 from active_learning.util.rename import get_site_code
 
 
 def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
+    """
+
+    """
     try:
         # drop
         gdf_all.drop(columns=['Unnamed: 0'], inplace=True)
@@ -26,7 +29,13 @@ def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
         lambda x: x.split('_')[0] if isinstance(x, str) and '_' in x else x)
 
     gdf_all['YYYYMMDD'] = gdf_all['datetime_digitized'].dt.strftime('%Y-%m-%d')
-    gdf_all["drone_name"] = gdf_all["body_serial_number"].apply(lambda x: drone_mapping.get(x, "falcon"))
+    # Add expedition phase mapping
+    gdf_all['year_month'] = gdf_all['datetime_digitized'].dt.strftime('%Y_%m')
+
+    # Map the expedition phases
+    gdf_all['expedition_phase'] = gdf_all['year_month'].map(expedition_mapping)
+
+    gdf_all["drone_name"] = gdf_all["body_serial_number"].apply(lambda x: drone_mapping.get(x, "Falcon"))
 
     # Use absolute height value
     gdf_all['gsd_abs_width_cm'] = gdf_all["height"].apply(
@@ -49,6 +58,7 @@ def get_analysis_ready_image_metadata(gdf_all: gpd.GeoDataFrame):
     gdf_all['gsd_rel_avg_cm'] = gdf_all["RelativeAltitude"].apply(
         lambda h: calculate_gsd(h)[2] if pd.notna(h) else None
     )
+
 
     return gdf_all
 
@@ -103,6 +113,72 @@ def classify_bearing(bearing):
         return None
 
 
+def normalize_angle(angle):
+    """Normalize angle to -180 to 180 range"""
+    while angle > 180:
+        angle -= 360
+    while angle < -180:
+        angle += 360
+    return angle
+
+def calculate_overlap(image_name, bearing, flight_yaw, gimbal_yaw, distance, ground_height, ground_width, threshold=30):
+    """
+    Calculate image overlap between consecutive drone positions.
+
+    Parameters:
+    -----------
+    bearing : float
+        Bearing to previous position (degrees)
+    flight_yaw : float
+        Drone flight yaw angle (degrees)
+    distance : float
+        Distance traveled (meters)
+    ground_height : float
+        Ground coverage in flight direction (meters)
+    ground_width : float
+        Ground coverage perpendicular to flight (meters)
+    threshold : float
+        Angle difference threshold to determine forward vs sideways flight (degrees)
+
+    Returns:
+    --------
+    dict with overlap_percent, overlap_distance, flight_mode
+    """
+    # Calculate angle difference
+    angle_diff = abs(normalize_angle(bearing - flight_yaw))
+
+    drone_gimbal_angle_diff = abs(normalize_angle(flight_yaw - gimbal_yaw))
+
+    # Determine if flying forward or sideways
+    if angle_diff < threshold or angle_diff > (180 - threshold):
+        # Flying forward: overlap is along height dimension
+        flight_mode = "forward"
+        relevant_dimension = ground_height
+    elif angle_diff > (180 - threshold):
+        # Flying backward: bearing is opposite to flight yaw (≈180°)
+        flight_mode = "backward"
+        relevant_dimension = ground_height
+    elif abs(angle_diff - 90) < threshold or abs(angle_diff - 270) < threshold:
+        # Flying sideways: overlap is along width dimension
+        flight_mode = "sideways"
+        relevant_dimension = ground_width
+    else:
+        # Diagonal flight
+        flight_mode = "diagonal"
+        relevant_dimension = min(ground_height, ground_width)
+
+    # Calculate overlap
+    overlap_distance = relevant_dimension - distance
+    overlap_percent = (overlap_distance / relevant_dimension) * 100
+
+    return {
+        'flight_mode': flight_mode,
+        'angle_diff': angle_diff,
+        'relevant_dimension': relevant_dimension,
+        'overlap_distance': overlap_distance,
+        'forward_overlap_pct': overlap_percent
+    }
+
 def calculate_forward_overlap(distance, ground_width, ground_height, direction):
     """
     Calculate forward overlap percentage based on distance and image footprint
@@ -128,7 +204,7 @@ def calculate_forward_overlap(distance, ground_width, ground_height, direction):
 def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
     """
     Calculate flight metrics such as distance, time difference, speed, overlap, and risk score.
-    :param gdf_all:
+    :param gdf_all: The full Group, usually a single fight
     :param gsd_col:
     :return:
     """
@@ -149,7 +225,6 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
         if row['prev_geometry'] is not None else np.nan,
         axis=1
     )
-
 
     # Calculate time difference in seconds between consecutive shots
     gdf_all['time_diff_seconds'] = gdf_all.apply(
@@ -213,16 +288,53 @@ def get_flight_metrics(gdf_all: gpd.GeoDataFrame, gsd_col="gsd_rel_avg_cm"):
 
     # Calculate overlap of each image in percentages
     # For simplicity, we'll use a direct approach based on distance and image footprint
-    gdf_all['forward_overlap_pct'] = gdf_all.apply(
-        lambda row: calculate_forward_overlap(
+    # gdf_all['forward_overlap_pct'] = gdf_all.apply(
+    #     lambda row: calculate_forward_overlap(
+    #         row['distance_to_prev'],
+    #         row['ground_width_m'],
+    #         row['ground_height_m'],
+    #         row['flight_direction']
+    #     ) if pd.notna(row['distance_to_prev']) and pd.notna(row['ground_width_m'])
+    #     else np.nan,
+    #     axis=1
+    # )
+    # bearing, flight_yaw, distance, ground_height, ground_width, threshold
+    # Calculate overlap of each image in percentages
+    # For simplicity, we'll use a direct approach based on distance and image footprint
+    gdf_all[['flight_mode', 'angle_diff', 'relevant_dimension', 'overlap_distance', 'forward_overlap_pct']] = gdf_all.apply(
+        lambda row: calculate_overlap(
+            row['image_name'],
+            row['bearing_to_prev'],
+            row['FlightYawDegree'],
+            row['GimbalYawDegree'],
             row['distance_to_prev'],
-            row['ground_width_m'],
             row['ground_height_m'],
-            row['flight_direction']
-        ) if pd.notna(row['distance_to_prev']) and pd.notna(row['ground_width_m'])
-        else np.nan,
+            row['ground_width_m'],
+        ) if pd.notna(row['distance_to_prev']) and pd.notna(row['ground_height_m'])
+        else pd.Series({
+            'flight_mode': np.nan,
+            'angle_diff': np.nan,
+            'relevant_dimension': np.nan,
+            'overlap_distance': np.nan,
+            'forward_overlap_pct': np.nan
+        }),
         axis=1
     )
+
+
+
+    # Is the flight a oblique flight or a nadir flight
+    def classify_flight_type(pitch):
+        if pitch is None or pd.isna(pitch):
+            return False, True  # oblique=False, nadir=True
+        return pitch >= -70, pitch < -70  # oblique, nadir
+
+    gdf_all[['is_oblique', 'is_nadir']] = gdf_all['GimbalPitchDegree'].apply(
+        lambda pitch: pd.Series(classify_flight_type(pitch))
+    )
+
+    # set any forward overlap values to None when the flight is oblique or sideways
+    gdf_all.loc[gdf_all['is_oblique'] | (gdf_all['flight_mode'] == 'sideways'), 'forward_overlap_pct'] = None
 
     # Clean up by dropping intermediate columns
     gdf_all = gdf_all.drop(columns=['prev_geometry', 'prev_datetime'])
@@ -270,18 +382,7 @@ def calculate_gsd(height,
 def find_anomalous_images(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Find images taken at a speed of 5 m/s or more with a shutter speed of 1/1500 or slower
-
-    Parameters:
-    -----------
-    csv_file_path : str
-        Path to the CSV file containing image metadata
-
-    Returns:
-    --------
-    pandas.DataFrame
-        DataFrame containing the filtered anomalous images
     """
-    # TODO add height and gsd to the data too
 
     # replace NaN with 0
     df['exposure_time'] = df['exposure_time'].fillna(0)

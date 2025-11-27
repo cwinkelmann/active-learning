@@ -2,26 +2,15 @@ import typing
 
 import copy
 
-import random
-
 import abc
-from enum import Enum
 import random
-import json
 from loguru import logger
 from typing import Dict
 
+from active_learning.types.filter import SampleStrategy
 from active_learning.config.dataset_filter import DatasetFilterConfig
 from com.biospheredata.types.HastyAnnotationV2 import HastyAnnotationV2
 
-class SampleStrategy(Enum):
-    FIRST = 1
-    RANDOM = 2
-    PERCENTAGE = 3
-
-class SpatialSampleStrategy(Enum):
-    NEAREST = 1
-    RANDOM = 2
 
 class ImageFilter():
     def __init__(self):
@@ -63,6 +52,20 @@ def sample_hasty(l: typing.List[T],
         if n is None:
             raise ValueError("n must be specified for the 'first' method")
         n = min(n, len(l))  # Ensure n doesn't exceed the number of l
+        sampled_list = l[:n]
+
+    elif method == SampleStrategy.ORDERED_ASC:
+        """ get first images by amount of labels"""
+        if n is None:
+            raise ValueError("n must be specified for the 'ordered' method")
+        l = sorted(l, key=lambda x: x.label_count(), reverse=False)
+        sampled_list = l[:n]
+    elif method == SampleStrategy.ORDERED_DESC:
+        """ get first images by amount of labels"""
+        if n is None:
+            raise ValueError("n must be specified for the 'ordered' method")
+        l = sorted(l, key=lambda x: x.label_count(), reverse=True)
+
         sampled_list = l[:n]
 
     else:
@@ -236,4 +239,48 @@ class ImageFilterConstantNum(ImageFilter):
             logger.error(f"Number of images after filtering: {len(hA_filtered.images)}")
         else:
             logger.info(f"Number of images after filtering: {len(hA_filtered.images)}")
+        return hA_filtered
+
+
+class ImageFilterConstantNumByLabel(ImageFilter):
+    """
+    Get as many images as longs as the total sum is less than N labels.
+
+    """
+
+
+    def __init__(self, num_labels: typing.Optional[int] = None,
+                 sample_strategy: SampleStrategy = SampleStrategy.RANDOM,
+                 seed: int = 42
+                 ):
+
+        super().__init__()
+        self.sample_strategy = sample_strategy
+        self.num_labels = num_labels
+
+        random.seed(seed)
+
+    def __call__(self, hA: HastyAnnotationV2):
+        """ get N images randomly
+        :return:
+        """
+        assert isinstance(hA, HastyAnnotationV2), "hA must be a HastyAnnotationV2 object"
+        hA = super().__call__(hA)
+
+        hA_filtered = copy.deepcopy(hA)
+
+        collected_images = []
+        collected_labels = 0
+        if self.num_labels is not None and self.num_labels > 0:
+            # remove every image with less than min_labels labels
+            for i in hA_filtered.images:
+                if sum([len(i.labels) for i in collected_images]) >= self.num_labels + len(i.labels):
+                    break
+                else:
+                    collected_images.append(i)
+                    collected_labels += len(i.labels)
+
+            hA_filtered.images = collected_images
+            logger.info(f"Number of images after filtering: {len(hA_filtered.images)} with {collected_labels} labels")
+
         return hA_filtered

@@ -1,5 +1,7 @@
 """
-A marked iguana is not consistent in size an sharpness etc
+A marked iguana is not consistent in size and sharpness etc,
+This extracts individual objects from the images and labels and crops them to a fixed size.
+Some are labels with a visibility of 0 to 10 to asses the quality of the labels.
 
 
 """
@@ -23,10 +25,9 @@ from pathlib import Path
 from active_learning.config.dataset_filter import DatasetFilterConfig
 from active_learning.filter import ImageFilterConstantNum, ImageLabelFilterAttribute
 from active_learning.pipelines.data_prep import DataprepPipeline, UnpackAnnotations, AnnotationsIntermediary
-from com.biospheredata.converter.HastyConverter import AnnotationType
+from com.biospheredata.types.status import AnnotationType
 from com.biospheredata.converter.HastyConverter import HastyConverter
 
-## TODO Download annotations from hasty
 
 
 
@@ -56,18 +57,22 @@ if __name__ == "__main__":
     # class_filter = ["iguana_point", "iguana"]
 
     ## Segmentation masks
-    labels_path = Path("/Users/christian/data/training_data/2025-07-02")
-    hasty_annotations_labels_zipped = "labels_2025_07_02.zip"
-    hasty_annotations_images_zipped = "images_2025_07_02.zip"
+    labels_path = Path("/Users/christian/data/training_data/2025_07_10_final_analysis")
+    hasty_annotations_labels_zipped = "2025_07_10_labels_final.zip"
+    hasty_annotations_images_zipped = "2025_07_10_images_final.zip"
     annotation_types = [AnnotationType.BOUNDING_BOX]
 
     class_filter = ["iguana"]
 
-    crop_size = 140
+    crop_size = 190
     overlap = 0
     # amount of empty images in the dataset
 
-    island = "Fernandina_s"  # or "Fernandina", "Santiago", "San Cristobal", "Santa Cruz", "Genovesa"
+    island = "Fernandina_s"
+    island = "Fernandina_m"
+    island = "Genovesa"
+    island = "Floreana"
+    island = "Floreana_best"
 
     datasets = {
         "Floreana": ['Floreana_22.01.21_FPC07', 'Floreana_03.02.21_FMO06', 'FLMO02_28012023', 'FLBB01_28012023',
@@ -90,10 +95,12 @@ if __name__ == "__main__":
         #                   "DJI_0195.JPG", "DJI_0237.JPG", "DJI_0285.JPG", "DJI_0220.JPG",
         #                   ],
         "attribute_filter": [
+            # Attribute(name="visibility", type="int", values=[-1,0,1,2,3,4,5,6,7,8,9,10])
             Attribute(name="visibility", type="int", values=[-1,0,1,2,3,4,5,6,7,8,9,10])
         ],
         "dataset_filter": dataset_filter,
         "empty_fraction": 0.0,
+        "remove_padding_folder": False,
         # "image_tags": ["segment"],
         # "num": 1
 
@@ -142,6 +149,7 @@ if __name__ == "__main__":
                               crop_size=crop_size,
                               overlap=overlap,
                               output_path=output_path_dset,
+                              config=dataset
                               )
         dp.dataset_filter = dataset.dataset_filter
 
@@ -157,7 +165,6 @@ if __name__ == "__main__":
         dp.empty_fraction = dataset.empty_fraction
         dp.visualise_path = vis_path
 
-        # TODO inject a function for cropping so not only the regular grid is possible but random rotated crops too
         dp.run(flatten=True)
 
         hA_filtered = dp.get_hA_filtered()
@@ -171,8 +178,18 @@ if __name__ == "__main__":
               "width": l.width,
               "area": l.width * l.height,
               "visibility": l.attributes.get("visibility", -99),
-              "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels] # TODO add the bounding box in here too
+              "height": l.height, "bbox": l.bbox} for i in hA_filtered.images for l in i.labels]
+
         df_parameter = pd.DataFrame(l)
+
+        bins = [-2, 2, 5, 10]  # -2 to include -1, then 2, 5, and 10
+        labels = ['low', 'medium', 'high']
+
+        df_parameter['visibility_category'] = pd.cut(df_parameter['visibility'],
+                                           bins=bins,
+                                           labels=labels,
+                                           include_lowest=True)
+
         df_parameter.to_csv(output_path_dset / "individual_object.csv")
         # visualise a histogram
 
@@ -226,8 +243,8 @@ if __name__ == "__main__":
 
         fig = plot_image_grid_by_visibility(df_merged,
                                             image_dir=output_path_dset_object_const,
-                                            max_images_per_visibility=8,
-                                            width_scale=0.9)
+                                            max_images_per_visibility=4,
+                                            visibility_col='visibility_category',visibility_order = ['high', 'medium', 'low'])
 
         fig.savefig(vis_path / f"image_grid_by_visibility_{island}.png", dpi=300)
         plt.show()
