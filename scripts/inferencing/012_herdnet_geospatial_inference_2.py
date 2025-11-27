@@ -207,15 +207,24 @@ if __name__ == '__main__':
 
     # hydra_cfg = get_config(config_name="config_2025_08_08_dla34_train_val_inverted_val_corrected")
     # hydra_cfg = get_config(config_name="config_2025_08_10_dinov2_floreana_fernandia_all_val_fernandina")
-    hydra_cfg = get_config(config_name="config_2025_011_17_dla34")
+    hydra_cfg = get_config(config_name="demo_config")
     prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dla_20251122")
-    prediction_output_dir = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/AI_detection_dla_20251122')
-
+    prediction_output_dir = Path(
+        '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Prediction/AI_detection_dla_20251122')
+    orthomosaic_path = Path(
+        '/Users/christian/Downloads/4ms_gsd04-2000_2.tif')
     # hydra_cfg = get_config(config_name="config_2025_011_17_dino")
     # prediction_output_dir = Path("/raid/cwinkelmann/Manual_Counting/AI_detection_dino_202511122")
 
+    gdf_predictions = geospatial_inference_pipeline(orthomosaic_path,
+                                                    hydra_cfg=hydra_cfg,
+                                                    min_score=0.1,
+                                                    prediction_output_dir=prediction_output_dir,
+                                                    tile_images_path=prediction_output_dir, )
+
     dd_paths = Path("/raid/cwinkelmann/Manual_Counting/Drone Deploy orthomosaics/")
-    dd_paths = Path('/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/orthomosaics')
+    dd_paths = Path(
+        '/Users/christian/Library/CloudStorage/GoogleDrive-christian.winkelmann@gmail.com/My Drive/documents/Studium/FIT/Master Thesis/submission/Flight Database Statistics/Mavic 2 Pro/orthomosaics')
 
     # hydra_cfg.device_name = random_device()
     max_workers = 6

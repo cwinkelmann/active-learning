@@ -82,7 +82,8 @@ Now train a HerdNet model. Modify the configurations accordingly.
 
 #### Geospatial Inference
 extend your pythonpath with the path to your HerdNet implementation
-PYTHONPATH=$PYTHONPATH:/home/cwinkelmann/work/Herdnet:/Users/christian/PycharmProjects/hnee/HerdNet
+```PYTHONPATH=$PYTHONPATH:/home/cwinkelmann/work/Herdnet:/Users/christian/PycharmProjects/hnee/HerdNet```
+and make sure the Orthomosaic is in a projected CRS.
 ```
 inferencing/012_herdnet_geospatial_inference_2.py
 ```

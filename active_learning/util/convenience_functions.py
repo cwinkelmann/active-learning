@@ -42,7 +42,7 @@ def get_tiles(orthomosaic_path,
                        grid=grid_gdf,
                        output_dir=output_dir)
 
-    gdf_tiles = slicer.slice_very_big_raster()
+    gdf_tiles = slicer.slice_very_big_raster(num_workers=2)
 
     converted_tiles = convert_tiles_to(tiles=list(slicer.gdf_slices.slice_path),
                                        format=ImageFormat.JPG,
